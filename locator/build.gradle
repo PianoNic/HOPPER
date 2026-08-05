@@ -1,0 +1,43 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'ch.pianonic'
+version = '1.0.0'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+dependencies {
+    // Versions pinned to what Forge 1.20.1-47.1.3 itself depends on, taken from
+    // fmlloader-1.20.1-47.1.3.pom. All compileOnly: every one of these is already
+    // present on the SERVICE layer when the locator runs.
+    //
+    // No ForgeGradle and no reobf here on purpose - a locator never touches a
+    // Minecraft class, so there is nothing to remap.
+    compileOnly 'net.minecraftforge:forgespi:7.0.1'
+    compileOnly 'cpw.mods:modlauncher:10.0.9'
+    compileOnly 'org.apache.logging.log4j:log4j-api:2.19.0'
+    compileOnly 'com.google.code.gson:gson:2.10.1'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jar {
+    manifest.attributes(
+            // SecureJar turns this into the module name in the SERVICE layer.
+            // Without it the name is derived from the filename, which breaks the
+            // moment someone renames the jar.
+            'Automatic-Module-Name': 'hopper',
+            'Implementation-Version': project.version
+    )
+}

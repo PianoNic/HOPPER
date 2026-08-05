@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>8a4a78d3-9e60-46a9-ab63-8afcf7bc2bee</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+    <PackageReference Include="Mediator.SourceGenerator" Version="3.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <!-- Transitive pin. Microsoft.AspNetCore.OpenApi 10.0.x hard-pins Microsoft.OpenApi 2.0.0,
+         which carries GHSA-v5pm-xwqc-g5wc (high severity); bumping the ASP.NET package does not
+         move it, so it has to be lifted directly. Same major version, so the v2 document-transformer
+         API (OpenApiSecuritySchemeReference, Uri-typed flow URLs) is unchanged. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HOPPER.Application\HOPPER.Application.csproj" />
+    <ProjectReference Include="..\HOPPER.Infrastructure\HOPPER.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

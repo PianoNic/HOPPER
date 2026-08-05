@@ -1,0 +1,50 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "paths": {
+      "@spartan-ng/helm/button": ["./libs/ui/button/src/index.ts"],
+      "@spartan-ng/helm/utils": ["./libs/ui/utils/src/index.ts"],
+      "@spartan-ng/helm/card": ["./libs/ui/card/src/index.ts"],
+      "@spartan-ng/helm/table": ["./libs/ui/table/src/index.ts"],
+      "@spartan-ng/helm/badge": ["./libs/ui/badge/src/index.ts"],
+      "@spartan-ng/helm/input": ["./libs/ui/input/src/index.ts"],
+      "@spartan-ng/helm/label": ["./libs/ui/label/src/index.ts"],
+      "@spartan-ng/helm/dialog": ["./libs/ui/dialog/src/index.ts"],
+      "@spartan-ng/helm/sidebar": ["./libs/ui/sidebar/src/index.ts"],
+      "@spartan-ng/helm/separator": ["./libs/ui/separator/src/index.ts"],
+      "@spartan-ng/helm/sheet": ["./libs/ui/sheet/src/index.ts"],
+      "@spartan-ng/helm/skeleton": ["./libs/ui/skeleton/src/index.ts"],
+      "@spartan-ng/helm/tooltip": ["./libs/ui/tooltip/src/index.ts"],
+      "@spartan-ng/helm/avatar": ["./libs/ui/avatar/src/index.ts"],
+      "@spartan-ng/helm/dropdown-menu": ["./libs/ui/dropdown-menu/src/index.ts"],
+      "@spartan-ng/helm/progress": ["./libs/ui/progress/src/index.ts"],
+      "@spartan-ng/helm/sonner": ["./libs/ui/sonner/src/index.ts"]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}

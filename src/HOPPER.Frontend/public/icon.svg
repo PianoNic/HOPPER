@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Contained mark: the opaque tile guarantees contrast on light and dark browser tabs without
+       a prefers-color-scheme rule, and uses the full canvas so the silhouette survives 16px. -->
+  <rect width="64" height="64" rx="14" fill="#0B1220" />
+  <!-- A hopper: wide mouth, narrow spout. Filled rather than stroked - a stroke thin enough to
+       look right at 512px disappears at 16px, and a solid shape passes the one-colour test. -->
+  <path d="M10 14H54L37 32V42H27V32L10 14Z" fill="#E5E7EB" />
+  <!-- The jar coming out the bottom. The only accent, and the only thing that moves the eye. -->
+  <circle cx="32" cy="51" r="5" fill="#38BDF8" />
+</svg>

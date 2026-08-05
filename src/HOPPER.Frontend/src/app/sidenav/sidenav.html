@@ -1,0 +1,104 @@
+<div hlmSidebarWrapper>
+  <hlm-sidebar variant="inset" collapsible="icon">
+    <hlm-sidebar-header>
+      <ul hlmSidebarMenu>
+        <li hlmSidebarMenuItem>
+          <a hlmSidebarMenuButton size="lg" routerLink="/" class="!w-56 mx-auto">
+            <img
+              src="icon.svg"
+              alt="HOPPER"
+              class="size-8 shrink-0 group-data-[collapsible=icon]:size-7"
+            />
+            <div
+              class="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden"
+            >
+              <span class="truncate font-medium">HOPPER</span>
+              <span class="truncate text-xs">{{ version() ? 'v' + version() : '' }}</span>
+            </div>
+          </a>
+        </li>
+      </ul>
+    </hlm-sidebar-header>
+
+    <hlm-sidebar-content>
+      <ul hlmSidebarMenu>
+        @for (item of navItems; track item.route) {
+          <li hlmSidebarMenuItem>
+            <a
+              hlmSidebarMenuButton
+              [routerLink]="item.route"
+              [isActive]="isRouteActive(item.route)"
+              class="!w-56 mx-auto"
+            >
+              <ng-icon [name]="item.icon" />
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </hlm-sidebar-content>
+
+    <hlm-sidebar-footer>
+      <ul hlmSidebarMenu>
+        <li hlmSidebarMenuItem>
+          <button
+            hlmSidebarMenuButton
+            size="lg"
+            [hlmDropdownMenuTrigger]="userMenu"
+            [side]="menuSide()"
+            align="end"
+            class="!w-56 mx-auto"
+          >
+            <hlm-avatar
+              class="rounded-full shrink-0 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:text-xs"
+            >
+              @if (user().avatar) {
+                <img [src]="user().avatar" [alt]="user().name" hlmAvatarImage />
+              }
+              <span hlmAvatarFallback>{{ user().name.charAt(0).toUpperCase() }}</span>
+            </hlm-avatar>
+            <div
+              class="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden"
+            >
+              <span class="truncate font-medium">{{ user().name }}</span>
+              <span class="truncate text-xs">{{ user().email }}</span>
+            </div>
+            <ng-icon
+              name="lucideChevronsUpDown"
+              class="ml-auto group-data-[collapsible=icon]:hidden"
+            />
+          </button>
+
+          <ng-template #userMenu>
+            <hlm-dropdown-menu class="min-w-64">
+              <hlm-dropdown-menu-label>{{ user().email }}</hlm-dropdown-menu-label>
+
+              <hlm-dropdown-menu-separator />
+
+              <hlm-dropdown-menu-group>
+                @for (option of themeOptions; track option.mode) {
+                  <button hlmDropdownMenuItem (click)="setTheme(option.mode)">
+                    <ng-icon [name]="option.icon" />
+                    {{ option.label }}
+                    @if (themeMode() === option.mode) {
+                      <span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+                    }
+                  </button>
+                }
+              </hlm-dropdown-menu-group>
+
+              <hlm-dropdown-menu-separator />
+
+              <button hlmDropdownMenuItem (click)="logout()">
+                <ng-icon name="lucideLogOut" />
+                Log out
+              </button>
+            </hlm-dropdown-menu>
+          </ng-template>
+        </li>
+      </ul>
+    </hlm-sidebar-footer>
+  </hlm-sidebar>
+
+  <ng-content></ng-content>
+</div>

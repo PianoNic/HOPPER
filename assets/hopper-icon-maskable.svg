@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Maskable source. Android crops this to a circle, squircle, rounded square or teardrop, so the
+       mark has to sit inside the 409px (80%) safe circle and the brand colour has to run edge to
+       edge. Scaled to ~62% of the canvas and centred, which clears the safe zone on every mask.
+       Verify at https://maskable.app before shipping. -->
+  <rect width="512" height="512" fill="#0B1220" />
+  <g transform="translate(96 96) scale(5)">
+    <path d="M10 14H54L37 32V42H27V32L10 14Z" fill="#E5E7EB" />
+    <circle cx="32" cy="51" r="5" fill="#38BDF8" />
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+export * from './app.service';
+import { AppService } from './app.service';
+export * from './blobs.service';
+import { BlobsService } from './blobs.service';
+export * from './clients.service';
+import { ClientsService } from './clients.service';
+export * from './manifest.service';
+import { ManifestService } from './manifest.service';
+export * from './mods.service';
+import { ModsService } from './mods.service';
+export const APIS = [AppService, BlobsService, ClientsService, ManifestService, ModsService];

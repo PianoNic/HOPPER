@@ -1,0 +1,43 @@
+# Dev infrastructure only - the API and the dashboard run on the host in this setup
+# (`dotnet run --project src/HOPPER.API` on :5170, `bun start` on :4200).
+#
+# Starts the two things HOPPER cannot run as plain files: Postgres and an IdP. Blobs stay a
+# directory on the host.
+#
+# The matching Oidc:* / Cors:AllowedOrigins values are checked into
+# src/HOPPER.API/appsettings.Development.json, so `docker compose -f compose.dev.yml up -d`
+# plus `dotnet run` plus `bun start` is the whole setup.
+#
+# Its own project name: without one, Compose derives it from the directory and both files land in
+# the same project, so bringing the bundled stack up or down would silently take the dev IdP with it.
+name: hopper-dev
+
+services:
+  # Port 5433, not 5432, so this never collides with a Postgres already running on the host.
+  # DatabaseExtensions' built-in default points here, so `dotnet run` needs no configuration.
+  db:
+    image: postgres:18.3
+    container_name: hopper-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hopper
+      POSTGRES_USER: hopper
+      POSTGRES_PASSWORD: hopper
+    ports:
+      - "5433:5432"
+    volumes:
+      - hopper-db-dev:/var/lib/postgresql/data
+
+  idp:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    container_name: hopper-idp-dev
+    restart: unless-stopped
+    environment:
+      JSON_CONFIG_PATH: /app/config.json
+    volumes:
+      - ./oidc/mock-oauth2-config.json:/app/config.json:ro
+    ports:
+      - "58539:8080"
+
+volumes:
+  hopper-db-dev:

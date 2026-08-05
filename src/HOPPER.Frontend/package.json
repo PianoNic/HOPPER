@@ -1,0 +1,61 @@
+{
+  "name": "hopper.frontend",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "build:agent": "ng build --aot --configuration production",
+    "apigen": "npx openapi-generator-cli generate"
+  },
+  "private": true,
+  "packageManager": "bun@1.3.0",
+  "dependencies": {
+    "@angular/cdk": "^21.2.0",
+    "@angular/common": "^21.2.0",
+    "@angular/compiler": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/forms": "^21.2.0",
+    "@angular/platform-browser": "^21.2.0",
+    "@angular/router": "^21.2.0",
+    "@ng-icons/core": ">=32.0.0 <34.0.0",
+    "@ng-icons/lucide": ">=32.0.0 <34.0.0",
+    "@ng-icons/simple-icons": "^33.2.2",
+    "@spartan-ng/brain": "^0.0.1-alpha.695",
+    "angular-auth-oidc-client": "^21.0.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "rxjs": "~7.8.0",
+    "tailwind-merge": "^3.5.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.2.20",
+    "@angular/cli": "^21.2.20",
+    "@angular/compiler-cli": "^21.2.0",
+    "@openapitools/openapi-generator-cli": "^2.32.0",
+    "@spartan-ng/cli": "^0.0.1-alpha.720",
+    "@tailwindcss/postcss": "^4.1.12",
+    "jsdom": "^28.0.0",
+    "postcss": "^8.5.3",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.1.12",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  }
+}

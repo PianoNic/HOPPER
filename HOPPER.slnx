@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HOPPER.API/HOPPER.API.csproj" />
+    <Project Path="src/HOPPER.Application/HOPPER.Application.csproj" />
+    <Project Path="src/HOPPER.Domain/HOPPER.Domain.csproj" />
+    <Project Path="src/HOPPER.Infrastructure/HOPPER.Infrastructure.csproj" />
+    <Project Path="src/HOPPER.Tests/HOPPER.Tests.csproj" />
+  </Folder>
+</Solution>

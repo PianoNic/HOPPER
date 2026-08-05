@@ -1,0 +1,83 @@
+# The bundled HOPPER stack: the API (which also serves the dashboard out of its own wwwroot) plus a
+# throwaway IdP so a fresh checkout can log in without standing up Keycloak first.
+#
+# Because the SPA is served by the API, the dashboard and the API are the same origin here and
+# Cors__AllowedOrigins is deliberately unset - there is no cross-origin call to allow. Only the
+# split dev setup (ng serve on :4200) needs it; see compose.dev.yml and appsettings.Development.json.
+services:
+  # Non-interactive: it signs a token for whoever asks and redirects straight back, so there is no
+  # login form and no credentials. Swap this service out for your real IdP by pointing Oidc__* at it.
+  idp:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    container_name: hopper-idp
+    restart: unless-stopped
+    environment:
+      JSON_CONFIG_PATH: /app/config.json
+    volumes:
+      - ./oidc/mock-oauth2-config.json:/app/config.json:ro
+    ports:
+      - "58538:8080"
+
+  db:
+    image: postgres:18.3
+    container_name: hopper-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hopper
+      POSTGRES_USER: hopper
+      # Local-stack default. Override with Postgres__Password in .env before exposing this
+      # anywhere, and change ConnectionStrings__HopperDatabase below to match.
+      POSTGRES_PASSWORD: hopper
+    healthcheck:
+      # depends_on alone only waits for the process, not for it to accept connections, so a cold
+      # start would race the API's migration step.
+      test: ["CMD-SHELL", "pg_isready -U hopper -d hopper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - hopper-db:/var/lib/postgresql/data
+
+  hopper:
+    image: ghcr.io/pianonic/hopper:latest
+    build:
+      context: .
+      dockerfile: src/HOPPER.API/Dockerfile
+    container_name: hopper
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # The browser reaches the IdP on the published port while the API reaches it on the compose
+      # network, so metadata is fetched from the internal URL and the issuer inside the token is
+      # validated against the public one.
+      Oidc__Authority: "http://localhost:58538/default"
+      Oidc__InternalAuthority: "http://idp:8080/default"
+      Oidc__RequireHttpsMetadata: "false"
+      Oidc__ClientId: hopper
+      Oidc__RedirectUri: "http://localhost:58722/"
+      Oidc__PostLogoutRedirectUri: "http://localhost:58722/"
+      Oidc__Scope: "openid profile email roles"
+      # The shared secret every Forge locator puts in its hopper.properties. An array so it can be
+      # rotated without downtime: add the new one, redistribute, then drop the old one. Change this
+      # before exposing the stack to anything but your own machine.
+      Hopper__ClientTokens__0: "hopper-local-client-token"
+      # What the manifest hands clients as the download host. Derived from the request (and its
+      # X-Forwarded-* headers) when unset; set it when the proxy does not forward them.
+      Hopper__PublicBaseUrl: "http://localhost:58722"
+      ConnectionStrings__HopperDatabase: "Host=db;Port=5432;Database=hopper;Username=hopper;Password=hopper"
+    depends_on:
+      idp:
+        condition: service_started
+      db:
+        condition: service_healthy
+    ports:
+      - "58722:8080"
+    volumes:
+      # Only the content-addressed blob store lives here now - the database is its own service.
+      - hopper-data:/data
+
+volumes:
+  hopper-data:
+  hopper-db:

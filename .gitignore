@@ -1,0 +1,33 @@
+# ---- .NET ----
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# ---- runtime state ----
+# SQLite lands in the output directory by default, so bin/ already covers it - these catch a
+# run that was pointed somewhere else, and the blob store, which must never be committed.
+*.db
+*.db-shm
+*.db-wal
+blobs/
+
+# ---- secrets ----
+.env
+!.env.example
+
+# ---- frontend ----
+node_modules/
+dist/
+.angular/
+*.tsbuildinfo
+
+# ---- locator (Gradle) ----
+locator/.gradle/
+locator/build/
+
+# ---- editors / OS ----
+.idea/
+.DS_Store
+Thumbs.db
