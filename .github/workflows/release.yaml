@@ -1,8 +1,14 @@
 name: Release
 
 # One pipeline for a published GitHub Release, in order:
-#   1. sync-version - bump application.properties to the release tag, commit it to main.
-#   2. docker       - build + push the multi-arch image from the bumped main.
+#   1. ci           - every gate in ci.yaml, against the tagged tree.
+#   2. sync-version - bump application.properties to the release tag, commit it to main.
+#   3. docker       - build + push the multi-arch image from the bumped main.
+#
+# ci comes FIRST, and sync-version needs it. The bump is a push to main, so running it ahead of the
+# gates means a release that cannot build still moves main - which is exactly what happened when the
+# Dockerfile's locator stage broke: nothing verified the image, and the only signal was a red job
+# after the version had already landed.
 #
 # docker depends on sync-version and checks out main *after* the bump, so the image is built from
 # the version-bumped tree. Directory.Build.props reads application.properties, so the version the
@@ -18,8 +24,15 @@ on:
     types: [published]
 
 jobs:
+  # The same gates a pull request gets, reused rather than restated - a second copy would drift, and
+  # the copy that drifted would be the one guarding releases.
+  ci:
+    name: Gates
+    uses: ./.github/workflows/ci.yaml
+
   sync-version:
     name: Bump version to the release tag
+    needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: write

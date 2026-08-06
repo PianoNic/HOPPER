@@ -1,0 +1,189 @@
+name: CI
+
+# Every gate CLAUDE.md lists under "Before you claim it works", run on the tree rather than on
+# trust. Four jobs because the four toolchains are independent - a Gradle break should not hide
+# behind a .NET restore - and they run in parallel.
+#
+# The image build is a gate in its own right, and the reason this file exists. The locator became a
+# multi-module Gradle build, the Dockerfile's locator stage kept copying a path that no longer
+# existed, and nothing caught it: `dotnet build` and `bun run build` were both perfectly green while
+# `docker build` could not produce an image at all.
+#
+# workflow_call is deliberate. release.yaml calls this before it bumps the version, so a red build
+# cannot leave a version bump behind on main.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+# A second push to a PR makes the first run pointless. Not applied to main, where each commit's
+# result is worth keeping.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: .NET build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      # -warnaserror rather than a trailing eyeball over the log. CLAUDE.md's bar is 0 warnings, and
+      # a bar nothing enforces is a bar that drifts.
+      - name: Build
+        run: dotnet build --no-restore -warnaserror
+
+      # Testcontainers starts a throwaway Postgres, so this needs a Docker daemon - ubuntu-latest
+      # ships one. Without it the suite fails at startup rather than skipping, which is the honest
+      # outcome: a green run against a different engine would prove nothing about the one HOPPER
+      # ships on. global.json's test.runner opt-in is what makes TUnit discoverable at all; the .NET
+      # 10 SDK dropped the VSTest bridge and without it the build fails rather than reporting no
+      # tests.
+      - name: Test
+        run: dotnet test --no-build
+
+  frontend:
+    name: Angular build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: src/HOPPER.Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+
+      # --frozen-lockfile so CI fails on a lockfile that does not match package.json instead of
+      # quietly resolving something the Dockerfile's own frozen install would then reject.
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        run: bun run test
+
+      # The build has to be checked for warnings, not just for exit status: an NG budget overrun and
+      # most template diagnostics warn and still exit 0, so `bun run build` alone would pass through
+      # exactly what CLAUDE.md asks us to keep out.
+      - name: Build
+        run: |
+          set -o pipefail
+          bun run build 2>&1 | tee build.log
+          if grep -nE "^(Warning|WARNING)|▲|NG[0-9]{4}|exceeded maximum budget" build.log; then
+            echo "::error::The production build emitted warnings. CLAUDE.md requires none."
+            exit 1
+          fi
+
+  locator:
+    name: Locator build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: src/HOPPER.Locator
+    steps:
+      - uses: actions/checkout@v4
+
+      # 21, not the newest available. Gradle 8.14.3 refuses to start on JDK 25 with "Unsupported
+      # class file major version 69". The modules compile to 8 and 17 through --release regardless of
+      # the JDK running the build, so this number does not reach the shipped bytecode. Same version
+      # the Dockerfile's locator stage pins.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # build compiles and tests all eight modules; templates then collects the six shipped adapters
+      # under the unversioned names LocatorTemplates addresses them by. Running templates here is not
+      # decoration - it is the step that fails if a module is renamed without updating that task.
+      - name: Build and collect templates
+        run: ./gradlew --no-daemon build templates
+
+      # A jar the loader will not register is a jar that installs cleanly and does nothing, which is
+      # invisible in a green build. LocatorJarBuilder rejects a template missing its marker at
+      # download time, so checking the same six entries here turns a 503-in-production into a red CI.
+      - name: Every shipped adapter carries its marker entry
+        run: |
+          set -eu
+          check() {
+            if jar tf "build/templates/$1" | grep -qxF "$2"; then
+              echo "ok    $1"
+            else
+              echo "::error::$1 is missing $2"
+              exit 1
+            fi
+          }
+          check hopper-forge-1122.jar   ch/pianonic/hopper/HopperCoreMod.class
+          check hopper-forge-1165.jar   META-INF/services/net.minecraftforge.forgespi.locating.IModLocator
+          check hopper-forge-1182.jar   META-INF/services/net.minecraftforge.forgespi.locating.IModLocator
+          check hopper-forge-modern.jar META-INF/services/net.minecraftforge.forgespi.locating.IModLocator
+          check hopper-neoforge.jar     META-INF/services/net.neoforged.neoforgespi.locating.IModFileCandidateLocator
+          check hopper-fabric.jar       fabric.mod.json
+
+  image:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    # Builds the frontend, the backend and all eight locator modules in one go, so it is the slowest
+    # job here by some way. Fail rather than burn the default 6h ceiling if it ever regresses.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # amd64 only, and push disabled. The release pipeline is what builds multi-arch and publishes;
+      # this job exists to answer one question - does an image come out at all - and paying for an
+      # emulated arm64 build on every pull request would not make the answer any truer.
+      - name: Build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./src/HOPPER.API/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: hopper:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      # The image can build and still be missing the thing that makes it useful. A deployment without
+      # these serves 503 on every client jar download, and the SPA falls back to nothing.
+      # One container running one script, rather than a `docker run` per file. `test` is only a shell
+      # builtin in this image - there is no /usr/bin/test - so --entrypoint test cannot work, and
+      # seven container starts would be seven seconds spent proving the same thing.
+      - name: The image carries the locator templates and the dashboard
+        run: |
+          docker run --rm --entrypoint sh hopper:ci -c '
+            missing=0
+            for f in /app/locator/hopper-forge-1122.jar \
+                     /app/locator/hopper-forge-1165.jar \
+                     /app/locator/hopper-forge-1182.jar \
+                     /app/locator/hopper-forge-modern.jar \
+                     /app/locator/hopper-neoforge.jar \
+                     /app/locator/hopper-fabric.jar \
+                     /app/wwwroot/index.html \
+                     /app/HOPPER.API.dll; do
+              if [ -f "$f" ]; then echo "ok      $f"; else echo "MISSING $f"; missing=1; fi
+            done
+            exit $missing
+          ' || { echo "::error::the image is missing files a deployment needs"; exit 1; }
