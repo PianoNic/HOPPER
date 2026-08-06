@@ -93,8 +93,13 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var publicAuthority = builder.Configuration["Oidc:Authority"];
-        var internalAuthority = builder.Configuration["Oidc:InternalAuthority"] ?? publicAuthority;
+        // NullIfBlank, not ??. Compose interpolates an unset variable to an EMPTY STRING rather than
+        // leaving the key absent, so `Oidc__InternalAuthority: "${Oidc__InternalAuthority:-}"`
+        // arrives here as "" - which ?? happily accepts, skipping the block below and leaving the
+        // scheme with neither a MetadataAddress nor an Authority. Every admin request then fails to
+        // authenticate for a reason nothing in the configuration hints at.
+        var publicAuthority = NullIfBlank(builder.Configuration["Oidc:Authority"]);
+        var internalAuthority = NullIfBlank(builder.Configuration["Oidc:InternalAuthority"]) ?? publicAuthority;
 
         // In Docker the browser reaches the IdP on a published port while the API reaches it on the
         // compose network, so metadata is fetched from the internal URL but the issuer inside the
@@ -259,4 +264,10 @@ app.Run();
 // Exposed so Microsoft.AspNetCore.Mvc.Testing's WebApplicationFactory<Program> can find this
 // assembly's entry point. Top-level statements compile to an internal Program class, which the
 // factory cannot reference; this is the documented way to widen it.
-public partial class Program;
+public partial class Program
+{
+    /// <summary>Treats an empty or whitespace configuration value as absent. Needed wherever a value
+    /// can arrive from Compose interpolation, which writes "" for an unset variable instead of
+    /// omitting the key.</summary>
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+}

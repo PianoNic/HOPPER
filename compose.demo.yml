@@ -1,0 +1,39 @@
+# Overlay that makes the stack a working demo with no configuration at all:
+#
+#   docker compose -f compose.yml -f compose.demo.yml up -d
+#
+# It adds a throwaway identity provider and points HOPPER at it. That IdP is non-interactive - it
+# signs a token for whoever asks and redirects straight back, with no login form and no credentials -
+# so this file must never be part of a deployment anyone else can reach. It lives apart from
+# compose.yml for exactly that reason: a real `docker compose up -d` cannot pick it up by accident.
+#
+# Values here are plain literals rather than ${VAR:-...}. That is deliberate and the opposite of the
+# rule in compose.yml: this overlay exists to pin the demo, so an operator who has half-filled a .env
+# still gets a coherent stack rather than a mix of their issuer and this one.
+services:
+  idp:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    container_name: hopper-idp
+    restart: unless-stopped
+    environment:
+      JSON_CONFIG_PATH: /app/config.json
+    volumes:
+      - ./oidc/mock-oauth2-config.json:/app/config.json:ro
+    ports:
+      - "58538:8080"
+
+  hopper:
+    environment:
+      # The browser reaches the IdP on the published port while the API reaches it on the compose
+      # network, so metadata is fetched from the internal URL and the issuer inside the token is
+      # validated against the public one.
+      Oidc__Authority: "http://localhost:58538/default"
+      Oidc__InternalAuthority: "http://idp:8080/default"
+      # The demo IdP is plain http on localhost, so the https requirement compose.yml defaults to on
+      # has to come off here. This is the single line that makes this file demo-only.
+      Oidc__RequireHttpsMetadata: "false"
+      Oidc__RedirectUri: "http://localhost:58722/"
+      Oidc__PostLogoutRedirectUri: "http://localhost:58722/"
+    depends_on:
+      idp:
+        condition: service_started

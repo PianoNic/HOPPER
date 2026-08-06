@@ -1,37 +1,34 @@
-# The bundled HOPPER stack: the API (which also serves the dashboard out of its own wwwroot) plus a
-# throwaway IdP so a fresh checkout can log in without standing up Keycloak first.
+# The HOPPER stack: the API, which also serves the dashboard out of its own wwwroot, and a Postgres.
+# This file alone is a REAL deployment - it stands up no identity provider and trusts none, so
+# Oidc__* must name yours.
+#
+#   docker compose up -d                                  # real deployment, .env supplies Oidc__*
+#   docker compose -f compose.yml -f compose.demo.yml up -d   # try it out, bundled throwaway IdP
+#
+# EVERY value below is `${VAR:-default}`, and that shape is load-bearing. Compose ranks an inline
+# `environment:` value ABOVE anything in `env_file`, so a plain literal here would silently beat the
+# .env the operator just filled in - they would set a real issuer and a fresh token and get neither,
+# without a single warning. Interpolation inverts that: .env supplies the variable, and the literal
+# after `:-` is only the fallback when it does not.
 #
 # Because the SPA is served by the API, the dashboard and the API are the same origin here and
 # Cors__AllowedOrigins is deliberately unset - there is no cross-origin call to allow. Only the
 # split dev setup (ng serve on :4200) needs it; see compose.dev.yml and appsettings.Development.json.
 services:
-  # Non-interactive: it signs a token for whoever asks and redirects straight back, so there is no
-  # login form and no credentials. Swap this service out for your real IdP by pointing Oidc__* at it.
-  idp:
-    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
-    container_name: hopper-idp
-    restart: unless-stopped
-    environment:
-      JSON_CONFIG_PATH: /app/config.json
-    volumes:
-      - ./oidc/mock-oauth2-config.json:/app/config.json:ro
-    ports:
-      - "58538:8080"
-
   db:
     image: postgres:18.3
     container_name: hopper-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: hopper
-      POSTGRES_USER: hopper
-      # Local-stack default. Override with Postgres__Password in .env before exposing this
-      # anywhere, and change ConnectionStrings__HopperDatabase below to match.
-      POSTGRES_PASSWORD: hopper
+      POSTGRES_DB: "${Postgres__Database:-hopper}"
+      POSTGRES_USER: "${Postgres__User:-hopper}"
+      # Set Postgres__Password in .env before exposing this anywhere. The connection string below
+      # interpolates the same three variables, so the two cannot drift apart.
+      POSTGRES_PASSWORD: "${Postgres__Password:-hopper}"
     healthcheck:
       # depends_on alone only waits for the process, not for it to accept connections, so a cold
       # start would race the API's migration step.
-      test: ["CMD-SHELL", "pg_isready -U hopper -d hopper"]
+      test: ["CMD-SHELL", "pg_isready -U ${Postgres__User:-hopper} -d ${Postgres__Database:-hopper}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -52,32 +49,51 @@ services:
       - path: .env
         required: false
     environment:
-      # The browser reaches the IdP on the published port while the API reaches it on the compose
-      # network, so metadata is fetched from the internal URL and the issuer inside the token is
-      # validated against the public one.
-      Oidc__Authority: "http://localhost:58538/default"
-      Oidc__InternalAuthority: "http://idp:8080/default"
-      Oidc__RequireHttpsMetadata: "false"
-      Oidc__ClientId: hopper
-      Oidc__RedirectUri: "http://localhost:58722/"
-      Oidc__PostLogoutRedirectUri: "http://localhost:58722/"
-      Oidc__Scope: "openid profile email roles"
-      # Token of the one "Default" server HOPPER creates on an empty database, so the stack is a
-      # working demo out of the box. Tokens are per server now and minted by HOPPER; this is only a
-      # seed value, applied when the Servers table is empty and never again - rotate in the dashboard
-      # afterwards. Change it before exposing the stack to anything but your own machine.
-      Hopper__BootstrapClientToken: "hopper-local-client-token"
-      # What the manifest hands clients as the download host. Derived from the request (and its
-      # X-Forwarded-* headers) when unset; set it when the proxy does not forward them.
-      Hopper__PublicBaseUrl: "http://localhost:58722"
-      ConnectionStrings__HopperDatabase: "Host=db;Port=5432;Database=hopper;Username=hopper;Password=hopper"
+      # No default: this file stands up no IdP, so there is nothing honest to point at. Unset means
+      # the API starts with no issuer configured and admin sign-in fails loudly, which is the right
+      # outcome for a deployment that has not been told who to trust.
+      Oidc__Authority: "${Oidc__Authority:-}"
+      # Only for a split-horizon network, where the API reaches the IdP at a different address than
+      # the browser does. Blank falls back to Oidc__Authority. compose.demo.yml sets it, because the
+      # browser reaches the bundled IdP on a published port while the API reaches it on the compose
+      # network - metadata is fetched from the internal URL, the token's issuer is validated against
+      # the public one.
+      Oidc__InternalAuthority: "${Oidc__InternalAuthority:-}"
+      # True by default. Metadata carries the signing keys every admin token is validated against, so
+      # fetching it over a channel anyone on the path can rewrite defeats the whole scheme.
+      # compose.demo.yml turns it off, because the throwaway IdP is plain http on localhost.
+      Oidc__RequireHttpsMetadata: "${Oidc__RequireHttpsMetadata:-true}"
+      Oidc__ClientId: "${Oidc__ClientId:-hopper}"
+      # The dashboard's own origin, which for a deployed HOPPER is the API's origin because the API
+      # serves the SPA. No default: only the operator knows the name their users type, and a
+      # localhost fallback would send every login redirect to the visitor's own machine.
+      Oidc__RedirectUri: "${Oidc__RedirectUri:-}"
+      Oidc__PostLogoutRedirectUri: "${Oidc__PostLogoutRedirectUri:-${Oidc__RedirectUri:-}}"
+      Oidc__Scope: "${Oidc__Scope:-openid profile email roles}"
+      # Token of the one "Default" server HOPPER creates on an empty database. Applied only while the
+      # Servers table is empty and never again, so rotating in the dashboard sticks.
+      #
+      # Empty by default, and deliberately: an unset value makes HOPPER mint a random one (see
+      # SeedExtensions.SeedDefaultServerAsync), which the admin reads off the server's setup page.
+      # Any literal here would be a credential published in this repository and seeded into every
+      # deployment that never overrode it. Set it in .env only when something already holds a token
+      # HOPPER has to match: openssl rand -hex 32
+      Hopper__BootstrapClientToken: "${Hopper__BootstrapClientToken:-}"
+      # What the manifest hands clients as the download host. Empty is the RIGHT default, not a
+      # missing one: unset makes the manifest derive it from the request and its X-Forwarded-*
+      # headers, which is correct behind any proxy that forwards them. A literal localhost here would
+      # bake "http://localhost:58722" into every manifest URL and hand each player a download address
+      # pointing at their own machine. Set it only when the proxy does not forward those headers.
+      Hopper__PublicBaseUrl: "${Hopper__PublicBaseUrl:-}"
+      ConnectionStrings__HopperDatabase: "${ConnectionStrings__HopperDatabase:-Host=db;Port=5432;Database=${Postgres__Database:-hopper};Username=${Postgres__User:-hopper};Password=${Postgres__Password:-hopper}}"
     depends_on:
-      idp:
-        condition: service_started
+      # idp is deliberately absent. It is profile-gated, so naming it here would make a non-demo
+      # `docker compose up` fail on a service that is not enabled - and it bought nothing anyway:
+      # OIDC metadata is fetched lazily on the first token, not at boot.
       db:
         condition: service_healthy
     ports:
-      - "58722:8080"
+      - "${Hopper__Port:-58722}:8080"
     volumes:
       # Only the content-addressed blob store lives here now - the database is its own service.
       - hopper-data:/data
