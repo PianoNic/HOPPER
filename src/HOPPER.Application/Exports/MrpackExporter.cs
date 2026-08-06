@@ -43,12 +43,11 @@ namespace HOPPER.Application.Exports
                         WriteBlobEntry(archive, "overrides/mods", mod, warnings);
                 }
 
-                if (bundled.Count > 0)
-                {
-                    warnings.Add(
-                        $"{bundled.Count} mods have no Modrinth origin recorded and ship inside the pack rather than as a download link.");
-                }
-
+                // Deliberately no warning about the bundled pile. A mod without Modrinth provenance
+                // shipping as bytes is the format working as intended, not a problem, and the
+                // dashboard already states the split per format before the download starts. Putting
+                // it in the warnings header too would make every ordinary export raise an alarm and
+                // teach admins to ignore the one message that matters - a blob that has gone missing.
                 return Finish(scratch, FileNameFor(context, "mrpack"), "application/x-modrinth-modpack+zip", warnings);
             }
             catch

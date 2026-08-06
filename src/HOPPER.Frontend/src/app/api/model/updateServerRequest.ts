@@ -12,5 +12,8 @@
 export interface UpdateServerRequest { 
     name: string;
     slug: string;
+    minecraftVersion?: string | null;
+    loader?: number;
+    loaderVersion?: string | null;
 }
 

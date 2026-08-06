@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -11,8 +18,10 @@ import {
   lucidePlus,
   lucideRefreshCw,
   lucideSearch,
+  lucideShare,
   lucideTrash2,
 } from '@ng-icons/lucide';
+import { simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -26,6 +35,8 @@ import { ServerImportsService } from '../api/api/serverImports.service';
 import { ModDto } from '../api/model/modDto';
 import { ServerDto } from '../api/model/serverDto';
 import { serverIdSignal } from './server-route';
+import { modSourceLabel, modrinthProjectUrl } from './mod-labels';
+import { ExportPackDialogService } from './export-pack-dialog';
 import { ImportPackDialogService } from './import-pack-dialog';
 import { UploadModsDialogService } from './upload-mods-dialog';
 
@@ -43,12 +54,14 @@ import { UploadModsDialogService } from './upload-mods-dialog';
   ],
   providers: [
     provideIcons({
+      simpleModrinth,
       lucideClipboardList,
       lucideImport,
       lucidePackage,
       lucidePlus,
       lucideRefreshCw,
       lucideSearch,
+      lucideShare,
       lucideTrash2,
     }),
   ],
@@ -99,9 +112,27 @@ import { UploadModsDialogService } from './upload-mods-dialog';
               Fetch by hand · {{ pendingCount() }}
             </a>
           }
+          <a hlmBtn variant="outline" size="sm" [routerLink]="browseLink()">
+            <ng-icon name="simpleModrinth" size="14" />
+            Browse Modrinth
+          </a>
           <button hlmBtn variant="outline" size="sm" type="button" (click)="importPack()">
             <ng-icon name="lucideImport" size="14" />
             Import pack
+          </button>
+          <!-- The other direction. Disabled while the list is loading rather than hidden: the
+               dialog quotes a size per format from exactly this array, and quoting it from a
+               half-loaded one would understate the download. -->
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            type="button"
+            [disabled]="loading()"
+            (click)="exportPack()"
+          >
+            <ng-icon name="lucideShare" size="14" />
+            Export pack
           </button>
           <button hlmBtn size="sm" type="button" (click)="upload()">
             <ng-icon name="lucidePlus" size="14" />
@@ -132,6 +163,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             <thead hlmTableHeader>
               <tr hlmTableRow>
                 <th hlmTableHead>File</th>
+                <th hlmTableHead>Source</th>
                 <th hlmTableHead>SHA-256</th>
                 <th hlmTableHead class="text-right">Size</th>
                 <th hlmTableHead>Uploaded by</th>
@@ -143,9 +175,35 @@ import { UploadModsDialogService } from './upload-mods-dialog';
               @for (m of filteredMods(); track m.id) {
                 <tr hlmTableRow>
                   <td hlmTableCell class="font-medium">{{ m.fileName }}</td>
+                  <!-- Where the jar came from, and where it goes in an exported pack: a mod with
+                       Modrinth provenance becomes a manifest entry with its real CDN URL, and
+                       anything else ships as bytes in overrides/. -->
+                  <td hlmTableCell class="text-sm">
+                    <span class="flex flex-col">
+                      <span>{{ source(m) }}</span>
+                      @if (m.projectName) {
+                        @if (projectUrl(m); as url) {
+                          <a
+                            class="text-muted-foreground truncate text-xs hover:underline"
+                            [href]="url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {{ m.projectName }}
+                          </a>
+                        } @else {
+                          <span class="text-muted-foreground truncate text-xs">
+                            {{ m.projectName }}
+                          </span>
+                        }
+                      }
+                    </span>
+                  </td>
                   <td hlmTableCell>
                     <span class="inline-flex items-center gap-1">
-                      <span class="font-mono text-xs" [title]="m.sha256">{{ short(m.sha256) }}</span>
+                      <span class="font-mono text-xs" [title]="m.sha256">{{
+                        short(m.sha256)
+                      }}</span>
                       <app-copy-button [value]="m.sha256" />
                     </span>
                   </td>
@@ -190,6 +248,7 @@ export class ServerMods {
   private readonly router = inject(Router);
   private readonly uploadDialog = inject(UploadModsDialogService);
   private readonly importDialog = inject(ImportPackDialogService);
+  private readonly exportDialog = inject(ExportPackDialogService);
   private readonly confirm = inject(ConfirmService);
 
   protected readonly serverId = serverIdSignal(this.route);
@@ -229,6 +288,18 @@ export class ServerMods {
 
   protected pendingLink(): ReadonlyArray<string> {
     return ['/server', this.serverId(), 'pending'];
+  }
+
+  protected browseLink(): ReadonlyArray<string> {
+    return ['/server', this.serverId(), 'browse'];
+  }
+
+  protected source(mod: ModDto): string {
+    return modSourceLabel(mod.source);
+  }
+
+  protected projectUrl(mod: ModDto): string | null {
+    return modrinthProjectUrl(mod.projectId);
   }
 
   protected short(sha256: string): string {
@@ -291,6 +362,18 @@ export class ServerMods {
     // go and download jars a machine is not allowed to. The dialog's exit hands them the page that
     // keeps the list rather than closing over it.
     if (result.openPending) await this.router.navigate(this.pendingLink() as string[]);
+  }
+
+  /**
+   * Hands the dialog the server and the very list on screen, so the size it quotes per format is
+   * the size of what the admin is looking at. Nothing is reloaded afterwards - an export reads.
+   */
+  protected async exportPack(): Promise<void> {
+    const server = this.server();
+    if (!server) return;
+
+    const result = await this.exportDialog.open({ server, mods: this.mods() });
+    if (result) toast.success(`Downloaded ${result.fileName}`);
   }
 
   protected async remove(mod: ModDto): Promise<void> {

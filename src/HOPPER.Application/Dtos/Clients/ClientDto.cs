@@ -5,7 +5,7 @@ namespace HOPPER.Application.Dtos.Clients
     {
         public required Guid Id { get; init; }
 
-        /// <summary>The client-generated id from the player's hopper/client-id file, not our row id.
+        /// <summary>The client-generated id from the player's hoppermods/client-id file, not our row id.
         /// Surfaced because it is what a player can read off their own disk when asking for help.</summary>
         public required string ClientId { get; init; }
 

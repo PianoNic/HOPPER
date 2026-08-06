@@ -1,0 +1,50 @@
+// Quilt. OPT-IN, and the archive name has to shout it.
+//
+// org.quiltmc.loader.api.plugin.QuiltLoaderPlugin is a real, documented plugin API - the right
+// shape for HOPPER, with QuiltPluginContext.addFolderToScan(Path) doing exactly what is needed.
+// The catch is the declaration: V1ModMetadataImpl throws a ParseException, a HARD failure rather
+// than a degradation, the moment it sees the experimental_quilt_loader_plugin key while
+// -Dloader.experimental.allow_loading_plugins=true is unset.
+//
+// So two jars ship for Quilt and that is not optional:
+//   hopper-fabric-1.0.0.jar         - the DEFAULT. Quilt runs Fabric mods through
+//                                     StandardFabricPlugin and a preLaunch entrypoint works
+//                                     unchanged. Degraded, restart required.
+//   hopper-quilt-plugin-1.0.0.jar   - the opt-in upgrade for anyone willing to add one JVM
+//                                     argument. Real same-launch loading.
+//
+// 8: quilt-loader's own .module metadata declares "org.gradle.jvm.version": 8.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 8
+}
+
+dependencies {
+    // The pom is <packaging>pom</packaging> with no dependencies; the real graph is in the
+    // .module metadata. QuiltLoaderPlugin itself is classfile 52.
+    compileOnly 'org.quiltmc:quilt-loader:0.30.0'
+}
+
+// The filename has to shout, because this jar hard-fails without a JVM argument.
+base {
+    archivesName = 'hopper-quilt-plugin'
+}
+
+// Declaration: src/main/resources/quilt.mod.json, NOT a services file. A top-level key, sibling
+// of quilt_loader:
+//   "experimental_quilt_loader_plugin": {
+//       "class": "ch.pianonic.hopper.HopperQuiltPlugin",
+//       "packages": ["ch.pianonic.hopper"]
+//   }
+//
+// That single "packages" entry is why every class in every module stays in ch.pianonic.hopper:
+// QuiltPluginClassLoader owns only the packages listed there, and a sub-package added later
+// would be forgotten here and fail at runtime.
+//
+// HopperQuiltPlugin needs a PUBLIC NO-ARG CONSTRUCTOR - QuiltPluginContextImpl does
+// loadClassDirectly(...) then getDeclaredConstructor().newInstance().
+//
+// It must log through HopperLog.STDOUT rather than log4j: QuiltPluginClassLoader's parent carries
+// Quilt's shaded logging, not org.apache.logging.log4j. That is why the core has HopperLog at all.
+//
+// Do NOT call addFileToScan - it has two overloads (PluginGuiTreeNode and QuiltTreeNode) and
+// passing null is ambiguous. addFolderToScan(Path) has a single signature.

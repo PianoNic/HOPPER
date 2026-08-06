@@ -9,7 +9,7 @@ namespace HOPPER.Domain
         /// that there are zero EF relationships in the model.</summary>
         public required Guid ServerId { get; init; }
 
-        /// <summary>The client-generated identifier persisted in the player's hopper/client-id file.
+        /// <summary>The client-generated identifier persisted in the player's hoppermods/client-id file.
         /// Stable across launches and username changes, which is why it - not the username - is the
         /// natural key for a client.
         ///

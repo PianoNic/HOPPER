@@ -1,6 +1,7 @@
 using HOPPER.Application.Dtos.Modrinth;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Application.Modrinth;
 using HOPPER.Domain;
 using HOPPER.Domain.Enums;
@@ -205,6 +206,11 @@ namespace HOPPER.Application.Command.Modrinth
                 // twice under two names, which Forge may refuse outright - and the admin gains a mod
                 // that now exports with a real CDN URL instead of as an override. The existing
                 // filename is kept: it is what the clients already hold.
+                //
+                // ??=, so a row that predates mod-id extraction gets backfilled here while one that
+                // was already read is left exactly as it is. Not folded into ApplyProvenance, which
+                // is static and has no blob store.
+                sameBytes.ModIds ??= ModIdReader.FromBlob(blobs, sameBytes.Sha256);
                 ApplyProvenance(sameBytes, version, file, title, sha1, sha512);
                 await db.SaveChangesAsync(cancellationToken);
 
@@ -223,6 +229,10 @@ namespace HOPPER.Application.Command.Modrinth
                 Sha256 = sha256,
                 Size = size,
                 UploadedBy = currentUser.Name,
+
+                // Modrinth's body is a network stream that cannot be re-read, so the ids come out of
+                // the blob that was just written. See ModIdReader.FromBlob.
+                ModIds = ModIdReader.FromBlob(blobs, sha256),
             };
 
             ApplyProvenance(entry, version, file, title, sha1, sha512);

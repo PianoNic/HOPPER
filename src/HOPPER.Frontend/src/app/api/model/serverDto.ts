@@ -17,5 +17,8 @@ export interface ServerDto {
     modCount: ModImportDtoImportedCount;
     clientCount: ModImportDtoImportedCount;
     createdAt: string;
+    minecraftVersion?: string | null;
+    loader: number;
+    loaderVersion?: string | null;
 }
 

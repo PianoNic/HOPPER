@@ -26,7 +26,7 @@ namespace HOPPER.Tests.Application
         [Arguments("..jar")]
         public async Task Validate_PathEscape_IsRejected(string name)
         {
-            // Without this, a manifest entry could write outside hopper/ on every client at once.
+            // Without this, a manifest entry could write outside hoppermods/ on every client at once.
             await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
         }
 

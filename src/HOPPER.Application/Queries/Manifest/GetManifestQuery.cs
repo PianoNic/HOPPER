@@ -36,6 +36,13 @@ namespace HOPPER.Application.Queries.Manifest
                     Url = $"{baseUrl}/api/blobs/{m.Sha256}",
                     Sha256 = m.Sha256,
                     Size = m.Size,
+
+                    // Both "never read" (null) and "declares nothing" (empty) collapse to an absent
+                    // key. A client has nothing to do with either, and omitting keeps the entry
+                    // byte-identical to the original four-field shape for every jar that is not a
+                    // mod - which is what lets this field be added without touching a single one of
+                    // the wire-format tests.
+                    ModIds = m.ModIds is { Length: > 0 } ids ? ids : null,
                 }).ToList(),
             };
         }

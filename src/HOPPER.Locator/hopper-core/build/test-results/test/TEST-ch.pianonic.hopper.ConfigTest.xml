@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ch.pianonic.hopper.ConfigTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-08-06T14:39:58.329Z" hostname="VIV-INT-CLT-150" time="0.047">
+  <properties/>
+  <testcase name="anEmptyTokenIsNullRatherThanAnEmptyHeader()" classname="ch.pianonic.hopper.ConfigTest" time="0.015"/>
+  <testcase name="looksForTheEntryTheServerWrites()" classname="ch.pianonic.hopper.ConfigTest" time="0.002"/>
+  <testcase name="enabledStillComesFromTheFileOnASelfConfiguredJar()" classname="ch.pianonic.hopper.ConfigTest" time="0.001"/>
+  <testcase name="writesAConfigFileOnFirstLaunchAndReadsItBack(Path)" classname="ch.pianonic.hopper.ConfigTest" time="0.014"/>
+  <testcase name="withNothingEmbeddedTheFileIsTheWholeConfiguration()" classname="ch.pianonic.hopper.ConfigTest" time="0.0"/>
+  <testcase name="theGeneratedConfigDocumentsTheModsFolderOptIn(Path)" classname="ch.pianonic.hopper.ConfigTest" time="0.006"/>
+  <testcase name="aServerCannotGrantItselfPermissionToWriteIntoTheModsFolder()" classname="ch.pianonic.hopper.ConfigTest" time="0.001"/>
+  <testcase name="syncingIsOnUnlessSomethingTurnsItOff()" classname="ch.pianonic.hopper.ConfigTest" time="0.0"/>
+  <testcase name="theJarWinsOverTheFile()" classname="ch.pianonic.hopper.ConfigTest" time="0.001"/>
+  <testcase name="theModsFolderIsOffUnlessThePlayerSaysOtherwise()" classname="ch.pianonic.hopper.ConfigTest" time="0.0"/>
+  <testcase name="blankEmbeddedValuesFallThroughToTheFile()" classname="ch.pianonic.hopper.ConfigTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

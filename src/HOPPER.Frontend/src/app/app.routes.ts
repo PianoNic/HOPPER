@@ -5,6 +5,7 @@ import { Home } from './home/home';
 import { Servers } from './servers/servers';
 import { ServerOverview } from './servers/server-overview';
 import { ServerMods } from './servers/server-mods';
+import { ServerBrowse } from './servers/server-browse';
 import { ServerClients } from './servers/server-clients';
 import { ServerPending } from './servers/server-pending';
 import { ServerSetup } from './servers/server-setup';
@@ -26,6 +27,10 @@ export const routes: Routes = [
       { path: 'servers', component: Servers },
       { path: 'server/:id', component: ServerOverview },
       { path: 'server/:id/mods', component: ServerMods },
+      // Modrinth's catalogue, filtered to what this server runs. A page rather than a dialog: a
+      // search box, two filters, a sort and paging is a browser pane, and it has to be able to open
+      // the dependency preview on top of itself.
+      { path: 'server/:id/browse', component: ServerBrowse },
       { path: 'server/:id/clients', component: ServerClients },
       // The checklist an import leaves behind. A route of its own because the work it describes -
       // a human downloading jars a machine is not allowed to - outlives any dialog session.

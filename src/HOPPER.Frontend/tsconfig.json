@@ -29,7 +29,9 @@
       "@spartan-ng/helm/avatar": ["./libs/ui/avatar/src/index.ts"],
       "@spartan-ng/helm/dropdown-menu": ["./libs/ui/dropdown-menu/src/index.ts"],
       "@spartan-ng/helm/progress": ["./libs/ui/progress/src/index.ts"],
-      "@spartan-ng/helm/sonner": ["./libs/ui/sonner/src/index.ts"]
+      "@spartan-ng/helm/sonner": ["./libs/ui/sonner/src/index.ts"],
+      "@spartan-ng/helm/select": ["./libs/ui/select/src/index.ts"],
+      "@spartan-ng/helm/checkbox": ["./libs/ui/checkbox/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

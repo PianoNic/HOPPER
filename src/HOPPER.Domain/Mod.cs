@@ -4,7 +4,7 @@ namespace HOPPER.Domain
 {
     /// <summary>One row per jar in one server's distributed set. The rows for a given ServerId are
     /// exactly the entries of that server's manifest, so anything added here is downloaded by every
-    /// client of that server and anything removed is deleted from their hopper/ directories.</summary>
+    /// client of that server and anything removed is deleted from their hoppermods/ directories.</summary>
     public class Mod : BaseEntity
     {
         /// <summary>Foreign key to <see cref="Server"/>.Id. A raw Guid with no navigation property,
@@ -15,7 +15,7 @@ namespace HOPPER.Domain
         /// See <see cref="Sha256"/>.</summary>
         public required Guid ServerId { get; init; }
 
-        /// <summary>Filename the client writes into its hopper/ directory, and the key the client
+        /// <summary>Filename the client writes into its hoppermods/ directory, and the key the client
         /// syncs on. Validated at upload against the same rules the Java Syncer.sanitize() enforces
         /// (no separators, no "..", no leading dot, must end in .jar) so a manifest can never be
         /// produced that the client will reject at runtime.</summary>
@@ -84,5 +84,28 @@ namespace HOPPER.Domain
         /// <summary>SHA-512 as the upstream published it, 128 lowercase hex characters. See
         /// <see cref="Sha1"/> for why both live alongside <see cref="Sha256"/>.</summary>
         public string? Sha512 { get; set; }
+
+        /// <summary>Every mod id this jar declares for itself, read out of its own
+        /// META-INF/neoforge.mods.toml, META-INF/mods.toml, fabric.mod.json, quilt.mod.json or
+        /// mcmod.info when the bytes were stored.
+        ///
+        /// This is the only thing that identifies a mod across builds. Filename and hash do not: a
+        /// player carrying jei-1.20.1-15.2.0.27.jar and a server distributing jei-1.20.1-15.3.0.4.jar
+        /// share neither, and the loader still refuses to start because it sees "jei" twice. The
+        /// client uses these to find its own copy in the player's mods/ folder and get it out of the
+        /// way before the loader scans.
+        ///
+        /// A jar may declare several - Embeddium declares both embeddium and rubidium - and most
+        /// libraries and coremods declare none. Ids from NESTED jars are deliberately absent; see
+        /// ModIdReader for why reading them would be actively harmful.
+        ///
+        /// Null and empty mean different things and the difference is load-bearing:
+        ///   null - this row predates mod-id extraction and has never been looked at.
+        ///          ModIdBackfillService fills it in at boot.
+        ///   []   - the jar was read and declares nothing. Final; there is nothing more to do.
+        ///
+        /// Settable rather than init-only for the same reason <see cref="Source"/> is: the Modrinth
+        /// adopt path rewrites an existing row in place instead of inserting a duplicate.</summary>
+        public string[]? ModIds { get; set; }
     }
 }

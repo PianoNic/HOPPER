@@ -47,7 +47,7 @@ namespace HOPPER.Application.Command.Servers
 
             // One save: a half-deleted server whose token still resolves but whose mods are gone would
             // hand every one of its clients an empty manifest, and an empty manifest is an instruction
-            // to delete every jar in hopper/.
+            // to delete every jar in hoppermods/.
             await db.SaveChangesAsync(cancellationToken);
 
             // Same global orphan check DeleteModCommand runs, once per hash this server released. No

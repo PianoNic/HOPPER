@@ -5,6 +5,7 @@ using HOPPER.API.OpenApi;
 using HOPPER.Application;
 using HOPPER.Application.Exports;
 using HOPPER.Application.Imports;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Application.Modrinth;
 using HOPPER.Application.Queries.Imports;
 using HOPPER.Application.Command.Imports;
@@ -51,6 +52,12 @@ builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifet
 
 builder.Services.AddHopperDatabase(builder.Configuration);
 builder.Services.AddBlobs();
+
+// Reads the mod ids out of jars that were stored before mod ids existed as a concept. Every store
+// path extracts them inline from now on; this is what makes the client's de-duplication work on a
+// server that has been running since before the column did. It is hosted rather than run at boot so
+// it starts after the migrator and never delays startup, and one failed pass is never fatal.
+builder.Services.AddHostedService<ModIdBackfillService>();
 
 // Patches a copy of the shipped template jar per download. No JDK at runtime - the toolchain lives
 // in the Dockerfile's locator stage and never reaches the running image.

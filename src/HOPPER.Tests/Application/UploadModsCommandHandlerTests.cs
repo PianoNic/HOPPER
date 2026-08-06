@@ -98,7 +98,7 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_ZipWithNestedFolders_TakesTheBasenameOnly()
         {
-            // A client puts everything flat in hopper/, so the folder someone happened to zip a jar
+            // A client puts everything flat in hoppermods/, so the folder someone happened to zip a jar
             // from is not information it can use - and a path would fail the filename validator.
             using var dir = new TempDir();
             await using var db = NewDb();

@@ -20,6 +20,7 @@ import {
   lucideMonitor,
   lucideMoon,
   lucidePackage,
+  lucideSearch,
   lucideServer,
   lucideSun,
   lucideUsers,
@@ -58,6 +59,7 @@ const SERVER_ROUTE = /^\/server\/([^/]+)/;
       lucideMonitor,
       lucideMoon,
       lucidePackage,
+      lucideSearch,
       lucideServer,
       lucideSun,
       lucideUsers,
@@ -177,13 +179,14 @@ export class Sidenav {
     [
       { suffix: '', label: 'Overview', icon: 'lucideLayoutDashboard', exact: true },
       { suffix: '/mods', label: 'Mods', icon: 'lucidePackage', exact: false },
+      { suffix: '/browse', label: 'Browse mods', icon: 'lucideSearch', exact: false },
       { suffix: '/clients', label: 'Clients', icon: 'lucideUsers', exact: false },
       { suffix: '/pending', label: 'Fetch by hand', icon: 'lucideClipboardList', exact: false },
       { suffix: '/setup', label: 'Setup', icon: 'lucideBookOpen', exact: false },
     ];
 
   /**
-   * Always the same five entries. Without a server they render greyed out rather than vanishing:
+   * Always the same six entries. Without a server they render greyed out rather than vanishing:
    * a section that appears and disappears makes the sidebar jump and hides what the app can do
    * from anyone who has not opened a server yet.
    */

@@ -1,0 +1,43 @@
+// The shared core. Download, sha256 verify, stale sweep, report POST, config merge - the hash
+// check and the path-traversal check exist exactly once, here.
+//
+// 8, and this is the constraint that shapes the whole build: Minecraft 1.16.5 and older run on
+// Java 8, so the core has to compile with --release 8 and every adapter can then embed it,
+// whether that adapter targets 1.12.2 on an 8u JVM or Forge 26.2 on Java 25.
+//
+// What that costs, concretely: HttpURLConnection instead of java.net.http.HttpClient (Java 11+),
+// plain classes instead of records (16+), no var (10+), no text blocks (15+), no switch
+// expressions (14+), no InputStream.readAllBytes (9+), no List.of / Files.readString (9+/11+).
+tasks.withType(JavaCompile).configureEach {
+    options.release = 8
+}
+
+dependencies {
+    // Nothing on the compile classpath. Not log4j, not gson - both are deliberate:
+    //
+    // gson  : a Quilt loader plugin runs inside QuiltPluginClassLoader, which owns only the
+    //         packages quilt.mod.json lists and whose parent has Quilt's SHADED gson, not
+    //         com.google.gson. Bundling real gson into every adapter would then also be a split
+    //         package against the real Gson module on Forge's SERVICE layer. A small hand-written
+    //         Json class costs less and, like the hash check, then exists exactly once.
+    // log4j : same classloader argument. The core logs through the HopperLog interface and each
+    //         adapter supplies a two-line implementation over whatever logger it actually has.
+    //
+    // The consequence worth stating: this module cannot import from any mod loader, because it
+    // has no mod loader on its classpath to import from. That is enforced by the build, not by
+    // discipline.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// compileTestJava inherits options.release = 8 from the block above, and that is the guarantee:
+// a test that can only see the Java 8 API cannot accidentally exercise a Java 9+ leak in the core.
+// The test JVM is Gradle's own JDK, which runs classfile 52 without complaint.
+test {
+    useJUnitPlatform()
+    testLogging.events 'passed', 'failed', 'skipped'
+}
+
+jar {
+    manifest.attributes('Implementation-Version': project.version)
+}

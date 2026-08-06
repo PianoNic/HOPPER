@@ -3,9 +3,13 @@ import { diffClient, OFFLINE_AFTER_MS } from './drift';
 import { ClientDto } from '../../api/model/clientDto';
 import { ClientModDto } from '../../api/model/clientModDto';
 import { ModDto } from '../../api/model/modDto';
+import { MOD_SOURCE } from '../../servers/mod-labels';
 
 const NOW = Date.parse('2026-08-05T12:00:00Z');
 
+// Manual with no provenance, which is what every row was before the Modrinth browser existed and
+// what drift still only ever looks at: it compares filenames and hashes, and where a jar came from
+// has no bearing on whether a client is carrying it.
 function mod(fileName: string, sha256: string): ModDto {
   return {
     id: sha256,
@@ -14,6 +18,7 @@ function mod(fileName: string, sha256: string): ModDto {
     size: {},
     uploadedBy: null,
     createdAt: '2026-08-01T00:00:00Z',
+    source: MOD_SOURCE.manual,
   };
 }
 

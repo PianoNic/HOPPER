@@ -160,6 +160,150 @@ namespace HOPPER.Tests.Wire
             }
         }
 
+        // ---- modIds: the additive field ----------------------------------------------------
+        //
+        // Everything above this line is untouched by the mod-id change and passes unchanged. That
+        // is the whole test of the design: the field is declared last and omitted when it has no
+        // value, so an entry that carries no ids is byte-identical to what shipped.
+
+        private static ManifestDto WithModIds(params string[] ids) => new()
+        {
+            Mods =
+            [
+                new ManifestModDto
+                {
+                    File = "jei-1.20.1-15.3.0.4.jar",
+                    Url = "https://hopper.example.com/api/blobs/" + new string('a', 64),
+                    Sha256 = new string('a', 64),
+                    Size = 1234567,
+                    ModIds = ids,
+                },
+            ],
+        };
+
+        [Test]
+        public async Task Serialize_EntryWithModIds_AppendsModIdsAfterSize()
+        {
+            // Appended, never inserted. The four original fields keep their exact bytes and their
+            // exact order, which is what makes this safe for a client already in the field: its
+            // reader looks up the keys it knows by name and ignores the rest.
+            var json = JsonSerializer.Serialize(WithModIds("jei"));
+
+            await Assert.That(json).IsEqualTo(
+                """{"mods":[{"file":"jei-1.20.1-15.3.0.4.jar","url":"https://hopper.example.com/api/blobs/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":1234567,"modIds":["jei"]}]}""");
+        }
+
+        [Test]
+        public async Task Serialize_EntryWithSeveralModIds_EmitsThemAllInOrder()
+        {
+            // Embeddium declares two. Order is the order they appear in the jar's own metadata.
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(WithModIds("embeddium", "rubidium")));
+            var ids = document.RootElement.GetProperty("mods")[0].GetProperty("modIds");
+
+            await Assert.That(ids.EnumerateArray().Select(e => e.GetString()!).ToList())
+                .IsEquivalentTo(new[] { "embeddium", "rubidium" });
+        }
+
+        [Test]
+        public async Task Serialize_EntryWithNullModIds_StillCarriesExactlyFourFields()
+        {
+            // A row that predates extraction. There is nothing for a client to do with "unknown",
+            // so the key is absent rather than null.
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(SampleManifest()));
+
+            var names = document.RootElement.GetProperty("mods")[0].EnumerateObject().Select(p => p.Name).ToList();
+            await Assert.That(names).IsEquivalentTo(new[] { "file", "url", "sha256", "size" });
+        }
+
+        [Test]
+        public async Task Serialize_EntryWithAnEmptyModIdSet_StillCarriesExactlyFourFields()
+        {
+            // A coremod or a library, read and found to declare nothing. Also absent: an empty array
+            // says the same thing as no array and costs bytes on every launch of every client.
+            var manifest = await ManifestFromRowAsync(modIds: []);
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(manifest));
+            var names = document.RootElement.GetProperty("mods")[0].EnumerateObject().Select(p => p.Name).ToList();
+
+            await Assert.That(names).IsEquivalentTo(new[] { "file", "url", "sha256", "size" });
+        }
+
+        [Test]
+        public async Task Serialize_RowWithModIds_CarriesThemThroughTheQueryHandler()
+        {
+            var manifest = await ManifestFromRowAsync(modIds: ["jei"]);
+
+            await Assert.That(JsonSerializer.Serialize(manifest)).Contains("""
+                "modIds":["jei"]
+                """);
+        }
+
+        [Test]
+        [Arguments("modIds")]
+        public async Task Serialize_ModIds_SurvivesACamelCaseNamingPolicy(string expectedName)
+        {
+            // Same argument as sha256. Left to a naming policy, ModIds would come out as "modIds"
+            // today and something else after a rename, and the client keys on the literal string.
+            var json = JsonSerializer.Serialize(
+                WithModIds("jei"),
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+            using var document = JsonDocument.Parse(json);
+            await Assert.That(document.RootElement.GetProperty("mods")[0].TryGetProperty(expectedName, out _)).IsTrue();
+        }
+
+        [Test]
+        public async Task Serialize_ModIds_SurvivesASnakeCaseNamingPolicy()
+        {
+            var json = JsonSerializer.Serialize(
+                WithModIds("jei"),
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+
+            using var document = JsonDocument.Parse(json);
+            var entry = document.RootElement.GetProperty("mods")[0];
+
+            await Assert.That(entry.TryGetProperty("modIds", out var ids)).IsTrue();
+            await Assert.That(ids.EnumerateArray().Single().GetString()).IsEqualTo("jei");
+        }
+
+        [Test]
+        public async Task Serialize_ModIds_IsAnArrayOfStrings()
+        {
+            // The Java reader filters the array on "is this element a String", so anything else
+            // would be silently dropped there rather than failing here.
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(WithModIds("jei", "rubidium")));
+            var ids = document.RootElement.GetProperty("mods")[0].GetProperty("modIds");
+
+            await Assert.That(ids.ValueKind).IsEqualTo(JsonValueKind.Array);
+            await Assert.That(ids.EnumerateArray().All(e => e.ValueKind == JsonValueKind.String)).IsTrue();
+        }
+
+        private static async Task<ManifestDto> ManifestFromRowAsync(string[]? modIds)
+        {
+            var db = new HopperDbContext(new DbContextOptionsBuilder<HopperDbContext>()
+                .UseInMemoryDatabase($"hopper-wire-{Guid.NewGuid():N}")
+                .Options);
+
+            await using (db)
+            {
+                var serverId = Guid.NewGuid();
+
+                db.Mods.Add(new Mod
+                {
+                    ServerId = serverId,
+                    FileName = "jei-1.20.1-15.3.0.4.jar",
+                    Sha256 = new string('a', 64),
+                    Size = 1234567,
+                    ModIds = modIds,
+                });
+
+                await db.SaveChangesAsync();
+
+                return await new GetManifestQueryHandler(db).Handle(
+                    new GetManifestQuery(serverId, "https://hopper.example.com"), CancellationToken.None);
+            }
+        }
+
         [Test]
         public async Task Serialize_EmptyModSet_StillEmitsAModsArray()
         {

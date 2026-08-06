@@ -17,5 +17,10 @@ export interface ModDto {
     size: ManifestModDtoSize;
     uploadedBy?: string | null;
     createdAt: string;
+    source: number;
+    projectId?: string | null;
+    versionId?: string | null;
+    projectName?: string | null;
+    downloadUrl?: string | null;
 }
 

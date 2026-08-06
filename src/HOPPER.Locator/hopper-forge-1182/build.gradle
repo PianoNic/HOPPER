@@ -1,0 +1,83 @@
+// Forge on Minecraft 1.17.1, 1.18, 1.18.1 and 1.18.2 - the generation that had no adapter at all
+// and that hopper-forge-1165 and hopper-forge-modern each explicitly declined to cover.
+//
+// It is a separate module because forgespi's IModLocator genuinely differs at both ends of it,
+// which was checked against the real artifacts rather than assumed:
+//
+//   forgespi 3.2.0  (<= 1.16.5)  interface IModLocator                       - findPath + findManifest
+//   forgespi 4.0.9  (1.17.1+)    interface IModLocator                       - both REMOVED
+//   forgespi 6.0.0  (1.19+)      interface IModLocator extends IModProvider  - List<ModFileOrException>
+//
+// So hopper-forge-1165's locator does not fit here (it overrides two methods that no longer
+// exist) and hopper-forge-modern's does not either (its scanMods returns the wrong type and its
+// supertype does not exist yet). Three shapes, three modules.
+//
+// WHICH FORGESPI EACH VERSION ACTUALLY SHIPS - read out of forge-<version>-installer.jar's
+// version.json, not out of the fmlloader pom, which only says the dynamic range "4.0.+":
+//
+//   1.17.1-37.0.0   forgespi 4.0.9        modlauncher 9.0.7
+//   1.17.1-37.1.1   forgespi 4.0.10       modlauncher 9.0.7
+//   1.18-38.0.17    forgespi 4.0.10       modlauncher 9.0.7
+//   1.18.1-39.1.2   forgespi 4.0.10       modlauncher 9.1.3
+//   1.18.2-40.0.0   forgespi 4.0.10       modlauncher 9.1.3
+//   1.18.2-40.2.0   forgespi 4.0.15-4.x   modlauncher 9.1.3
+//   1.18.2-40.3.12  forgespi 4.0.15-4.x   modlauncher 9.1.3
+//
+// No shipped Forge uses forgespi 4.0.2-4.0.8 (which still had findPath/findManifest) or 5.0.x
+// (which briefly had IModProvider with List<IModFile>), so neither is claimed. 5.0.x in particular
+// never reached a release: 1.19-41.0.0 was still on 4.0.10 and 1.19-41.0.63 was already on 6.0.0.
+//
+// 16, not 17: Minecraft 1.17.1 runs on Java 16 and it is the floor of this range. 1.18+ runs on
+// Java 17, which loads classfile 60 without complaint. Both forgespi 4.0.x and modlauncher 9.x are
+// themselves classfile 60, so 16 is also the lowest release that can even see them.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 16
+}
+
+// The floor is the default, so an ordinary build is the one that proves the floor still holds.
+// Re-prove the 1.18.2 ceiling with:
+//   ./gradlew :hopper-forge-1182:compileJava --rerun-tasks \
+//       -Pforgespi1182Version=4.0.15-4.x -Pmodlauncher1182Version=9.1.3
+//
+// A bare version rather than a whole GAV, unlike hopper-forge-modern: modlauncher only moved from
+// cpw.mods to net.minecraftforge at 10.1.1, long after this range ended.
+def forgespiVersion = findProperty('forgespi1182Version') ?: '4.0.9'
+def modlauncherVersion = findProperty('modlauncher1182Version') ?: '9.0.7'
+
+dependencies {
+    // 4.0.9 is the OLDEST forgespi any Forge in this range ships, so the compiler enforces the
+    // floor. Its IModLocator declares exactly five abstract methods - name, scanMods, scanFile,
+    // initArguments, isValid - and 4.0.10 declares the same five. 4.0.15-4.x turns scanMods() into
+    // a default and ADDS a defaulted scanMods(Iterable), so a class written against 4.0.9
+    // satisfies all three without change. Nothing in the range is satisfied by a class written
+    // against 4.0.2, which also demands findPath and findManifest - hence 4.0.9 and not 4.0.2.
+    compileOnly "net.minecraftforge:forgespi:${forgespiVersion}"
+    // Launcher.INSTANCE.environment().getProperty(TypesafeMap$Key) and IEnvironment$Keys.GAMEDIR,
+    // byte-identical in 9.0.7 and 9.1.3 - checked with javap on both jars.
+    compileOnly "cpw.mods:modlauncher:${modlauncherVersion}"
+    // The log4j forgespi 4.0.9 itself declares.
+    compileOnly 'org.apache.logging.log4j:log4j-api:2.14.1'
+
+    // All compileOnly: every one of these is already on the SERVICE layer when the locator runs.
+    // No ForgeGradle and no reobf - a locator never touches a Minecraft class, so there is
+    // nothing to remap.
+}
+
+jar {
+    // Required here, unlike on 1.16.5, and for the same reason as on 1.19+: FML 37.x and 40.x both
+    // build the ServiceLoader with ServiceLoader.load(ModuleLayer, IModLocator.class) against
+    // IModuleLayerManager.Layer.SERVICE - verified by javap on fmlloader 1.17.1-37.0.0 and
+    // 1.18.2-40.3.12 - so this jar becomes a JPMS module and its name must not come from the
+    // filename, which changes the moment someone renames the jar.
+    manifest.attributes('Automatic-Module-Name': 'hopper')
+}
+
+// Declaration file:
+//   src/main/resources/META-INF/services/net.minecraftforge.forgespi.locating.IModLocator
+//
+// ModDirTransformerDiscoverer on both 1.17.1 and 1.18.2 opens each jar in mods/ as a zip and looks
+// for that literal entry name - it does NOT read the module descriptor here, unlike 1.19+. The
+// entry has to exist either way, so one jar layout satisfies the discoverer and the ServiceLoader.
+//
+// No mods.toml and no FMLModType: ModsFolderLocator consults ModDirTransformerDiscoverer's
+// exclusion list, so the locator jar is never offered to ModValidator as a mod.

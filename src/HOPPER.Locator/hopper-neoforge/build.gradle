@@ -1,0 +1,54 @@
+// NeoForge 21.1.x through 26.2.x. ONE adapter serves both ends: the whole
+// net.neoforged.neoforgespi.locating package is byte-identical between loader 4.0.24 and 11.0.16
+// except for IDiscoveryPipeline's addJarContent/readModFile parameter type, which this module
+// must not touch.
+//
+// 21, not 25: NeoForge 21.1 runs on Java 21 (loader 4.0.24 is classfile 65). NeoForge 26.x runs on
+// Java 25 and loads classfile 65 without complaint.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
+dependencies {
+    // The SPI classes live INSIDE the loader jar. Not net.neoforged:neoforgespi - that artifact is
+    // the abandoned NeoForge-1.20.1 fork of forgespi and still carries the old IModLocator - and
+    // not net.neoforged.fancymodloader:spi, which is superseded and discontinued.
+    //
+    // 4.0.24 is the loader NeoForge 21.1.9 pins, the oldest in the claimed range, so an ordinary
+    // build is the one that proves the floor.
+    compileOnly 'net.neoforged.fancymodloader:loader:4.0.24'
+    compileOnly 'org.apache.logging.log4j:log4j-api:2.19.0'
+}
+
+jar {
+    // Needed on 21.1.x, where the jar becomes a JPMS automatic module on the ModLauncher SERVICE
+    // layer and META-INF/services is read off the derived module descriptor. Harmless on 26.x,
+    // which dropped ModLauncher and reads the same file literally out of a plain URLClassLoader
+    // entry. One jar layout satisfies both.
+    manifest.attributes('Automatic-Module-Name': 'hopper')
+}
+
+// THE CROSS-VERSION CONTRACT. This adapter may touch ONLY:
+//   IModFileCandidateLocator, IOrderedProvider,
+//   IDiscoveryPipeline.addPath(Path, ModFileDiscoveryAttributes, IncompatibleFileReporting),
+//   ModFileDiscoveryAttributes.DEFAULT, IncompatibleFileReporting.*,
+//   ILaunchContext.isLocated(Path), ILaunchContext.addLocated(Path).
+//
+// It must NOT touch IModFile, JarContents, addJarContent, readModFile or
+// ILaunchContext.environment() - all of those broke between 4.0.43 and 11.0.16. It must not touch
+// net.neoforged.fml.ModLoadingIssue either: it resolves in both, but reporting an error issue
+// blocks the launch, and HOPPER's rule is that a failed sync never does.
+//
+// getPriority() must return above IOrderedProvider.HIGHEST_SYSTEM_PRIORITY (1000):
+// ServiceLoaderUtil.loadServices sorts by getPriority() REVERSED, higher runs earlier, and
+// hopper/ has to be populated before ModsFolderLocator walks mods/.
+//
+// Do NOT use IModFileCandidateLocator.forFolder(File, String) - it returns a ModsFolderLocator
+// that would scan hopper/ before the sync had a chance to run.
+//
+// Declaration file:
+//   src/main/resources/META-INF/services/net.neoforged.neoforgespi.locating.IModFileCandidateLocator
+//
+// Floor: do not claim below NeoForge 21.1. IModFileCandidateLocator first appears in loader
+// somewhere between 3.0.10 (absent) and 3.0.20 (present), around NeoForge 20.6, and that range
+// has not been verified.

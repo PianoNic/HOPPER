@@ -23,6 +23,13 @@ namespace HOPPER.API.Controllers
         /// 400 when the server has no Minecraft version, loader or loader version set: all three
         /// formats name an exact platform and there is nothing sensible to guess.</summary>
         [HttpGet]
+        // Declared for the OpenAPI document, not for the response: File(...) sets the real content
+        // type per format, and ProducesAttribute only rewrites an ObjectResult, which a file result is
+        // not. Without it the generator reads the default text/plain + application/json list, picks a
+        // JSON mime and hands HttpClient responseType 'json' - and the dashboard then tries to parse a
+        // zip as JSON and fails on every successful export. The jar endpoint carries the same
+        // attribute for the same reason.
+        [Produces("application/octet-stream")]
         [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

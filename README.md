@@ -8,7 +8,6 @@
 <p align="center">
   <a href="https://github.com/PianoNic/HOPPER"><img src="https://badgetrack.pianonic.ch/badge?tag=hopper&label=visits&color=0b1220&style=flat" alt="visits" /></a>
   <a href="docs/self-host.md"><img src="https://img.shields.io/badge/Self--Host-Instructions-0b1220.svg" alt="Self-hosting" /></a>
-  <img src="https://img.shields.io/badge/Forge-1.20.1-0b1220.svg" alt="Forge 1.20.1" />
   <img src="https://img.shields.io/badge/.NET-10-0b1220.svg" alt=".NET 10" />
   <img src="https://img.shields.io/badge/Angular-21-0b1220.svg" alt="Angular 21" />
 </p>

@@ -1,6 +1,7 @@
-// Saving a response body to disk and reading an error out of a binary response. Both exist only
-// because GET /api/servers/{id}/jar is the one endpoint that answers with bytes rather than JSON,
-// and the ordinary helpers in format.ts assume a parsed body on both paths.
+// Saving a response body to disk, naming it, and reading an error out of a binary response. All
+// three exist because two endpoints answer with bytes rather than JSON - GET
+// /api/servers/{id}/jar and GET /api/servers/{id}/export - and the ordinary helpers in format.ts
+// assume a parsed body on both paths.
 
 /**
  * Hands a Blob to the browser's downloader under a chosen filename. An <a download> click is the
@@ -14,6 +15,40 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Reads the filename out of a Content-Disposition header, falling back when there is none.
+ *
+ * An exported pack is named by the server - slug plus the UTC minute it was written - and that name
+ * is the only thing telling two exports of the same server apart. Rebuilding it on the dashboard
+ * would mean guessing the server's clock, so the header is read instead. It is visible to
+ * cross-origin JavaScript only because the API names it in WithExposedHeaders; the fallback covers
+ * a deployment that strips it at a proxy.
+ *
+ * Both spellings are handled: RFC 6266 puts the percent-encoded UTF-8 name in `filename*` and the
+ * plain one in `filename`, and ASP.NET sends both. Any path separator in the result is dropped -
+ * this value ends up in a download attribute, and a header is not something to trust with a path.
+ */
+export function fileNameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+
+  const extended = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+
+  let name = fallback;
+  if (extended) {
+    try {
+      name = decodeURIComponent(extended[1]);
+    } catch {
+      name = plain ? plain[1] : fallback;
+    }
+  } else if (plain) {
+    name = plain[1];
+  }
+
+  name = name.trim().split(/[\\/]/).pop() ?? '';
+  return name === '' || name === '.' || name === '..' ? fallback : name;
 }
 
 /**

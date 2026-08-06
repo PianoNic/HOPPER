@@ -145,7 +145,7 @@ namespace HOPPER.Tests.Application
         public async Task Handle_BlankClientId_IsRejected(string clientId)
         {
             // Unlike the username this one is not optional: it is the row's identity, and the shipped
-            // client always has one (hopper/client-id, generated on first run).
+            // client always has one (hoppermods/client-id, generated on first run).
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 

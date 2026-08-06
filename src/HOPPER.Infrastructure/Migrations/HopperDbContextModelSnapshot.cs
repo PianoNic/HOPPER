@@ -104,6 +104,9 @@ namespace HOPPER.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.PrimitiveCollection<string[]>("ModIds")
+                        .HasColumnType("text[]");
+
                     b.Property<string>("ProjectId")
                         .HasColumnType("text");
 

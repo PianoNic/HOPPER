@@ -45,6 +45,20 @@ namespace HOPPER.API.Controllers
             if (stream is null)
                 return NotFound();
 
+            // Content-addressed, so this URL can never answer with different bytes. That makes the
+            // usual caching risk impossible and a one-year immutable lifetime simply correct: a
+            // changed mod is a changed hash is a different URL.
+            //
+            // "private" rather than "public" on purpose. The response is still gated by the client
+            // token and scoped to one server, so a shared cache holding it would serve one server's
+            // jar to another server's client. Putting a CDN in front of this endpoint therefore
+            // needs the authorization dropped first - that is a deliberate decision about the
+            // security model, not something this header should quietly enable.
+            Response.Headers.CacheControl = "private, max-age=31536000, immutable";
+            // The hash IS the entity tag. Costs nothing and lets a client revalidate with a
+            // conditional request instead of pulling the whole jar again.
+            Response.Headers.ETag = $"\"{sha256}\"";
+
             return File(stream, "application/java-archive", mod.FileName);
         }
     }

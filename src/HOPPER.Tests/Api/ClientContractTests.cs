@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -69,6 +70,66 @@ namespace HOPPER.Tests.Api
             await Assert.That(entry.GetProperty("size").ValueKind).IsEqualTo(JsonValueKind.Number);
             await Assert.That(entry.GetProperty("size").GetInt64()).IsEqualTo((long)JarBytes.Length);
             await Assert.That(entry.GetProperty("url").GetString()!).EndsWith($"/api/blobs/{JarSha}");
+        }
+
+        [Test]
+        public async Task Manifest_OverHttp_CarriesModIdsForARealJar()
+        {
+            // The other half of the contract: the entry above carries four fields because its
+            // payload is not a zip, and this one carries five because it is a real jar with a real
+            // META-INF/mods.toml. The four originals are unchanged in both.
+            var jar = ForgeJarBytes("contractmod");
+            await SeedBytesAsync("contract-modid.jar", jar);
+            using var http = HopperApi.AsGameClient();
+
+            var response = await http.GetAsync("/api/manifest");
+
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var entry = document.RootElement.GetProperty("mods")
+                .EnumerateArray()
+                .Single(e => e.GetProperty("file").GetString() == "contract-modid.jar");
+
+            await Assert.That(entry.EnumerateObject().Select(p => p.Name).ToList())
+                .IsEquivalentTo(new[] { "file", "url", "sha256", "size", "modIds" });
+
+            var sha = Convert.ToHexStringLower(SHA256.HashData(jar));
+            await Assert.That(entry.GetProperty("sha256").GetString()).IsEqualTo(sha);
+            await Assert.That(entry.GetProperty("size").GetInt64()).IsEqualTo((long)jar.Length);
+            await Assert.That(entry.GetProperty("url").GetString()!).EndsWith($"/api/blobs/{sha}");
+            await Assert.That(entry.GetProperty("modIds").EnumerateArray().Select(e => e.GetString()!).ToList())
+                .IsEquivalentTo(new[] { "contractmod" });
+        }
+
+        private static byte[] ForgeJarBytes(string modId)
+        {
+            var buffer = new MemoryStream();
+
+            using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using var stream = archive.CreateEntry("META-INF/mods.toml").Open();
+                stream.Write(Encoding.UTF8.GetBytes($"modLoader=\"javafml\"\n[[mods]]\nmodId=\"{modId}\"\n"));
+            }
+
+            return buffer.ToArray();
+        }
+
+        private static async Task SeedBytesAsync(string fileName, byte[] bytes)
+        {
+            var serverId = HopperApi.ServerAId;
+
+            await using var scope = HopperApi.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
+            if (await db.Mods.AnyAsync(m => m.ServerId == serverId && m.FileName == fileName))
+                return;
+
+            var handler = new UploadModsCommandHandler(
+                db,
+                scope.ServiceProvider.GetRequiredService<IBlobStorage>(),
+                scope.ServiceProvider.GetRequiredService<ICurrentUserService>());
+
+            await handler.Handle(
+                new UploadModsCommand(serverId, [new UploadFile(fileName, new MemoryStream(bytes))]),
+                CancellationToken.None);
         }
 
         [Test]

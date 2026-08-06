@@ -1,0 +1,612 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  Injectable,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { catchError, debounceTime, EMPTY, switchMap } from 'rxjs';
+import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
+import { toast } from '@spartan-ng/brain/sonner';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  lucideCircleAlert,
+  lucideCircleCheck,
+  lucideCircleHelp,
+  lucideDownload,
+  lucidePackage,
+  lucideTriangleAlert,
+} from '@ng-icons/lucide';
+import { HlmBadgeImports } from '@spartan-ng/helm/badge';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
+import {
+  HlmDialogDescription,
+  HlmDialogHeader,
+  HlmDialogService,
+  HlmDialogTitle,
+} from '@spartan-ng/helm/dialog';
+import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { ServerModrinthService } from '../api/api/serverModrinth.service';
+import { ModrinthInstallPlanDto } from '../api/model/modrinthInstallPlanDto';
+import { ModrinthInstallResultDto } from '../api/model/modrinthInstallResultDto';
+import { ModrinthPlanNodeDto } from '../api/model/modrinthPlanNodeDto';
+import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
+import {
+  PLAN_NODE_STATUS,
+  isReplaceable,
+  planNodeStatusDetail,
+  planNodeStatusLabel,
+} from './mod-labels';
+
+/**
+ * What the admin picked, before any dependency is known. `rootTitles` is only for the headline
+ * sentence - the plan itself names every mod, and this is the "Adding X also installs…" subject.
+ */
+export type ModrinthPlanDialogContext = {
+  serverId: string;
+  rootVersionIds: ReadonlyArray<string>;
+  rootTitles: ReadonlyArray<string>;
+};
+
+// Re-planning on every tick of an optional would fire a request per keystroke-equivalent. The
+// resolver batches through Modrinth's bulk endpoints, but a rapid series of ticks still costs a
+// round trip each, and the count in the confirm button must settle before it is read.
+const REPLAN_DEBOUNCE_MS = 300;
+
+@Component({
+  selector: 'app-modrinth-plan-dialog',
+  imports: [
+    NgIcon,
+    HlmBadgeImports,
+    HlmButtonImports,
+    HlmCheckboxImports,
+    HlmDialogHeader,
+    HlmDialogTitle,
+    HlmDialogDescription,
+    HlmLabelImports,
+  ],
+  providers: [
+    provideIcons({
+      lucideCircleAlert,
+      lucideCircleCheck,
+      lucideCircleHelp,
+      lucideDownload,
+      lucidePackage,
+      lucideTriangleAlert,
+    }),
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-col gap-4' },
+  template: `
+    <hlm-dialog-header>
+      <h3 hlmDialogTitle>Add to this server</h3>
+      <p hlmDialogDescription>{{ headline() }}</p>
+    </hlm-dialog-header>
+
+    @if (result() !== null) {
+      <!-- Done. The outcome is per row rather than a count: a batch where one jar's hash did not
+           match Modrinth's is a partial success, and the admin has to be told which one. -->
+      <div class="max-h-96 min-h-0 flex-1 overflow-auto text-sm">
+        <div class="flex flex-col gap-4">
+          @if (installedCount() > 0) {
+            <section class="flex flex-col gap-1">
+              <h4 class="flex items-center gap-1.5 text-sm font-medium">
+                <ng-icon name="lucideCircleCheck" size="14" />
+                Added {{ installedCount() }}
+              </h4>
+              @for (m of result()!.installed; track m.id) {
+                <p class="text-muted-foreground pl-5 font-mono text-xs">{{ m.fileName }}</p>
+              }
+            </section>
+          }
+
+          @if (result()!.replaced.length > 0) {
+            <section class="flex flex-col gap-1">
+              <h4 class="text-sm font-medium">Replaced {{ result()!.replaced.length }}</h4>
+              @for (m of result()!.replaced; track m.id) {
+                <p class="text-muted-foreground pl-5 font-mono text-xs">{{ m.fileName }}</p>
+              }
+            </section>
+          }
+
+          @if (result()!.adopted.length > 0) {
+            <section class="flex flex-col gap-1">
+              <h4 class="text-sm font-medium">Already had these bytes</h4>
+              @for (a of result()!.adopted; track a.mod.id) {
+                <p class="text-muted-foreground pl-5 text-xs">{{ a.message }}</p>
+              }
+            </section>
+          }
+
+          @if (result()!.skipped.length > 0) {
+            <section class="flex flex-col gap-1">
+              <h4 class="text-sm font-medium">Skipped {{ result()!.skipped.length }}</h4>
+              @for (s of result()!.skipped; track s.name) {
+                <p class="text-muted-foreground pl-5 text-xs">
+                  <span class="font-mono">{{ s.name }}</span> - {{ s.reason }}
+                </p>
+              }
+            </section>
+          }
+
+          @if (result()!.failed.length > 0) {
+            <section class="flex flex-col gap-1">
+              <h4 class="text-destructive flex items-center gap-1.5 text-sm font-medium">
+                <ng-icon name="lucideCircleAlert" size="14" />
+                Failed {{ result()!.failed.length }}
+              </h4>
+              @for (f of result()!.failed; track f.name) {
+                <p class="text-muted-foreground pl-5 text-xs">
+                  <span class="font-mono">{{ f.name }}</span> - {{ f.error }}
+                </p>
+              }
+            </section>
+          }
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button hlmBtn type="button" (click)="finish()">Done</button>
+      </div>
+    } @else {
+      <div class="max-h-[26rem] min-h-0 flex-1 overflow-auto">
+        @if (loading() && plan() === null) {
+          <p class="text-muted-foreground p-6 text-center text-sm">Resolving dependencies…</p>
+        } @else if (plan(); as p) {
+          <div class="flex flex-col gap-4" [class.opacity-60]="loading()">
+            <!-- 1. Will be added. Not tickable: these are required, and hiding a requirement behind
+                 a checkbox invites installing a set that does not run. -->
+            <section class="flex flex-col gap-1.5">
+              <h4 class="flex items-center gap-1.5 text-sm font-medium">
+                <ng-icon name="lucideDownload" size="14" />
+                Will be added
+                <span class="text-muted-foreground font-normal">{{ addSummary() }}</span>
+              </h4>
+
+              @if (newNodes().length === 0) {
+                <p class="text-muted-foreground pl-5 text-xs">
+                  Nothing new - everything picked is already on this server.
+                </p>
+              } @else {
+                @for (n of newNodes(); track n.versionId) {
+                  <div class="flex items-start gap-2 rounded-md border p-2">
+                    <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="truncate text-sm font-medium">{{ n.title }}</span>
+                        <span class="text-muted-foreground text-xs">{{ n.versionNumber }}</span>
+                        @if (transitive(n)) {
+                          <span hlmBadge variant="outline" class="text-xs">Required</span>
+                        }
+                        @if (n.pinned) {
+                          <span hlmBadge variant="outline" class="text-xs">pinned version</span>
+                        }
+                        @if (n.prerelease) {
+                          <span hlmBadge variant="destructive" class="text-xs">
+                            {{ n.versionType }}
+                          </span>
+                        }
+                      </div>
+                      <span class="text-muted-foreground truncate font-mono text-xs">
+                        {{ n.fileName }}
+                      </span>
+                      @if (n.requiredBy.length > 0) {
+                        <span class="text-muted-foreground text-xs">
+                          required by {{ requiredBy(n) }}
+                        </span>
+                      }
+                    </div>
+                    <span class="text-muted-foreground shrink-0 font-mono text-xs">
+                      {{ size(n) }}
+                    </span>
+                  </div>
+                }
+              }
+            </section>
+
+            <!-- 2. Optional. Unticked. Ticking one re-runs the whole plan with it as a root, so
+                 whatever IT requires shows up above before the confirm button can be pressed. -->
+            @if (p.optional.length > 0) {
+              <section class="flex flex-col gap-1.5">
+                <h4 class="text-sm font-medium">
+                  Optional
+                  <span class="text-muted-foreground font-normal">
+                    · {{ p.optional.length }} offered, none added unless you tick it
+                  </span>
+                </h4>
+                @for (n of p.optional; track n.versionId) {
+                  <div class="flex items-start gap-2 rounded-md border p-2">
+                    <hlm-checkbox
+                      class="mt-0.5"
+                      [inputId]="optionalId(n)"
+                      [checked]="isTicked(n)"
+                      [disabled]="installing()"
+                      (checkedChange)="toggleOptional(n)"
+                    />
+                    <label
+                      hlmLabel
+                      class="flex min-w-0 flex-1 flex-col items-start gap-0.5"
+                      [attr.for]="optionalId(n)"
+                    >
+                      <span class="flex flex-wrap items-center gap-1.5">
+                        <span class="truncate text-sm font-medium">{{ n.title }}</span>
+                        <span class="text-muted-foreground text-xs">{{ n.versionNumber }}</span>
+                      </span>
+                      <span class="text-muted-foreground truncate font-mono text-xs font-normal">
+                        {{ n.fileName }}
+                      </span>
+                    </label>
+                    <span class="text-muted-foreground shrink-0 font-mono text-xs">
+                      {{ size(n) }}
+                    </span>
+                  </div>
+                }
+              </section>
+            }
+
+            <!-- 3. Already here. Two of the four statuses are a decision, and each of those carries
+                 its own Replace tick - replacing is never the default. -->
+            @if (existingNodes().length > 0) {
+              <section class="flex flex-col gap-1.5">
+                <h4 class="text-sm font-medium">Already on this server</h4>
+                @for (n of existingNodes(); track n.versionId) {
+                  <div class="flex flex-col gap-1 rounded-md border p-2">
+                    <div class="flex items-start gap-2">
+                      <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                          <span class="text-muted-foreground truncate text-sm">{{ n.title }}</span>
+                          <span hlmBadge variant="outline" class="text-xs">
+                            {{ statusLabel(n) }}
+                          </span>
+                        </div>
+                        <span class="text-muted-foreground text-xs">{{ statusDetail(n) }}</span>
+                      </div>
+                    </div>
+                    @if (replaceable(n)) {
+                      <div class="flex items-center gap-2 pt-1">
+                        <hlm-checkbox
+                          [inputId]="replaceId(n)"
+                          [checked]="isReplacing(n)"
+                          [disabled]="installing()"
+                          (checkedChange)="toggleReplace(n)"
+                        />
+                        <label hlmLabel class="text-xs" [attr.for]="replaceId(n)">
+                          Replace with {{ n.versionNumber }} - the old jar is removed
+                        </label>
+                      </div>
+                    }
+                  </div>
+                }
+              </section>
+            }
+
+            <!-- 4. Incompatible. A pair that applies disables the confirm button outright; a pair
+                 that names a mod this server does not carry is a note, not a block. -->
+            @if (p.incompatible.length > 0) {
+              <section class="flex flex-col gap-1.5">
+                <h4
+                  class="flex items-center gap-1.5 text-sm font-medium"
+                  [class.text-destructive]="p.blocked"
+                >
+                  <ng-icon name="lucideTriangleAlert" size="14" />
+                  Incompatible
+                </h4>
+                @for (i of p.incompatible; track i.projectId + i.declaredBy) {
+                  <p class="pl-5 text-xs" [class.text-destructive]="i.applies">
+                    @if (i.applies) {
+                      {{ i.declaredBy }} declares {{ incompatibleName(i.title, i.projectId) }}
+                      incompatible, and it is on this server.
+                    } @else {
+                      <span class="text-muted-foreground">
+                        {{ i.declaredBy }} declares
+                        {{ incompatibleName(i.title, i.projectId) }} incompatible. That mod is not on
+                        this server, so nothing is blocked.
+                      </span>
+                    }
+                  </p>
+                }
+              </section>
+            }
+
+            <!-- 5. Named by a dependency but not identifiable through the API. Surfaced rather than
+                 swallowed: the admin decides whether the pack needs it. -->
+            @if (p.unresolvable.length > 0) {
+              <section class="flex flex-col gap-1.5">
+                <h4 class="flex items-center gap-1.5 text-sm font-medium">
+                  <ng-icon name="lucideCircleHelp" size="14" />
+                  Cannot be resolved automatically
+                </h4>
+                @for (u of p.unresolvable; track u.name + u.requestedBy) {
+                  <p class="text-muted-foreground pl-5 text-xs">
+                    <span class="font-mono">{{ u.name }}</span> - {{ u.reason }}, needed by
+                    {{ u.requestedBy }}. Add it by hand if this server needs it.
+                  </p>
+                }
+              </section>
+            }
+
+            <!-- 6. Bundled. Never added: the classes are already inside the parent jar and a second
+                 copy is how a loader ends up refusing to start. -->
+            @if (p.embedded.length > 0) {
+              <section class="flex flex-col gap-1.5">
+                <h4 class="flex items-center gap-1.5 text-sm font-medium">
+                  <ng-icon name="lucidePackage" size="14" />
+                  Bundled, not added
+                </h4>
+                @for (e of p.embedded; track e.projectId + e.bundledBy) {
+                  <p class="text-muted-foreground pl-5 text-xs">
+                    {{ incompatibleName(e.title, e.projectId) }} is already inside
+                    {{ e.bundledBy }}.
+                  </p>
+                }
+              </section>
+            }
+
+            @if (p.warnings.length > 0) {
+              <section class="flex flex-col gap-1">
+                @for (w of p.warnings; track w) {
+                  <p class="text-muted-foreground text-xs">{{ w }}</p>
+                }
+              </section>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="flex items-center justify-end gap-2">
+        <button hlmBtn variant="ghost" type="button" [disabled]="installing()" (click)="cancel()">
+          Cancel
+        </button>
+        <button hlmBtn type="button" [disabled]="!canInstall()" (click)="install()">
+          {{ confirmLabel() }}
+        </button>
+      </div>
+    }
+  `,
+})
+export class ModrinthPlanDialog {
+  private readonly ref = inject(BrnDialogRef);
+  private readonly api = inject(ServerModrinthService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly ctx = injectBrnDialogContext<ModrinthPlanDialogContext>();
+
+  protected readonly plan = signal<ModrinthInstallPlanDto | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly installing = signal(false);
+  protected readonly result = signal<ModrinthInstallResultDto | null>(null);
+
+  /** Ticked optionals, by version id. They are sent as roots, so the resolver walks them too. */
+  private readonly ticked = signal<ReadonlyArray<string>>([]);
+
+  /** Version ids the admin agreed to replace an existing row with. Empty by default, always. */
+  private readonly replacing = signal<ReadonlyArray<string>>([]);
+
+  protected readonly newNodes = computed(() =>
+    (this.plan()?.nodes ?? []).filter((n) => n.status === PLAN_NODE_STATUS.new),
+  );
+
+  protected readonly existingNodes = computed(() =>
+    (this.plan()?.nodes ?? []).filter((n) => n.status !== PLAN_NODE_STATUS.new),
+  );
+
+  protected readonly installedCount = computed(() => this.result()?.installed.length ?? 0);
+
+  /**
+   * The sentence that answers "what does adding this actually do". It always states a number, even
+   * when the number is zero, because "adds no other mods" is the reassurance an admin is looking
+   * for and an absent sentence does not give it.
+   */
+  protected readonly headline = computed(() => {
+    const subject = this.ctx.rootTitles.join(', ');
+    const p = this.plan();
+    if (p === null) return `Working out what ${subject} needs…`;
+
+    const extra = this.newNodes().filter((n) => this.transitive(n)).length;
+    if (extra === 0) {
+      return `${subject} needs no other mods. ${this.addSummaryPlain()}`;
+    }
+    return `Adding ${subject} also installs ${extra} required mod${extra === 1 ? '' : 's'}. ${this.addSummaryPlain()}`;
+  });
+
+  protected readonly addSummary = computed(() => {
+    const nodes = this.newNodes();
+    if (nodes.length === 0) return '';
+    return `· ${this.addSummaryPlain()}`;
+  });
+
+  protected readonly canInstall = computed(() => {
+    const p = this.plan();
+    if (p === null || this.loading() || this.installing()) return false;
+    if (p.blocked) return false;
+    return this.newNodes().length > 0 || this.replacing().length > 0;
+  });
+
+  /**
+   * The count and the byte total sit in the button label itself. An admin cannot confirm without
+   * having read the number they are agreeing to, which is the whole point of the two-phase design.
+   */
+  protected readonly confirmLabel = computed(() => {
+    if (this.installing()) return 'Downloading from Modrinth…';
+    if (this.loading()) return 'Resolving…';
+
+    const p = this.plan();
+    if (p?.blocked) return 'Cannot add - incompatible mods';
+
+    const count = this.newNodes().length;
+    if (count === 0) return 'Nothing to add';
+    return `Add ${count} mod${count === 1 ? '' : 's'} (${formatBytes(this.addBytes())})`;
+  });
+
+  constructor() {
+    // One pipeline for both the first plan and every re-plan a tick causes. Debounced because a
+    // rapid series of ticks would otherwise fire a resolve each, and switchMap because only the
+    // newest answer is worth rendering - an older one landing last would show a stale count under
+    // a button the admin is about to press.
+    toObservable(this.ticked)
+      .pipe(
+        debounceTime(REPLAN_DEBOUNCE_MS),
+        switchMap((optional) => {
+          this.loading.set(true);
+          return this.api
+            .apiServersIdModrinthPlanPost(this.ctx.serverId, {
+              versionIds: [...this.ctx.rootVersionIds],
+              optionalVersionIds: [...optional],
+            })
+            .pipe(
+              // Caught inside the switchMap so one failed resolve does not complete the outer
+              // stream. If it did, every later tick of an optional would be ignored and the dialog
+              // would sit on a stale plan while its checkboxes appeared to work.
+              catchError((err: unknown) => {
+                toast.error(messageFrom(err, 'Failed to resolve the dependencies of this mod'));
+                this.loading.set(false);
+                return EMPTY;
+              }),
+            );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((plan) => {
+        this.plan.set(plan);
+        // A row that stopped conflicting between two plans must not keep a Replace tick nobody can
+        // see any more, or install would be asked to replace something the dialog no longer shows.
+        const replaceable = new Set(
+          plan.nodes.filter((n) => isReplaceable(n.status)).map((n) => n.versionId),
+        );
+        this.replacing.update((ids) => ids.filter((id) => replaceable.has(id)));
+        this.loading.set(false);
+      });
+  }
+
+  protected requiredBy(node: ModrinthPlanNodeDto): string {
+    return node.requiredBy.join(', ');
+  }
+
+  /**
+   * True for anything the admin did not pick themselves. Depth arrives as the generator's opaque
+   * integer interface, so it is coerced here rather than compared in the template.
+   */
+  protected transitive(node: ModrinthPlanNodeDto): boolean {
+    return toNumber(node.depth) > 0;
+  }
+
+  protected size(node: ModrinthPlanNodeDto): string {
+    return formatBytes(toNumber(node.fileSize));
+  }
+
+  protected statusLabel(node: ModrinthPlanNodeDto): string {
+    return planNodeStatusLabel(node.status);
+  }
+
+  protected statusDetail(node: ModrinthPlanNodeDto): string {
+    return planNodeStatusDetail(node.status);
+  }
+
+  protected replaceable(node: ModrinthPlanNodeDto): boolean {
+    return isReplaceable(node.status);
+  }
+
+  /** A project that is not installed has no title to show, so its id is the only honest label. */
+  protected incompatibleName(title: string | null | undefined, projectId: string): string {
+    return title && title.length > 0 ? title : projectId;
+  }
+
+  protected optionalId(node: ModrinthPlanNodeDto): string {
+    return `optional-${node.versionId}`;
+  }
+
+  protected replaceId(node: ModrinthPlanNodeDto): string {
+    return `replace-${node.versionId}`;
+  }
+
+  protected isTicked(node: ModrinthPlanNodeDto): boolean {
+    return this.ticked().includes(node.versionId);
+  }
+
+  protected isReplacing(node: ModrinthPlanNodeDto): boolean {
+    return this.replacing().includes(node.versionId);
+  }
+
+  protected toggleOptional(node: ModrinthPlanNodeDto): void {
+    if (this.installing()) return;
+    this.ticked.update((ids) =>
+      ids.includes(node.versionId)
+        ? ids.filter((id) => id !== node.versionId)
+        : [...ids, node.versionId],
+    );
+  }
+
+  protected toggleReplace(node: ModrinthPlanNodeDto): void {
+    if (this.installing()) return;
+    this.replacing.update((ids) =>
+      ids.includes(node.versionId)
+        ? ids.filter((id) => id !== node.versionId)
+        : [...ids, node.versionId],
+    );
+  }
+
+  /**
+   * One request for the whole batch rather than one per mod. The downloads happen server-side, so
+   * per-row progress in the browser would be fiction unless polling were added, and the resolver
+   * caps a plan long before a batch gets long enough for that to matter.
+   */
+  protected install(): void {
+    if (!this.canInstall()) return;
+    this.installing.set(true);
+
+    const items = [
+      ...this.newNodes().map((n) => ({ versionId: n.versionId, replace: false })),
+      ...this.existingNodes()
+        .filter((n) => this.isReplacing(n))
+        .map((n) => ({ versionId: n.versionId, replace: true })),
+    ];
+
+    this.api.apiServersIdModrinthInstallPost(this.ctx.serverId, { items }).subscribe({
+      next: (result) => {
+        this.result.set(result);
+        this.installing.set(false);
+        if (result.failed.length > 0) {
+          toast.error(`${result.failed.length} of ${items.length} could not be added`);
+        }
+      },
+      error: (err) => {
+        // 409 is the one all-or-nothing case: a set incompatible with what the server carries is
+        // refused whole and nothing was written.
+        toast.error(messageFrom(err, 'Failed to add the mods'));
+        this.installing.set(false);
+      },
+    });
+  }
+
+  protected cancel(): void {
+    this.ref.close(null);
+  }
+
+  protected finish(): void {
+    this.ref.close(this.result());
+  }
+
+  private addBytes(): number {
+    return this.newNodes().reduce((sum, n) => sum + toNumber(n.fileSize), 0);
+  }
+
+  private addSummaryPlain(): string {
+    const count = this.newNodes().length;
+    if (count === 0) return 'Nothing to download.';
+    return `${count} file${count === 1 ? '' : 's'}, ${formatBytes(this.addBytes())}.`;
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class ModrinthPlanDialogService {
+  private readonly dialog = inject(HlmDialogService);
+
+  open(context: ModrinthPlanDialogContext): Promise<ModrinthInstallResultDto | null> {
+    return new Promise((resolve) => {
+      const ref = this.dialog.open(ModrinthPlanDialog, { context, contentClass: 'sm:max-w-2xl' });
+      ref.closed$.subscribe((result) => resolve((result as ModrinthInstallResultDto | null) ?? null));
+    });
+  }
+}

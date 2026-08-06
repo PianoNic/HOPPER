@@ -12,6 +12,17 @@ export function toNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * The same coercion in the other direction, for a query parameter the generator typed as an opaque
+ * interface rather than a number (`ApiModrinthSearchGetOffsetParameter` and its limit twin, both
+ * emitted as `{}`). The value on the wire is a plain integer; there is no runtime conversion to do,
+ * only a type the generator refused to narrow. Keeping it here means the browser's paging code says
+ * `apiNumber(offset)` instead of carrying an `as any` at every call site.
+ */
+export function apiNumber<T>(value: number): T {
+  return value as unknown as T;
+}
+
 const UNITS = ['B', 'KB', 'MB', 'GB'] as const;
 
 export function formatBytes(bytes: number): string {

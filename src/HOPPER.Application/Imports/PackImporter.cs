@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Domain;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
@@ -314,6 +315,10 @@ namespace HOPPER.Application.Imports
                 Sha256 = sha256,
                 Size = size,
                 UploadedBy = import.CreatedBy,
+
+                // After the save, by content address: the stream that got here may be an override
+                // inside the pack archive, which cannot seek. See ModIdReader.FromBlob.
+                ModIds = ModIdReader.FromBlob(blobs, sha256),
             });
 
             // One save per file. That is what makes the counters the dashboard polls mean something

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Domain;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
@@ -51,6 +52,10 @@ namespace HOPPER.Application.Command.Imports
                 Sha256 = sha256,
                 Size = size,
                 UploadedBy = currentUser.Name,
+
+                // The stream here is seekable - Sha1Async above depends on it - but the read still
+                // goes through the blob, so every store path derives ids exactly one way.
+                ModIds = ModIdReader.FromBlob(blobs, sha256),
             };
 
             db.Mods.Add(entry);

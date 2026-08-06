@@ -1,62 +1,67 @@
-plugins {
-    id 'java-library'
-}
+// The root project builds nothing. It carries the three rules that must be identical in every
+// module: where artifacts are resolved from, how warnings are treated, and how the core gets
+// physically into each adapter jar.
 
-group = 'ch.pianonic'
-version = '1.0.0'
+subprojects {
+    apply plugin: 'java-library'
 
-// --release rather than a toolchain: Forge 1.20.1 runs on Java 17, and --release pins both the
-// bytecode and the visible JDK API to 17 while letting the build run on whatever JDK the machine
-// already has. A toolchain would instead demand exactly one JDK be installed and fail the build
-// outright when it is not - on a contributor's box and in the Dockerfile's JDK stage alike.
-tasks.withType(JavaCompile).configureEach {
-    options.release = 17
-    options.encoding = 'UTF-8'
-    // A locator runs before FML has loaded anything and a mistake here is a launch that silently
-    // does nothing, so warnings are not advisory.
-    options.compilerArgs << '-Xlint:all' << '-Werror'
-}
+    group = 'ch.pianonic'
+    version = '1.0.0'
 
-repositories {
-    mavenCentral()
-    maven { url = 'https://maven.minecraftforge.net/' }
-}
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.quiltmc.org/repository/release/' }
+        // launchwrapper 1.12 is NOT on maven.minecraftforge.net - it 404s there. It is here.
+        maven { url = 'https://libraries.minecraft.net/' }
+    }
 
-dependencies {
-    // Versions pinned to what Forge 1.20.1-47.1.3 itself depends on, taken from
-    // fmlloader-1.20.1-47.1.3.pom. All compileOnly: every one of these is already
-    // present on the SERVICE layer when the locator runs.
+    // --release rather than a toolchain: it pins both the bytecode and the visible JDK API while
+    // letting the build run on whatever JDK the machine already has. A toolchain would instead
+    // demand six exact JDKs be installed and fail outright when they are not.
     //
-    // No ForgeGradle and no reobf here on purpose - a locator never touches a
-    // Minecraft class, so there is nothing to remap.
-    compileOnly 'net.minecraftforge:forgespi:7.0.1'
-    compileOnly 'cpw.mods:modlauncher:10.0.9'
-    compileOnly 'org.apache.logging.log4j:log4j-api:2.19.0'
-    compileOnly 'com.google.code.gson:gson:2.10.1'
-
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    // A test JVM has no SERVICE layer to provide the compileOnly set, so the two that are touched
-    // at test runtime have to be here: gson because SyncerTest asserts the exact bytes of the
-    // report body, and log4j because Syncer's LOG field is initialised the moment the class loads.
-    // forgespi and modlauncher are deliberately absent - the tests reach only Syncer and
-    // HopperLocator.Config, neither of which names a Forge type, so the suite runs in a plain JVM.
-    testImplementation 'com.google.code.gson:gson:2.10.1'
-    testRuntimeOnly 'org.apache.logging.log4j:log4j-api:2.19.0'
+    // Each module sets its own options.release - see that module's build.gradle for why.
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        // A locator runs before the loader has loaded anything and a mistake here is a launch that
+        // silently does nothing, so warnings are not advisory. Two lint categories are off, and
+        // both were measured rather than guessed:
+        //
+        // -options : javac 22 emits "source value 8 is obsolete", "target value 8 is obsolete" and
+        //            a third line pointing at this very flag. With -Werror that is a hard build
+        //            failure on every Java 8 module - verified: 3 warnings, 1 error, on an empty
+        //            class. Suppressing the category is the only way to keep -Werror AND --release 8.
+        // -path    : forge-1.12.2-14.23.5.2864-universal.jar's manifest carries a Class-Path
+        //            pointing into an installer tree that does not exist in a Gradle cache; javac
+        //            follows it and warns once per entry.
+        options.compilerArgs << '-Xlint:all,-options,-path' << '-Werror'
+    }
 }
 
-test {
-    useJUnitPlatform()
-    testLogging.events 'passed', 'failed', 'skipped'
-}
+// ---- every adapter embeds the core ----
+//
+// The loader resolves ONE jar out of mods/ and nothing else. A jar that merely referenced a
+// separate core jar would die at runtime with NoClassDefFoundError, so the core class files are
+// copied into each adapter jar.
+//
+// compileOnly rather than implementation, on purpose: it makes this copy the ONLY mechanism that
+// puts the core anywhere, so nobody can accidentally start relying on a Gradle runtime classpath
+// that does not exist inside Minecraft.
+configure(subprojects.findAll { it.name != 'hopper-core' }) {
+    evaluationDependsOn(':hopper-core')
 
-jar {
-    manifest.attributes(
-            // SecureJar turns this into the module name in the SERVICE layer.
-            // Without it the name is derived from the filename, which breaks the
-            // moment someone renames the jar.
-            'Automatic-Module-Name': 'hopper',
-            'Implementation-Version': project.version
-    )
+    dependencies {
+        compileOnly project(':hopper-core')
+        testImplementation project(':hopper-core')
+    }
+
+    tasks.named('jar', Jar) {
+        // sourceSets output rather than zipTree(coreJar): it carries its own task dependency, it
+        // brings no second META-INF/MANIFEST.MF to merge away, and the class files keep the
+        // release-8 bytecode the core compiled them to - copying never recompiles.
+        from project(':hopper-core').sourceSets.main.output
+        manifest.attributes('Implementation-Version': project.version)
+    }
 }

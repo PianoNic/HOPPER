@@ -10,9 +10,13 @@ import {
 } from '@spartan-ng/helm/dialog';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { ModrinthService } from '../api/api/modrinth.service';
 import { ServersService } from '../api/api/servers.service';
+import { ModrinthGameVersionDto } from '../api/model/modrinthGameVersionDto';
 import { ServerDto } from '../api/model/serverDto';
 import { messageFrom } from '../shared/utils/format';
+import { MOD_LOADER, modLoaderLabel } from './mod-labels';
 
 /**
  * Create and rename are the same two fields over the same two rules, so they are one component with
@@ -21,6 +25,19 @@ import { messageFrom } from '../shared/utils/format';
  * PUT replaces both fields.
  */
 export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server: ServerDto };
+
+/**
+ * The four loaders HOPPER records, in the order they are worth offering. Not set is a real choice
+ * and stays first: a server that predates the browser has to be able to keep saying nothing rather
+ * than being forced into a loader it does not run.
+ */
+const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
+  MOD_LOADER.unknown,
+  MOD_LOADER.forge,
+  MOD_LOADER.neoForge,
+  MOD_LOADER.fabric,
+  MOD_LOADER.quilt,
+].map((value) => ({ value, label: modLoaderLabel(value) }));
 
 @Component({
   selector: 'app-server-dialog',
@@ -31,12 +48,13 @@ export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server:
     HlmDialogDescription,
     HlmInputImports,
     HlmLabelImports,
+    HlmSelectImports,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
     <hlm-dialog-header>
-      <h3 hlmDialogTitle>{{ creating ? 'New server' : 'Rename server' }}</h3>
+      <h3 hlmDialogTitle>{{ creating ? 'New server' : 'Edit server' }}</h3>
       <p hlmDialogDescription>
         @if (creating) {
           A server owns its own mod list, its own clients and its own client token. Jars shared with
@@ -80,6 +98,61 @@ export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server:
           }
         </p>
       </div>
+
+      <!-- What this server runs. All three are optional and leaving them unset changes nothing
+           about distributing mods - they exist because the Modrinth browser has to filter on
+           something, and because an exported pack names an exact platform. -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1.5">
+          <label hlmLabel for="server-mc">Minecraft version</label>
+          <hlm-select
+            id="server-mc"
+            [value]="minecraftVersion()"
+            (valueChange)="onMinecraftVersion($event)"
+          >
+            <hlm-select-trigger class="w-full">
+              <hlm-select-value placeholder="Not set" />
+            </hlm-select-trigger>
+            <hlm-select-content>
+              @for (v of gameVersions(); track v.version) {
+                <hlm-select-item [value]="v.version">{{ v.version }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </hlm-select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label hlmLabel for="server-loader">Loader</label>
+          <hlm-select id="server-loader" [value]="loaderLabel()" (valueChange)="onLoader($event)">
+            <hlm-select-trigger class="w-full">
+              <hlm-select-value placeholder="Not set" />
+            </hlm-select-trigger>
+            <hlm-select-content>
+              @for (l of loaders; track l.value) {
+                <hlm-select-item [value]="l.label">{{ l.label }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </hlm-select>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label hlmLabel for="server-loader-version">Loader version</label>
+        <input
+          hlmInput
+          id="server-loader-version"
+          class="w-full font-mono"
+          placeholder="47.4.10"
+          [value]="loaderVersion()"
+          [disabled]="saving()"
+          (input)="onLoaderVersion($event)"
+        />
+        <p class="text-muted-foreground text-xs">
+          The loader's own version, with no Minecraft prefix - <code class="font-mono">47.4.10</code
+          >, not <code class="font-mono">1.20.1-47.4.10</code>. Each pack format prepends whatever it
+          wants.
+        </p>
+      </div>
     </div>
 
     <div class="flex justify-end gap-2">
@@ -95,13 +168,40 @@ export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server:
 export class ServerDialog {
   private readonly ref = inject(BrnDialogRef);
   private readonly api = inject(ServersService);
+  private readonly modrinth = inject(ModrinthService);
   private readonly ctx = injectBrnDialogContext<ServerDialogContext>();
 
   protected readonly creating = this.ctx.mode === 'create';
+  protected readonly loaders = LOADERS;
 
   protected readonly name = signal(this.ctx.mode === 'rename' ? this.ctx.server.name : '');
   protected readonly slug = signal(this.ctx.mode === 'rename' ? this.ctx.server.slug : '');
   protected readonly saving = signal(false);
+
+  protected readonly minecraftVersion = signal(
+    this.ctx.mode === 'rename' ? (this.ctx.server.minecraftVersion ?? '') : '',
+  );
+  protected readonly loader = signal(
+    this.ctx.mode === 'rename' ? this.ctx.server.loader : MOD_LOADER.unknown,
+  );
+  protected readonly loaderVersion = signal(
+    this.ctx.mode === 'rename' ? (this.ctx.server.loaderVersion ?? '') : '',
+  );
+
+  protected readonly gameVersions = signal<ReadonlyArray<ModrinthGameVersionDto>>([]);
+
+  protected readonly loaderLabel = computed(() => modLoaderLabel(this.loader()));
+
+  constructor() {
+    // Modrinth's release list rather than a hand-kept array: Mojang ship a version and this
+    // dropdown has it without a release of HOPPER. A failure here is silent on purpose - the two
+    // platform fields are optional, and a toast about a filter dropdown while someone is trying to
+    // rename a server is noise.
+    this.modrinth.apiModrinthTagsGet().subscribe({
+      next: (tags) => this.gameVersions.set(tags.gameVersions),
+      error: () => this.gameVersions.set([]),
+    });
+  }
 
   // Mirrors the server's own derivation so the placeholder shows what leaving the field empty will
   // actually produce. It is a preview only - the server derives it again and resolves collisions.
@@ -127,17 +227,47 @@ export class ServerDialog {
     this.slug.set((event.target as HTMLInputElement).value);
   }
 
+  protected onMinecraftVersion(value: unknown): void {
+    if (typeof value === 'string') this.minecraftVersion.set(value);
+  }
+
+  protected onLoader(value: unknown): void {
+    const match = LOADERS.find((l) => l.label === value);
+    if (match) this.loader.set(match.value);
+  }
+
+  protected onLoaderVersion(event: Event): void {
+    this.loaderVersion.set((event.target as HTMLInputElement).value);
+  }
+
   protected save(): void {
     if (!this.canSave()) return;
     this.saving.set(true);
 
     const name = this.name().trim();
     const slug = this.slug().trim();
+    // An emptied field means "unset", which is null on the wire rather than an empty string: the
+    // browser and the exporters both test for a missing platform, and "" would read as configured.
+    const minecraftVersion = this.minecraftVersion().trim() || null;
+    const loaderVersion = this.loaderVersion().trim() || null;
+    const loader = this.loader();
 
     const request$ =
       this.ctx.mode === 'create'
-        ? this.api.apiServersPost({ name, slug: slug === '' ? null : slug })
-        : this.api.apiServersIdPut(this.ctx.server.id, { name, slug });
+        ? this.api.apiServersPost({
+            name,
+            slug: slug === '' ? null : slug,
+            minecraftVersion,
+            loader,
+            loaderVersion,
+          })
+        : this.api.apiServersIdPut(this.ctx.server.id, {
+            name,
+            slug,
+            minecraftVersion,
+            loader,
+            loaderVersion,
+          });
 
     request$.subscribe({
       next: (server) => this.ref.close(server),

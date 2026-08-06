@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Domain;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
@@ -78,7 +79,7 @@ namespace HOPPER.Application.Command.Mods
                 foreach (var entry in jars)
                 {
                     // Entry.Name is the basename; the directory a jar sat in inside the zip is not
-                    // meaningful to a client, which puts everything flat in hopper/.
+                    // meaningful to a client, which puts everything flat in hoppermods/.
                     await using var content = entry.Open();
                     await StoreAsync(serverId, entry.Name, content, uploaded, failed, cancellationToken);
                 }
@@ -124,6 +125,12 @@ namespace HOPPER.Application.Command.Mods
                     Sha256 = sha256,
                     Size = size,
                     UploadedBy = currentUser.Name,
+
+                    // Read from the stored blob rather than from the upload: a jar arriving as a
+                    // member of a batch zip is a DeflateStream that cannot seek, and ZipArchive has
+                    // to reach the central directory at the end of the file. Reading by content
+                    // address after the save is the one hook that works on every store path.
+                    ModIds = ModIdReader.FromBlob(blobs, sha256),
                 };
 
                 db.Mods.Add(entry);

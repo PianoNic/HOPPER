@@ -34,7 +34,7 @@ namespace HOPPER.Application.Imports
 
     /// <summary>Plans a plain zip of jars. Every jar anywhere in the archive, taken by basename - the
     /// folder someone happened to zip them from is not information a client can use, since it puts
-    /// everything flat in hopper/.</summary>
+    /// everything flat in hoppermods/.</summary>
     public static class JarArchivePlanner
     {
         public static PackPlan Plan(ZipArchive archive)

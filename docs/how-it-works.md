@@ -6,7 +6,7 @@ HOPPER is a **mod locator**, not a mod. Forge's `ModDirTransformerDiscoverer` wa
 
 So HOPPER downloads the required set, and FML then picks those jars up in the same launch. That is why there is no restart, and why it does not care which launcher started the game.
 
-A normal `@Mod` runs after the jar scan. On Windows the open jars cannot be replaced, which forces a restart plus a second process to apply the files. HOPPER avoids that entirely by never writing into `mods/`: downloads land in `hopper/`, a directory it owns outright, so a player's own mods are never touched either.
+A normal `@Mod` runs after the jar scan. On Windows the open jars cannot be replaced, which forces a restart plus a second process to apply the files. HOPPER avoids that entirely by never writing into `mods/`: downloads land in `hoppermods/`, a directory it owns outright, so a player's own mods are never touched either.
 
 ## The generated jar
 
@@ -59,7 +59,7 @@ None of the three client endpoints carries a server segment, and that is deliber
 ## Sync behaviour
 
 - A file is downloaded only if it is missing or its sha256 does not match.
-- Anything in `hopper/` the manifest no longer lists is deleted, except `hopper/client-id`.
+- Anything in `hoppermods/` the manifest no longer lists is deleted, except `hoppermods/client-id`.
 - A download whose hash does not match is discarded, not installed.
 - Filenames are rejected if they contain a path separator, `..`, a leading dot, or do not end in `.jar`.
 - A failed report never fails the sync, and a failed sync never blocks the launch.
