@@ -2,26 +2,14 @@ using HOPPER.Application.Modrinth;
 
 namespace HOPPER.Tests.Modrinth
 {
-    /// <summary>Stands in for the live API. Every resolver test drives this instead of a socket -
-    /// nothing in this suite may touch api.modrinth.com, both because a test that depends on someone
-    /// else's uptime is not a test and because their limit is 300 requests a minute per address and a
-    /// CI loop is exactly how that gets spent.
-    ///
-    /// It reproduces the two upstream behaviours that actually bite: the bulk endpoints return results
-    /// in an order the caller did not ask for, and they drop unknown ids silently rather than
-    /// answering 404. A fake that returned things in order would let a resolver that joins by index
-    /// pass.</summary>
     internal sealed class FakeModrinthClient : IModrinthClient
     {
         public Dictionary<string, ModrinthVersion> Versions { get; } = new(StringComparer.Ordinal);
 
         public Dictionary<string, ModrinthProject> Projects { get; } = new(StringComparer.Ordinal);
 
-        /// <summary>Project id to its version list, newest first, as the real endpoint orders it.</summary>
         public Dictionary<string, List<ModrinthVersion>> ProjectVersions { get; } = new(StringComparer.Ordinal);
 
-        /// <summary>Every call made, so a test can assert that a pinned dependency was NOT re-resolved
-        /// and that a level cost one bulk call rather than one call per mod.</summary>
         public List<string> Calls { get; } = [];
 
         public Task<IReadOnlyList<ModrinthVersion>> GetVersionsAsync(
@@ -29,7 +17,6 @@ namespace HOPPER.Tests.Modrinth
         {
             Calls.Add($"versions:{string.Join(',', versionIds)}");
 
-            // Reversed on purpose: the response order is not the request order.
             var found = versionIds
                 .Where(Versions.ContainsKey)
                 .Select(id => Versions[id])
@@ -88,12 +75,8 @@ namespace HOPPER.Tests.Modrinth
         public Task<ModrinthTags> GetTagsAsync(CancellationToken cancellationToken) =>
             Task.FromResult(new ModrinthTags([], []));
 
-        /// <summary>Bytes served per URL, for the install tests. Empty for the resolver tests, which
-        /// never download anything.</summary>
         public Dictionary<string, byte[]> Downloads { get; } = new(StringComparer.Ordinal);
 
-        /// <summary>Set to make the next download fail, so the batch-continues-past-a-failure rule can
-        /// be asserted.</summary>
         public HashSet<string> FailingDownloads { get; } = new(StringComparer.Ordinal);
 
         public Task<Stream> OpenDownloadAsync(Uri url, CancellationToken cancellationToken)
@@ -107,11 +90,6 @@ namespace HOPPER.Tests.Modrinth
                 new MemoryStream(Downloads.TryGetValue(url.ToString(), out var bytes) ? bytes : []));
         }
 
-        // ---- fixture builders --------------------------------------------------------------
-
-        /// <summary>Registers a project and one version of it, wired so both the bulk lookup and the
-        /// version listing find it. Everything a PlanNode needs is populated, because a version with
-        /// no primary file is a separate case with its own test.</summary>
         public ModrinthVersion AddMod(
             string projectId,
             string versionId,
@@ -158,15 +136,11 @@ namespace HOPPER.Tests.Modrinth
             if (!ProjectVersions.TryGetValue(projectId, out var list))
                 ProjectVersions[projectId] = list = [];
 
-            // Newest first, matching the real endpoint's order, which is what "the first release is
-            // the newest release" relies on.
             list.Insert(0, version);
 
             return version;
         }
 
-        /// <summary>A mod that can actually be downloaded: the bytes are served and the published
-        /// hashes are the real ones for those bytes, unless overridden to test the mismatch path.</summary>
         public ModrinthVersion AddDownloadableMod(
             string projectId,
             string versionId,

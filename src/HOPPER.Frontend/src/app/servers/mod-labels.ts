@@ -1,22 +1,9 @@
-// Wire-side enums for provenance and the Modrinth browser, and the wording the dashboard puts on
-// them. Same shape and the same rules as import-labels.ts: HOPPER persists these as ints, the
-// generated client types them `number` and nothing else, and this file is the only place the
-// mapping lives. Plain functions rather than pipes so a template can reach them through a component
-// method and keep the no-arrow-functions rule.
-//
-// The numbers must stay in step with src/HOPPER.Domain/Enums/*.cs and with
-// src/HOPPER.Application/Modrinth/ModrinthPlanModels.cs. An unknown value renders as such rather
-// than falling back to the first case: a server one version ahead of the dashboard should read as
-// "unknown", not silently as "Uploaded".
-
-/** Mirrors HOPPER.Domain.Enums.ModSource. */
 export const MOD_SOURCE = {
   manual: 0,
   modrinth: 1,
   curseForge: 2,
 } as const;
 
-/** Mirrors HOPPER.Domain.Enums.ModLoader. */
 export const MOD_LOADER = {
   unknown: 0,
   forge: 1,
@@ -25,14 +12,12 @@ export const MOD_LOADER = {
   quilt: 4,
 } as const;
 
-/** Mirrors HOPPER.Application.Modrinth.PlanNodeKind. */
 export const PLAN_NODE_KIND = {
   root: 0,
   required: 1,
   optional: 2,
 } as const;
 
-/** Mirrors HOPPER.Application.Modrinth.PlanNodeStatus. */
 export const PLAN_NODE_STATUS = {
   new: 0,
   alreadyInstalled: 1,
@@ -40,7 +25,6 @@ export const PLAN_NODE_STATUS = {
   fileNameTaken: 3,
 } as const;
 
-/** Mirrors HOPPER.Application.Modrinth.ModrinthSearchIndex - the sort order of a result page. */
 export const SEARCH_INDEX = {
   relevance: 0,
   downloads: 1,
@@ -79,12 +63,6 @@ export function modLoaderLabel(loader: number): string {
   }
 }
 
-/**
- * The name Modrinth knows this loader by, which is what both the search facet and the version
- * filter are keyed on. Null for Unknown, and that null is load-bearing: the browser refuses to
- * search at all without a loader rather than searching every loader at once and offering the admin
- * jars their server cannot load.
- */
 export function modLoaderFacet(loader: number): string | null {
   switch (loader) {
     case MOD_LOADER.forge:
@@ -100,7 +78,6 @@ export function modLoaderFacet(loader: number): string | null {
   }
 }
 
-/** The reverse, for reading a loader name out of Modrinth's tag list back into HOPPER's enum. */
 export function modLoaderFromFacet(name: string): number {
   switch (name.toLowerCase()) {
     case 'forge':
@@ -116,7 +93,6 @@ export function modLoaderFromFacet(name: string): number {
   }
 }
 
-/** Why a row is in the plan. "Selected" covers a ticked optional too - it was resolved as a root. */
 export function planNodeKindLabel(kind: number): string {
   switch (kind) {
     case PLAN_NODE_KIND.root:
@@ -145,10 +121,6 @@ export function planNodeStatusLabel(status: number): string {
   }
 }
 
-/**
- * The sentence under a row that is not New: what is already on the server, and therefore what the
- * admin has to decide. Only the last two are decisions - the other two are statements.
- */
 export function planNodeStatusDetail(status: number): string {
   switch (status) {
     case PLAN_NODE_STATUS.alreadyInstalled:
@@ -162,14 +134,12 @@ export function planNodeStatusDetail(status: number): string {
   }
 }
 
-/** True for the two statuses that offer a Replace tick. Both default to skipping. */
 export function isReplaceable(status: number): boolean {
   return (
     status === PLAN_NODE_STATUS.otherVersionInstalled || status === PLAN_NODE_STATUS.fileNameTaken
   );
 }
 
-/** How a release channel reads on a badge. Modrinth publish these three, lowercase. */
 export function versionTypeLabel(versionType: string | null | undefined): string {
   switch ((versionType ?? '').toLowerCase()) {
     case 'release':
@@ -183,20 +153,10 @@ export function versionTypeLabel(versionType: string | null | undefined): string
   }
 }
 
-/**
- * The project page on modrinth.com. Takes whichever identifier the caller happens to have: a search
- * hit carries a slug, a stored Mod row carries only the base62 project id, and modrinth.com/mod/
- * resolves both. Null in means no link rather than a link to /mod/undefined - a Manual mod has no
- * project at all.
- */
 export function modrinthProjectUrl(slugOrId: string | null | undefined): string | null {
   return slugOrId && slugOrId.length > 0 ? `https://modrinth.com/mod/${slugOrId}` : null;
 }
 
-/**
- * Compact download counts. Modrinth's numbers run to nine digits, and "67.6M" is the difference
- * between a card that reads at a glance and one that does not.
- */
 export function formatCount(value: number): string {
   if (value < 1000) return `${value}`;
   if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}K`;

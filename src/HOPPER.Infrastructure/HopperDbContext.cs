@@ -41,9 +41,6 @@ namespace HOPPER.Infrastructure
         }
     }
 
-    /// <summary>Lets `dotnet ef` build a context without booting the API. It reads the raw
-    /// environment variable rather than IConfiguration so the tooling hits the same database file
-    /// the app does when that variable is exported in the shell.</summary>
     public class HopperDbContextFactory : IDesignTimeDbContextFactory<HopperDbContext>
     {
         public HopperDbContext CreateDbContext(string[] args)

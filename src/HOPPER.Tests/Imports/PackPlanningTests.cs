@@ -5,16 +5,8 @@ using HOPPER.Domain.Enums;
 
 namespace HOPPER.Tests.Imports
 {
-    /// <summary>
-    /// Detection and planning, against fixtures built in code rather than against the 51 MB real packs
-    /// they were derived from. Two rules here are the ones that bite if missed, and both are asserted
-    /// directly: overrides/mods is always ingested (it is where the non-redistributable jars hide), and
-    /// a CurseForge pack with no API key yields pending entries rather than silence.
-    /// </summary>
     public class PackPlanningTests
     {
-        /// <summary>Stands in for a real API client. IsConfigured=false is the shipped default: HOPPER
-        /// neither hardcodes nor bundles a CurseForge key.</summary>
         private sealed class KeylessCurseForge : ICurseForgeClient
         {
             public bool IsConfigured => false;
@@ -42,14 +34,9 @@ namespace HOPPER.Tests.Imports
             return new ZipArchive(buffer, ZipArchiveMode.Read);
         }
 
-        // ---- detection ---------------------------------------------------------------------
-
         [Test]
         public async Task Detect_MrpackWithADecoyManifestInsideOverrides_IsStillModrinth()
         {
-            // Rules 1-3 match the FULL path precisely because manifest.json is an ordinary filename
-            // that turns up inside overrides/ in real packs. A basename match here would read a
-            // CurseForge pack out of a Modrinth one and then find no files[] at all.
             using var archive = ArchiveOf(
                 ("modrinth.index.json", """{"formatVersion":1,"game":"minecraft","files":[]}"""),
                 ("overrides/manifest.json", "{}"));
@@ -73,8 +60,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task Detect_PrismInstanceNestedOneDirectoryDeep_StripsThePrefix()
         {
-            // Rule 4 matches the BASENAME anywhere, because whoever shared the export may have zipped
-            // the folder rather than its contents.
             using var archive = ArchiveOf(
                 ("MyPack/instance.cfg", "[General]\nname=MyPack\n"),
                 ("MyPack/mmc-pack.json", "{}"),
@@ -89,8 +74,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task Detect_PrismZipWrappingAnMrpack_DelegatesToModrinth()
         {
-            // A pack someone downloaded and re-zipped without ever installing it. Detection re-runs
-            // the first three rules against the stripped tree so it resolves to its real format.
             using var archive = ArchiveOf(
                 ("Wrapped/instance.cfg", "[General]\nname=Wrapped\n"),
                 ("Wrapped/modrinth.index.json", """{"formatVersion":1,"game":"minecraft","files":[]}"""));
@@ -104,7 +87,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task Detect_TechnicPack_IsRejectedWithAStraightAnswer()
         {
-            // Recognised on purpose: "not a recognised modpack" would read as a corrupt download.
             using var archive = ArchiveOf(("bin/modpack.jar", "PK"), ("bin/version.json", "{}"));
 
             var exception = await Assert.That(() => PackDetector.Detect(archive)).Throws<PackImportException>();
@@ -126,8 +108,6 @@ namespace HOPPER.Tests.Imports
 
             await Assert.That(() => PackDetector.Detect(archive)).Throws<PackImportException>();
         }
-
-        // ---- Modrinth ----------------------------------------------------------------------
 
         [Test]
         public async Task ModrinthPlan_IndexEntries_CarryTheirUrlsAndHashes()
@@ -157,8 +137,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task ModrinthPlan_OverrideJars_AreIngested()
         {
-            // The rule that bites if missed. Better MC ships 21 jars here and no URLs for them: a pack
-            // imported without overrides/mods is a pack that does not launch.
             using var archive = ArchiveOf(
                 ("modrinth.index.json", """{"formatVersion":1,"game":"minecraft","files":[]}"""),
                 ("overrides/mods/custom-thing.jar", "PK custom"),
@@ -168,8 +146,6 @@ namespace HOPPER.Tests.Imports
 
             var plan = ModrinthPlanner.Plan(archive, string.Empty);
 
-            // server-overrides is deliberately excluded: those files exist because they are wrong on a
-            // client, which is the only kind of machine HOPPER sends jars to.
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "client-only.jar", "custom-thing.jar" });
             await Assert.That(plan.Files.All(f => f.ZipEntry is not null)).IsTrue();
@@ -195,8 +171,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task ModrinthPlan_ClientUnsupportedEntry_IsSkipped()
         {
-            // env is optional per spec, so absent means "install everywhere". Only an explicit
-            // client:"unsupported" is a reason to leave a jar out - HOPPER feeds game clients.
             using var archive = ArchiveOf(("modrinth.index.json", """
                 {"formatVersion":1,"game":"minecraft","files":[
                   {"path":"mods/server-side.jar","hashes":{"sha1":"a"},"env":{"client":"unsupported","server":"required"},
@@ -218,14 +192,9 @@ namespace HOPPER.Tests.Imports
             await Assert.That(() => ModrinthPlanner.Plan(archive, string.Empty)).Throws<PackImportException>();
         }
 
-        // ---- CurseForge --------------------------------------------------------------------
-
         [Test]
         public async Task CurseForgePlan_WithoutAnApiKey_TurnsEveryManifestEntryIntoAPending()
         {
-            // A files[] entry is two integers: no filename, no URL, no hash, no size. Offline there is
-            // nothing to resolve, so the honest outcome is a pending row per entry - which is exactly
-            // what Prism's BlockedModsDialog exists to work through.
             using var archive = ArchiveOf(
                 ("manifest.json", """
                  {"manifestType":"minecraftModpack","manifestVersion":1,"name":"ATM9","version":"1.1.1",
@@ -243,15 +212,13 @@ namespace HOPPER.Tests.Imports
             await Assert.That(plan.Pending.All(p => p.Reason == PendingReason.NoApiKey)).IsTrue();
             await Assert.That(plan.Pending[0].ProjectId).IsEqualTo(351491);
             await Assert.That(plan.Pending[0].FileId).IsEqualTo(6366217);
-            // No hash is knowable, so a supplied jar can only ever be asserted, never verified.
+
             await Assert.That(plan.Pending[0].ExpectedSha1).IsNull();
         }
 
         [Test]
         public async Task CurseForgePlan_OverridesFolderName_IsReadNotAssumed()
         {
-            // "overrides" is a field, not a constant. Hardcoding it silently loses every jar in a pack
-            // that named the folder anything else.
             using var archive = ArchiveOf(
                 ("manifest.json", """
                  {"manifestType":"minecraftModpack","manifestVersion":1,"files":[],"overrides":"custom"}
@@ -266,8 +233,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task CurseForgePlan_ModListLabels_AreUsedOnlyWhenTheCountsLineUp()
         {
-            // modlist.html carries no ids, so it can be lined up positionally at best. Two anchors for
-            // two files[] entries is usable; anything else has to be discarded rather than guessed at.
             using var archive = ArchiveOf(
                 ("manifest.json", """
                  {"manifestType":"minecraftModpack","manifestVersion":1,
@@ -305,8 +270,6 @@ namespace HOPPER.Tests.Imports
                 .Throws<PackImportException>();
         }
 
-        // ---- Prism / plain zip -------------------------------------------------------------
-
         [Test]
         public async Task PrismPlan_TakesTheJarsFromMinecraftMods()
         {
@@ -324,8 +287,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task PrismPlan_DottedMinecraftFolder_IsAccepted()
         {
-            // Older MultiMC instances use ".minecraft"; Prism's own gameRoot() prefers "minecraft"
-            // when both exist and falls back to the dotted form otherwise.
             using var archive = ArchiveOf(
                 ("instance.cfg", "[General]\nname=legacy\n"),
                 (".minecraft/mods/jei.jar", "PK jei"));

@@ -3,17 +3,13 @@ using HOPPER.Application.Modrinth;
 
 namespace HOPPER.Application.Mappings.Modrinth
 {
-    /// <summary>Raw Modrinth shapes to HOPPER DTOs. The boundary matters: everything past this point
-    /// is HOPPER's own contract with its dashboard, and nothing upstream leaks into the generated
-    /// TypeScript client.</summary>
     public static class ModrinthMappings
     {
         public static ModrinthSearchHitDto ToDto(this ModrinthHit hit, bool installed) => new()
         {
             ProjectId = hit.ProjectId,
             Slug = hit.Slug,
-            // A hit with no title is not something to drop - the id still resolves - so the slug and
-            // then the id stand in.
+
             Title = hit.Title ?? hit.Slug ?? hit.ProjectId,
             Description = hit.Description,
             Author = hit.Author,
@@ -84,8 +80,6 @@ namespace HOPPER.Application.Mappings.Modrinth
 
         public static ModrinthInstallPlanDto ToDto(this ResolveResult result)
         {
-            // Counted over New only: an already-installed node is in the list so the admin can see it
-            // was considered, but it is not something they are agreeing to download.
             var adding = result.Nodes.Where(n => n.Status == PlanNodeStatus.New).ToList();
 
             return new ModrinthInstallPlanDto
@@ -125,8 +119,7 @@ namespace HOPPER.Application.Mappings.Modrinth
                 .Select(l => l.Name)
                 .ToList(),
             GameVersions = tags.GameVersions
-                // Releases only. The unfiltered list is 905 entries and the rest are snapshots and
-                // release candidates nobody runs a distributed mod set on.
+
                 .Where(v => string.Equals(v.VersionType, "release", StringComparison.Ordinal))
                 .Select(v => new ModrinthGameVersionDto { Version = v.Version, Major = v.Major })
                 .ToList(),

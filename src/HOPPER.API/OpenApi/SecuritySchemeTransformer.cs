@@ -6,19 +6,12 @@ using Microsoft.OpenApi;
 
 namespace HOPPER.API.OpenApi
 {
-    /// <summary>Declares both authentication schemes in the OpenAPI document and applies them per
-    /// operation. Unlike KRINT this cannot blanket-apply one scheme, because HOPPER has two audiences
-    /// on the same document: the dashboard (OAuth2) and the game client (a shared bearer token).
-    /// Telling Scalar that /api/manifest takes an OAuth2 token would make it impossible to try the
-    /// endpoint the way the real client calls it.</summary>
     internal sealed class SecuritySchemeTransformer(
         IAuthenticationSchemeProvider authenticationSchemeProvider,
         IConfiguration configuration) : IOpenApiDocumentTransformer
     {
         private const string OAuth2SchemeName = "OAuth2";
 
-        /// <summary>Routes served to the Forge locator. Everything else in the document is admin
-        /// surface, except /api/app which is anonymous.</summary>
         private static readonly string[] ClientTokenPaths =
         [
             "/api/manifest",
@@ -42,9 +35,6 @@ namespace HOPPER.API.OpenApi
                 Description = "The per-server token carried by the jar downloaded from this server, or set by hand in the player's hopper.properties.",
             };
 
-            // The OAuth2 scheme needs a live authority to describe its endpoints. A dev instance
-            // running without an IdP still has to produce a usable document - the frontend's client
-            // generator reads it - so its absence degrades the document rather than failing it.
             var authority = configuration["Oidc:Authority"]?.TrimEnd('/');
             var hasOAuth2 = schemes.Any(scheme => scheme.Name == JwtBearerDefaults.AuthenticationScheme)
                 && !string.IsNullOrWhiteSpace(authority);
@@ -82,8 +72,6 @@ namespace HOPPER.API.OpenApi
 
                 var usesClientToken = ClientTokenPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
-                // /api/clients is admin but /api/clients/report is not, and the prefix match above
-                // already separated them.
                 if (!usesClientToken && !hasOAuth2)
                     continue;
 

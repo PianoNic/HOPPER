@@ -1,38 +1,26 @@
-# ---- .NET ----
 bin/
 obj/
 *.user
 .vs/
 TestResults/
 
-# ---- runtime state ----
-# SQLite lands in the output directory by default, so bin/ already covers it - these catch a
-# run that was pointed somewhere else, and the blob store, which must never be committed.
 *.db
 *.db-shm
 *.db-wal
 blobs/
 
-# ---- secrets ----
 .env
 !.env.example
 
-# ---- frontend ----
 node_modules/
 dist/
 .angular/
 *.tsbuildinfo
 
-# ---- locator (Gradle) ----
-# Both, and both are needed. The root project compiles nothing, so the per-module line is the one
-# that matters for class files and jars - a root-only ignore matched nothing, which is how eight
-# modules' worth of build output came to be tracked. The root line still earns its place because the
-# `templates` task collects the shipped adapters into build/templates.
 src/HOPPER.Locator/.gradle/
 src/HOPPER.Locator/build/
 src/HOPPER.Locator/*/build/
 
-# ---- editors / OS ----
 .idea/
 .DS_Store
 Thumbs.db

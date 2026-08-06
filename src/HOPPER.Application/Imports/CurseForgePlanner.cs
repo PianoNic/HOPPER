@@ -5,13 +5,6 @@ using HOPPER.Domain.Enums;
 
 namespace HOPPER.Application.Imports
 {
-    /// <summary>Plans a CurseForge pack zip. This is the hard one, and the reason PendingMod exists at
-    /// all: a files[] entry is two integers and nothing else - no filename, no URL, no hash, no size -
-    /// so everything needed to fetch or even name a mod lives behind an API key HOPPER does not ship.
-    ///
-    /// Without a key: the overrides/ jars are imported and every manifest entry becomes pending.
-    /// With a key: entries resolve to real URLs, and only the ones whose authors disabled
-    /// distribution stay pending. That is exactly what Prism's BlockedModsDialog exists for.</summary>
     public static partial class CurseForgePlanner
     {
         public static async Task<PackPlan> PlanAsync(
@@ -53,8 +46,6 @@ namespace HOPPER.Application.Imports
                     throw new PackImportException($"Unsupported CurseForge manifestVersion {version.GetInt32()}.");
                 }
 
-                // "overrides" names the folder; it is not fixed and must be read rather than assumed,
-                // even though every pack in the wild says "overrides".
                 var overrides = root.TryGetProperty("overrides", out var o) && o.ValueKind == JsonValueKind.String
                     ? o.GetString()
                     : "overrides";
@@ -86,8 +77,7 @@ namespace HOPPER.Application.Imports
                             DisplayName = label,
                             ProjectId = projectId,
                             FileId = fileId,
-                            // Redirects to the project page. The slug is not in the manifest, so this
-                            // is the best link that can be produced offline.
+
                             SourceUrl = $"https://www.curseforge.com/projects/{projectId}",
                             Detail = curseForge.IsConfigured
                                 ? "CurseForge did not return this file. Download the jar and supply it here."
@@ -98,8 +88,6 @@ namespace HOPPER.Application.Imports
 
                     if (file.DownloadUrl is null)
                     {
-                        // The genuine blocked case. Prism tests exactly this - an empty downloadUrl -
-                        // and tries Modrinth by the sha1 CurseForge did give us before giving up.
                         var mirror = file.Sha1 is null
                             ? null
                             : await curseForge.FindOnModrinthBySha1Async(file.Sha1, cancellationToken);
@@ -123,8 +111,7 @@ namespace HOPPER.Application.Imports
                             FileName = file.FileName,
                             ProjectId = projectId,
                             FileId = fileId,
-                            // Populated here and not in the keyless branch, which is what makes a
-                            // supplied jar verifiable rather than merely asserted.
+
                             ExpectedSha1 = file.Sha1,
                             SourceUrl = $"https://www.curseforge.com/projects/{projectId}",
                             Detail = "The author disabled third-party distribution for this file. Download it from CurseForge and supply it here.",
@@ -164,9 +151,6 @@ namespace HOPPER.Application.Imports
             return entries;
         }
 
-        /// <summary>modlist.html is a flat &lt;ul&gt; of project links with no ids in it, so it cannot
-        /// be JOINED to files[] - only lined up positionally, and only when the counts agree exactly.
-        /// Returns null otherwise. These are labels for a human to recognise a mod by, never a key.</summary>
         private static List<string>? ReadModListLabels(ZipArchive archive, string prefix, int expected)
         {
             var entry = archive.GetEntry(prefix + "modlist.html");

@@ -4,9 +4,6 @@ using HOPPER.Domain.Enums;
 
 namespace HOPPER.Application.Imports
 {
-    /// <summary>Plans a .mrpack. This is the one format that needs no key and no human: every entry
-    /// in modrinth.index.json carries direct, anonymous HTTPS URLs and mandatory sha1 + sha512, so a
-    /// clean import produces zero pending rows.</summary>
     public static class ModrinthPlanner
     {
         public static PackPlan Plan(ZipArchive archive, string prefix)
@@ -56,9 +53,6 @@ namespace HOPPER.Application.Imports
                         if (string.IsNullOrWhiteSpace(path))
                             continue;
 
-                        // HOPPER distributes mods. resourcepacks/, shaderpacks/ and datapacks/ are real
-                        // entries in real packs (Better MC has 31 of them) and are counted as skipped
-                        // rather than dropped silently, so a shrinking mod count is explainable.
                         if (!path.StartsWith("mods/", StringComparison.OrdinalIgnoreCase)
                             || !path.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
                         {
@@ -66,9 +60,6 @@ namespace HOPPER.Application.Imports
                             continue;
                         }
 
-                        // env is optional in the spec even though every real pack carries it. Absent
-                        // means "install everywhere"; only an explicit client:"unsupported" is a reason
-                        // to leave it out, since what HOPPER feeds is game clients.
                         if (file.TryGetProperty("env", out var env)
                             && env.ValueKind == JsonValueKind.Object
                             && env.TryGetProperty("client", out var client)
@@ -108,9 +99,6 @@ namespace HOPPER.Application.Imports
                     }
                 }
 
-                // Not optional, and the easiest thing in this whole pipeline to forget: overrides/mods
-                // is where the jars that are not hosted on Modrinth live - 21 of them in Better MC -
-                // and a pack imported without them is a pack that does not launch.
                 files.AddRange(OverrideJars(archive, prefix + "overrides/mods/"));
                 files.AddRange(OverrideJars(archive, prefix + "client-overrides/mods/"));
 
@@ -118,8 +106,6 @@ namespace HOPPER.Application.Imports
             }
         }
 
-        /// <summary>server-overrides/ is deliberately not read: those files exist because they are
-        /// wrong on a client, which is the only kind of machine HOPPER sends jars to.</summary>
         private static IEnumerable<PlannedFile> OverrideJars(ZipArchive archive, string folder) =>
             archive.Entries
                 .Where(e => e.FullName.StartsWith(folder, StringComparison.OrdinalIgnoreCase) && PackDetector.IsJar(e))

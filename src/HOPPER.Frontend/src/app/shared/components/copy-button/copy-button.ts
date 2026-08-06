@@ -33,7 +33,6 @@ export class CopyButton {
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1500);
     } catch {
-      // ignored - the clipboard API is unavailable over plain http on some browsers
     }
   }
 }

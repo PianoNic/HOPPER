@@ -12,8 +12,6 @@ namespace HOPPER.Application.Queries.Imports
     {
         public async ValueTask<ModImportDto> Handle(GetImportQuery query, CancellationToken cancellationToken)
         {
-            // Matched on both ids: an import id belonging to another server is a 404, not that
-            // server's row rendered under this one's page.
             var import = await db.ModImports.AsNoTracking()
                 .FirstOrDefaultAsync(i => i.ServerId == query.ServerId && i.Id == query.ImportId, cancellationToken)
                 ?? throw new ImportNotFoundException(query.ImportId);

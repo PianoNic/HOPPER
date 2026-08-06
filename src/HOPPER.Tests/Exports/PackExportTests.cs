@@ -12,16 +12,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Exports
 {
-    /// <summary>
-    /// The exporters write real files that other people's launchers read, so what is asserted here is
-    /// the archive itself - entry names, manifest keys, which jar landed where - and not a return
-    /// value.
-    ///
-    /// The rule the whole feature turns on gets its own test: a mod HOPPER knows the Modrinth origin
-    /// of becomes a manifest entry pointing at the real CDN, and everything else ships as bytes. A
-    /// HOPPER blob URL needs this server's bearer token, so a pack carrying one would be useless to
-    /// whoever it was handed to - PortabilityTest below greps all three archives for one.
-    /// </summary>
     public class PackExportTests
     {
         private sealed class TempDir : IDisposable
@@ -31,8 +21,6 @@ namespace HOPPER.Tests.Exports
             public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch { } }
         }
 
-        /// <summary>One server on Forge 1.20.1 with two Modrinth mods and one hand-uploaded one - the
-        /// mix every assertion below needs.</summary>
         private sealed class Fixture : IDisposable
         {
             public TempDir Dir { get; } = new();
@@ -111,8 +99,6 @@ namespace HOPPER.Tests.Exports
             }
         }
 
-        /// <summary>Reads the finished archive fully into memory. Test fixtures are a few hundred
-        /// bytes; the exporter itself never does this, which is the point of it streaming to disk.</summary>
         private static async Task<Dictionary<string, byte[]>> EntriesOf(PackExportResult result)
         {
             var buffer = new MemoryStream();
@@ -137,8 +123,6 @@ namespace HOPPER.Tests.Exports
         private static JsonElement JsonOf(Dictionary<string, byte[]> entries, string path) =>
             JsonDocument.Parse(entries[path]).RootElement.Clone();
 
-        // ---- .mrpack -----------------------------------------------------------------------
-
         [Test]
         public async Task Mrpack_HasItsIndexAtTheRootWithTheFormatVersionConsumersRequire()
         {
@@ -155,8 +139,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Mrpack_Dependencies_AreExactlyMinecraftAndTheLoader()
         {
-            // An unrecognised key here is a hard "Unknown dependency type" in Prism, and the loader
-            // version is written bare, with no Minecraft prefix.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.Mrpack().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -185,8 +167,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Mrpack_ManifestEntry_CarriesSha1AndSha512AndNeverSha256()
         {
-            // sha256 is not an algorithm this format or any of its consumers know. It is the blob
-            // address and it stays there.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.Mrpack().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -235,8 +215,6 @@ namespace HOPPER.Tests.Exports
             await Assert.That(Encoding.UTF8.GetString(entries["overrides/mods/hand-uploaded.jar"]))
                 .IsEqualTo(Fixture.ManualBytes);
 
-            // And the two that are in files[] are NOT also shipped as bytes: they would be downloaded
-            // and then overwritten by themselves.
             await Assert.That(entries.ContainsKey("overrides/mods/jei.jar")).IsFalse();
         }
 
@@ -252,8 +230,6 @@ namespace HOPPER.Tests.Exports
             await Assert.That(result.FileName).EndsWith(".mrpack");
             await Assert.That(result.ContentType).IsEqualTo("application/x-modrinth-modpack+zip");
         }
-
-        // ---- CurseForge --------------------------------------------------------------------
 
         [Test]
         public async Task CurseForge_Manifest_HasTheTypeAndVersionConsumersRequire()
@@ -272,8 +248,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task CurseForge_ModLoaderId_IsTheBareLoaderBuildWithNoMinecraftPrefix()
         {
-            // Consumers strip "forge-" and take the rest verbatim, so "forge-1.20.1-47.4.10" would
-            // become a loader version of "1.20.1-47.4.10" and resolve to nothing.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.CurseForge().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -289,9 +263,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task CurseForge_Files_IsEmptyAndEveryJarShipsInline()
         {
-            // A CurseForge files[] entry is two integers - a CurseForge project id and file id. HOPPER
-            // has neither for a Modrinth-sourced or hand-uploaded mod and cannot invent them, so the
-            // whole set ships in overrides/mods/. That is a valid, importable pack.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.CurseForge().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -315,17 +286,12 @@ namespace HOPPER.Tests.Exports
             await Assert.That(html).Contains("Just Enough Items");
             await Assert.That(html).Contains("https://modrinth.com/mod/u6dRKJwZ");
 
-            // No project name and no link for the hand-uploaded one, so it falls back to its filename.
             await Assert.That(html).Contains("hand-uploaded.jar");
         }
-
-        // ---- Prism instance ----------------------------------------------------------------
 
         [Test]
         public async Task Prism_InstanceCfg_CarriesTheOneKeyPrismActuallyChecks()
         {
-            // InstanceType is load-bearing: Prism rejects the instance outright if it is present and
-            // not "OneSix".
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.Prism().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -360,8 +326,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Prism_PutsEveryJarInAMaterialisedGameDirectory()
         {
-            // An instance is a game directory, not a manifest - there is nothing here to carry a
-            // download link, so even the Modrinth mods go in as bytes.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.Prism().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -375,9 +339,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Prism_MustNotContainAModrinthIndex()
         {
-            // Prism's zip detection ranks modrinth.index.json ABOVE instance.cfg, so an instance zip
-            // carrying one is imported as a Modrinth pack and the instance.cfg is ignored entirely.
-            // "A Prism instance wrapping an mrpack" is not a thing - the .mrpack already is that.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.Prism().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -389,8 +350,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Prism_UsesMinecraftNotDotMinecraft()
         {
-            // What Prism creates on Windows, and what PrismPlanner prefers reading back - which is
-            // what makes HOPPER's own export re-importable into HOPPER.
             using var fixture = new Fixture();
 
             var entries = await EntriesOf(await fixture.Prism().ExportAsync(fixture.ServerId, CancellationToken.None));
@@ -398,15 +357,9 @@ namespace HOPPER.Tests.Exports
             await Assert.That(entries.Keys.Any(k => k.StartsWith(".minecraft/", StringComparison.Ordinal))).IsFalse();
         }
 
-        // ---- portability, the rule the whole feature exists for -----------------------------
-
         [Test]
         public async Task NoExportedPack_ContainsAHopperUrlOrBlobPath()
         {
-            // A HOPPER blob URL is reachable only by a client holding this server's token, so a pack
-            // carrying one is useless to whoever it is handed to - and Modrinth would refuse to accept
-            // it, their whitelist being cdn.modrinth.com, github.com, raw.githubusercontent.com and
-            // gitlab.com. This is asserted over the WHOLE archive, text entries and jar bytes alike.
             using var fixture = new Fixture();
 
             var archives = new[]
@@ -428,13 +381,9 @@ namespace HOPPER.Tests.Exports
             }
         }
 
-        // ---- preconditions -----------------------------------------------------------------
-
         [Test]
         public async Task Export_ServerWithNoPlatformSet_IsRefusedWithSomethingActionable()
         {
-            // All three formats name an exact Minecraft version and loader build. There is nothing
-            // sensible to guess, and the message says which fields to fill in.
             using var fixture = new Fixture(configurePlatform: false);
 
             await Assert.That(async () => await fixture.Mrpack().ExportAsync(fixture.ServerId, CancellationToken.None))
@@ -459,7 +408,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Export_ModWhoseBlobIsGone_IsWarnedAboutRatherThanFailingThePack()
         {
-            // An admin with 200 mods and one broken blob wants 199 mods and a note, not a 500.
             using var fixture = new Fixture();
 
             var orphan = fixture.Db.Mods.First(m => m.FileName == "hand-uploaded.jar");
@@ -475,9 +423,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Export_ModClaimingModrinthButMissingItsHashes_DegradesToAnOverride()
         {
-            // The exporters test HasModrinthProvenance(), not Source. A half-filled row would otherwise
-            // produce a manifest entry with a null download URL, which is an unusable pack; shipping
-            // the bytes instead is a correct pack either way.
             using var fixture = new Fixture();
 
             var broken = fixture.Db.Mods.First(m => m.FileName == "create.jar");
@@ -505,13 +450,9 @@ namespace HOPPER.Tests.Exports
             await Assert.That(index.GetProperty("formatVersion").GetInt32()).IsEqualTo(1);
         }
 
-        // ---- the loader table --------------------------------------------------------------
-
         [Test]
         public async Task LoaderIds_EveryLoader_HasAllThreeExternalNames()
         {
-            // One fact expressed four ways. A drift between them is a pack that imports into one
-            // launcher and not another.
             await Assert.That(LoaderIds.MrpackKey(ModLoader.Forge)).IsEqualTo("forge");
             await Assert.That(LoaderIds.MrpackKey(ModLoader.NeoForge)).IsEqualTo("neoforge");
             await Assert.That(LoaderIds.MrpackKey(ModLoader.Fabric)).IsEqualTo("fabric-loader");

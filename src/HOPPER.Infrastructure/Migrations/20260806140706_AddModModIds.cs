@@ -1,13 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace HOPPER.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class AddModModIds : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string[]>(
@@ -17,7 +15,6 @@ namespace HOPPER.Infrastructure.Migrations
                 nullable: true);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

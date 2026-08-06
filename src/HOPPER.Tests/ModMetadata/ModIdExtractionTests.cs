@@ -17,27 +17,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HOPPER.Tests.ModMetadata
 {
-    /// <summary>
-    /// Mod ids only work when EVERY path that stores a jar records them. A server whose admin drags
-    /// jars in gets de-duplication and one whose admin imports a pack does not is not a feature, it
-    /// is a bug report waiting to be filed against the client.
-    ///
-    /// There are four such paths and all four are exercised here against a real blob store on disk
-    /// with real zip files: the upload endpoint (loose and inside a batch zip), the pack importer,
-    /// the pending-mod resolver, and the Modrinth installer including its adopt branch.
-    ///
-    /// The batch-zip case is the one that justifies the design. A jar arriving as a zip member is a
-    /// DeflateStream that cannot seek, and ZipArchive has to reach the central directory at the end
-    /// of the file, so the ids cannot be read before the blob is stored. Reading them afterwards by
-    /// content address is what works everywhere.
-    /// </summary>
     public class ModIdExtractionTests
     {
         private sealed class TempDir : IDisposable
         {
             public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "hopper-modids-" + Guid.NewGuid().ToString("N"));
             public TempDir() => Directory.CreateDirectory(Path);
-            public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch { /* temp */ } }
+            public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch {  } }
         }
 
         private sealed class StubUser(string? name) : ICurrentUserService
@@ -57,7 +43,6 @@ namespace HOPPER.Tests.ModMetadata
 
         private static FileSystemBlobStorage StorageIn(string root) => new(ConfigIn(root));
 
-        /// <summary>A real jar: a real zip carrying a real mods.toml.</summary>
         internal static byte[] ForgeJar(string modId) => Zip(("META-INF/mods.toml", $"""
             modLoader="javafml"
             loaderVersion="[47,)"
@@ -98,8 +83,6 @@ namespace HOPPER.Tests.ModMetadata
             return buffer.ToArray();
         }
 
-        // ---- upload ------------------------------------------------------------------------
-
         [Test]
         public async Task Upload_LooseJar_StoresItsModIds()
         {
@@ -117,8 +100,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Upload_JarInsideAZipBatch_StoresItsModIds()
         {
-            // The non-seekable route. This is the test that proves reading after the save, by
-            // content address, works where reading before it cannot.
             using var dir = new TempDir();
             await using var db = NewDb();
             var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
@@ -138,8 +119,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Upload_MultiModJar_StoresEveryId()
         {
-            // Embeddium's real shape: two [[mods]] blocks plus dependency tables that must not be
-            // mistaken for either of them.
             using var dir = new TempDir();
             await using var db = NewDb();
             var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
@@ -165,9 +144,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Upload_JarWithNoMetadata_StoresAnEmptySetNotNull()
         {
-            // Pins the sentinel. Null means "never looked at" and is what the backfill retries;
-            // empty means "read it, it declares nothing" and is final. A coremod or a library is
-            // the ordinary case for empty.
             using var dir = new TempDir();
             await using var db = NewDb();
             var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
@@ -184,8 +160,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Upload_NonJarPayload_StoresAnEmptySetNotNull()
         {
-            // The suite stores payloads that are not zips at all. Extraction must degrade, never
-            // throw, and never leave the row looking un-inspected.
             using var dir = new TempDir();
             await using var db = NewDb();
             var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
@@ -199,13 +173,9 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(row.ModIds!).IsEmpty();
         }
 
-        // ---- pack import -------------------------------------------------------------------
-
         [Test]
         public async Task PackImport_StoresModIds()
         {
-            // A plain zip of jars is a JarArchive pack, which is the importer's simplest real path
-            // and the one that reaches StoreAsync with a zip entry stream.
             using var dir = new TempDir();
             await using var db = NewDb();
 
@@ -265,8 +235,6 @@ namespace HOPPER.Tests.ModMetadata
                 throw new NotSupportedException("A zip of jars has no CurseForge manifest.");
         }
 
-        // ---- pending-mod resolution --------------------------------------------------------
-
         [Test]
         public async Task ResolvePendingMod_StoresModIds()
         {
@@ -294,8 +262,6 @@ namespace HOPPER.Tests.ModMetadata
             var row = await db.Mods.SingleAsync();
             await Assert.That(row.ModIds).IsEquivalentTo(new[] { "jei" });
         }
-
-        // ---- Modrinth ----------------------------------------------------------------------
 
         private sealed class ModrinthFixture : IDisposable
         {
@@ -350,9 +316,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task ModrinthAdopt_BackfillsModIdsOnALegacyRowThatHadNone()
         {
-            // The adopt branch mutates an existing row rather than inserting. A row written before
-            // this feature existed carries null, and this is the one place the Modrinth path can
-            // fill it in.
             using var fixture = new ModrinthFixture();
             var bytes = ForgeJar("jei");
 
@@ -385,8 +348,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task ModrinthAdopt_DoesNotOverwriteModIdsThatWereAlreadyRead()
         {
-            // ??=, not =. A set that has already been read is the truth about those bytes and
-            // adoption is not an occasion to recompute it.
             using var fixture = new ModrinthFixture();
             var bytes = ForgeJar("jei");
 

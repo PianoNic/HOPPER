@@ -2,16 +2,10 @@ using System.Text;
 
 namespace HOPPER.Application
 {
-    /// <summary>Validates and derives server slugs. A slug is stricter than a display name because
-    /// it ends up in a downloaded filename (&lt;slug&gt;-hopper.jar) and in URLs, so it is constrained
-    /// at the point of entry rather than escaped at every point of use.</summary>
     public static class ServerSlugValidator
     {
         public const int MaxLength = 40;
 
-        /// <summary>Throws <see cref="ArgumentException"/> unless the value is 1–40 characters of
-        /// lowercase alphanumerics and single interior dashes. Uppercase is rejected rather than
-        /// folded: a case-insensitive slug would give one server two spellings.</summary>
         public static string Validate(string? slug)
         {
             if (string.IsNullOrWhiteSpace(slug))
@@ -27,9 +21,6 @@ namespace HOPPER.Application
             return slug;
         }
 
-        /// <summary>Best-effort slug from a display name, for when the admin supplies only a name.
-        /// Returns null when nothing usable survives - "  ***  " has no slug, and inventing one
-        /// would be worse than asking.</summary>
         public static string? Derive(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -41,7 +32,7 @@ namespace HOPPER.Application
                 if (char.IsAsciiLetterOrDigit(c))
                     builder.Append(char.ToLowerInvariant(c));
                 else if (builder.Length > 0 && builder[^1] != '-')
-                    builder.Append('-'); // collapse any run of separators into one dash
+                    builder.Append('-');
             }
 
             var slug = builder.ToString().Trim('-');

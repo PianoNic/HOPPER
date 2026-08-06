@@ -10,8 +10,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Command.Imports
 {
-    /// <summary>The admin supplies the jar a pending entry was waiting for. This is Prism's
-    /// BlockedModsDialog: drop the file in, it satisfies the row, the row goes away.</summary>
     public record ResolvePendingModCommand(Guid ServerId, Guid PendingId, string FileName, Stream Content)
         : ICommand<ModDto>;
 
@@ -24,18 +22,12 @@ namespace HOPPER.Application.Command.Imports
                     p => p.ServerId == command.ServerId && p.Id == command.PendingId, cancellationToken)
                 ?? throw new PendingModNotFoundException(command.PendingId);
 
-            // The pending row may carry the real filename (the CurseForge API knew it); prefer it over
-            // whatever the browser called the file, so a jar renamed on the way through still lands
-            // under the name the pack expects.
             var fileName = ModFileNameValidator.Validate(
                 string.IsNullOrWhiteSpace(pending.FileName) ? command.FileName : pending.FileName);
 
             if (await db.Mods.AnyAsync(m => m.ServerId == command.ServerId && m.FileName == fileName, cancellationToken))
                 throw new DuplicateModFileNameException(fileName);
 
-            // Verified when the CurseForge API gave us a hash, taken on faith when it did not - which
-            // is the keyless case, where there is genuinely nothing to check against and the admin is
-            // asserting the assignment. Prism does exactly this, and compares case-insensitively.
             if (!string.IsNullOrWhiteSpace(pending.ExpectedSha1))
             {
                 var actual = await Sha1Async(command.Content, cancellationToken);
@@ -53,8 +45,6 @@ namespace HOPPER.Application.Command.Imports
                 Size = size,
                 UploadedBy = currentUser.Name,
 
-                // The stream here is seekable - Sha1Async above depends on it - but the read still
-                // goes through the blob, so every store path derives ids exactly one way.
                 ModIds = ModIdReader.FromBlob(blobs, sha256),
             };
 
@@ -65,8 +55,6 @@ namespace HOPPER.Application.Command.Imports
             return entry.ToDto();
         }
 
-        /// <summary>Hashes and rewinds. The stream is read twice - once here, once by the blob store -
-        /// so it has to be seekable; the controller spools it if the transport did not give us one.</summary>
         private static async Task<string> Sha1Async(Stream content, CancellationToken cancellationToken)
         {
             if (!content.CanSeek)

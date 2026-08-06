@@ -4,9 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Command.Imports
 {
-    /// <summary>Dismisses a pending entry the admin has decided not to supply - a client-only mod
-    /// they do not want, or one they have given up finding. Idempotent, and scoped to the server so a
-    /// pending id from elsewhere is a no-op rather than a cross-tenant delete.</summary>
     public record DeletePendingModCommand(Guid ServerId, Guid PendingId) : ICommand;
 
     public class DeletePendingModCommandHandler(HopperDbContext db) : ICommandHandler<DeletePendingModCommand>

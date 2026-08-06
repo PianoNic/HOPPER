@@ -1,6 +1,3 @@
-# At the repo root, not beside the Dockerfile. BuildKit reads the ignore file relative to the BUILD
-# CONTEXT, and both compose.yml and the release workflow build with `context: .` - a .dockerignore
-# under src/HOPPER.API/ is never opened, and every exclusion below silently does nothing.
 **/.classpath
 **/.dockerignore
 **/.env
@@ -31,9 +28,6 @@
 **/*.db
 **/blobs
 
-# Gradle output. Per-module now that the locator is a multi-module build - the locator stage copies
-# the whole src/HOPPER.Locator directory, so a host build/ would ride in and hand Gradle stale
-# outputs to decide it has nothing to do.
 src/HOPPER.Locator/*/build
 src/HOPPER.Locator/.gradle
 

@@ -9,12 +9,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Application
 {
-    /// <summary>
-    /// Multi-upload replaced both the single-file endpoint and the FTP drop the design once
-    /// considered. What matters is that a batch is not all-or-nothing: an admin dragging forty jars
-    /// where one is a duplicate must end up with thirty-nine stored and one explained, not with a
-    /// rejected request and no way to tell which file offended.
-    /// </summary>
     public class UploadModsCommandHandlerTests
     {
         private static readonly Guid ServerId = Guid.NewGuid();
@@ -98,8 +92,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_ZipWithNestedFolders_TakesTheBasenameOnly()
         {
-            // A client puts everything flat in hoppermods/, so the folder someone happened to zip a jar
-            // from is not information it can use - and a path would fail the filename validator.
             using var dir = new TempDir();
             await using var db = NewDb();
             var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
@@ -166,8 +158,7 @@ namespace HOPPER.Tests.Application
             await Assert.That(result.Uploaded.Select(m => m.FileName).ToList()).IsEquivalentTo(new[] { "rei.jar" });
             await Assert.That(result.Failed).Count().IsEqualTo(1);
             await Assert.That(result.Failed[0].FileName).IsEqualTo("jei.jar");
-            // The original row is untouched: a duplicate upload never silently replaces a jar, because
-            // that would hand every client a same-named file with a new hash and no trace of the swap.
+
             await Assert.That(await db.Mods.CountAsync(m => m.FileName == "jei.jar")).IsEqualTo(1);
         }
 
@@ -220,7 +211,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_SameBytesTwiceUnderTwoNames_StoresOneBlob()
         {
-            // Content addressing again: two names for one jar is two rows and one file.
             using var dir = new TempDir();
             await using var db = NewDb();
             var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));

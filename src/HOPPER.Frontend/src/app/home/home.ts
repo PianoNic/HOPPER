@@ -16,14 +16,6 @@ import { messageFrom, toNumber } from '../shared/utils/format';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
 
-/**
- * The landing page: everything across every server at a glance.
- *
- * Deliberately built from the one server list endpoint rather than fanning out per server. The list
- * already carries mod and client counts, so a deployment with twenty servers still costs one
- * request; per-server drift lives on the server's own overview, where the data to compute it is
- * already being fetched.
- */
 @Component({
   selector: 'app-home',
   imports: [
@@ -126,8 +118,6 @@ export class Home {
         icon: 'lucideServer',
       },
       {
-        // Summed across servers, so a jar on two servers counts twice: this is how many entries are
-        // being served, not how much is stored. The blob store deduplicates by hash underneath.
         label: 'Mods served',
         value: `${mods}`,
         hint: 'Across all servers, counted per server',

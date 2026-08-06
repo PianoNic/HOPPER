@@ -42,19 +42,12 @@ import {
   planNodeStatusLabel,
 } from './mod-labels';
 
-/**
- * What the admin picked, before any dependency is known. `rootTitles` is only for the headline
- * sentence - the plan itself names every mod, and this is the "Adding X also installs…" subject.
- */
 export type ModrinthPlanDialogContext = {
   serverId: string;
   rootVersionIds: ReadonlyArray<string>;
   rootTitles: ReadonlyArray<string>;
 };
 
-// Re-planning on every tick of an optional would fire a request per keystroke-equivalent. The
-// resolver batches through Modrinth's bulk endpoints, but a rapid series of ticks still costs a
-// round trip each, and the count in the confirm button must settle before it is read.
 const REPLAN_DEBOUNCE_MS = 300;
 
 @Component({
@@ -378,10 +371,8 @@ export class ModrinthPlanDialog {
   protected readonly installing = signal(false);
   protected readonly result = signal<ModrinthInstallResultDto | null>(null);
 
-  /** Ticked optionals, by version id. They are sent as roots, so the resolver walks them too. */
   private readonly ticked = signal<ReadonlyArray<string>>([]);
 
-  /** Version ids the admin agreed to replace an existing row with. Empty by default, always. */
   private readonly replacing = signal<ReadonlyArray<string>>([]);
 
   protected readonly newNodes = computed(() =>
@@ -394,11 +385,6 @@ export class ModrinthPlanDialog {
 
   protected readonly installedCount = computed(() => this.result()?.installed.length ?? 0);
 
-  /**
-   * The sentence that answers "what does adding this actually do". It always states a number, even
-   * when the number is zero, because "adds no other mods" is the reassurance an admin is looking
-   * for and an absent sentence does not give it.
-   */
   protected readonly headline = computed(() => {
     const subject = this.ctx.rootTitles.join(', ');
     const p = this.plan();
@@ -424,10 +410,6 @@ export class ModrinthPlanDialog {
     return this.newNodes().length > 0 || this.replacing().length > 0;
   });
 
-  /**
-   * The count and the byte total sit in the button label itself. An admin cannot confirm without
-   * having read the number they are agreeing to, which is the whole point of the two-phase design.
-   */
   protected readonly confirmLabel = computed(() => {
     if (this.installing()) return 'Downloading from Modrinth…';
     if (this.loading()) return 'Resolving…';
@@ -441,10 +423,6 @@ export class ModrinthPlanDialog {
   });
 
   constructor() {
-    // One pipeline for both the first plan and every re-plan a tick causes. Debounced because a
-    // rapid series of ticks would otherwise fire a resolve each, and switchMap because only the
-    // newest answer is worth rendering - an older one landing last would show a stale count under
-    // a button the admin is about to press.
     toObservable(this.ticked)
       .pipe(
         debounceTime(REPLAN_DEBOUNCE_MS),
@@ -456,9 +434,6 @@ export class ModrinthPlanDialog {
               optionalVersionIds: [...optional],
             })
             .pipe(
-              // Caught inside the switchMap so one failed resolve does not complete the outer
-              // stream. If it did, every later tick of an optional would be ignored and the dialog
-              // would sit on a stale plan while its checkboxes appeared to work.
               catchError((err: unknown) => {
                 toast.error(messageFrom(err, 'Failed to resolve the dependencies of this mod'));
                 this.loading.set(false);
@@ -470,8 +445,7 @@ export class ModrinthPlanDialog {
       )
       .subscribe((plan) => {
         this.plan.set(plan);
-        // A row that stopped conflicting between two plans must not keep a Replace tick nobody can
-        // see any more, or install would be asked to replace something the dialog no longer shows.
+
         const replaceable = new Set(
           plan.nodes.filter((n) => isReplaceable(n.status)).map((n) => n.versionId),
         );
@@ -484,10 +458,6 @@ export class ModrinthPlanDialog {
     return node.requiredBy.join(', ');
   }
 
-  /**
-   * True for anything the admin did not pick themselves. Depth arrives as the generator's opaque
-   * integer interface, so it is coerced here rather than compared in the template.
-   */
   protected transitive(node: ModrinthPlanNodeDto): boolean {
     return toNumber(node.depth) > 0;
   }
@@ -508,7 +478,6 @@ export class ModrinthPlanDialog {
     return isReplaceable(node.status);
   }
 
-  /** A project that is not installed has no title to show, so its id is the only honest label. */
   protected incompatibleName(title: string | null | undefined, projectId: string): string {
     return title && title.length > 0 ? title : projectId;
   }
@@ -547,11 +516,6 @@ export class ModrinthPlanDialog {
     );
   }
 
-  /**
-   * One request for the whole batch rather than one per mod. The downloads happen server-side, so
-   * per-row progress in the browser would be fiction unless polling were added, and the resolver
-   * caps a plan long before a batch gets long enough for that to matter.
-   */
   protected install(): void {
     if (!this.canInstall()) return;
     this.installing.set(true);
@@ -572,8 +536,6 @@ export class ModrinthPlanDialog {
         }
       },
       error: (err) => {
-        // 409 is the one all-or-nothing case: a set incompatible with what the server carries is
-        // refused whole and nothing was written.
         toast.error(messageFrom(err, 'Failed to add the mods'));
         this.installing.set(false);
       },

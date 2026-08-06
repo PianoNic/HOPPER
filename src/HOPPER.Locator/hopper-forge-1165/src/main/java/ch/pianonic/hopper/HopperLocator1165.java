@@ -22,52 +22,10 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.jar.Manifest;
 
-/**
- * The Forge 1.14.4 to 1.16.5 adapter. Downloads the required mod set before FML
- * scans anything, then hands the downloaded jars to FML as ordinary mod
- * candidates in the same launch.
- *
- * <p>This is <em>not</em> {@code HopperLocator} from {@code hopper-forge-modern}
- * with a different name on it. The two interfaces genuinely differ: at forgespi
- * 3.2.0 and below {@code IModLocator} has no {@code IModProvider} supertype,
- * {@link #scanMods()} returns {@code List<IModFile>} rather than
- * {@code List<ModFileOrException>}, and {@link #findPath} and
- * {@link #findManifest} are abstract here while they are absent from the modern
- * interface. The <em>shape</em> is the same - sync, then delegate to the
- * directory locator FML itself uses - and that shape is all the two share.
- *
- * <p>Compiled against forgespi 1.5.0, the oldest in the range (1.14.4). 1.15.2
- * ships 3.0.0 and 1.16.5 ships 3.2.0, and 3.2.0 only <em>adds</em> the
- * {@code findManifestAndSigners} default, so code written against 1.5.0
- * satisfies all three. Do not reach for {@code Environment.Keys.MODFILEFACTORY}
- * here - it does not exist until 3.2.0.
- *
- * <p>Registered through {@code META-INF/services/…IModLocator}. Forge's
- * {@code ModDirTransformerDiscoverer} opens every jar in {@code mods/} as a
- * {@code ZipFile} and looks for exactly that entry name; the jars it finds are
- * pushed onto {@code LocatorClassLoader} - a flat {@code URLClassLoader}, no
- * module layer, which is why this module wants no
- * {@code Automatic-Module-Name} - and {@code ModDiscoverer} then service-loads
- * them before it scans for mods. No restart, no launcher argument.
- *
- * <p>Nothing is ever written into {@code mods/}. Downloads live in
- * {@code hoppermods/}, a directory HOPPER owns outright.
- *
- * <p>Everything that is not Forge-specific - the download, the hash check, the
- * stale sweep, the config merge - lives in {@link Hopper} in the core, shared
- * with five other adapters. Java 8 all the way through, because 1.16.5 and
- * older run on Java 8.
- */
 public final class HopperLocator1165 implements IModLocator {
-
     private static final Logger LOG4J = LogManager.getLogger("HOPPER");
 
-    /**
-     * The core refuses to name a logger - a Quilt loader plugin cannot see log4j -
-     * so every adapter supplies its own. This is Forge's.
-     */
     private static final HopperLog LOG = new HopperLog() {
-
         @Override
         public void info(String message) {
             LOG4J.info(message);
@@ -92,19 +50,8 @@ public final class HopperLocator1165 implements IModLocator {
         }
     };
 
-    /**
-     * FML's own directory locator, pointed at {@code hoppermods/}. Built by
-     * {@code MODDIRECTORYFACTORY}, so the jars we contribute are constructed by
-     * exactly the code that builds the ones in {@code mods/} - same
-     * {@code ModFile}, same manifest handling, same code signers.
-     */
     private IModLocator delegate;
 
-    /**
-     * Filenames the manifest asked for. {@code null} means the sync did not
-     * complete, in which case we load whatever was already downloaded rather
-     * than blocking the launch.
-     */
     private Set<String> wanted;
 
     @Override
@@ -121,12 +68,9 @@ public final class HopperLocator1165 implements IModLocator {
             }
         });
 
-        // Never throws. Offline, server down, bad manifest - none of that stops the game from
-        // starting; result.wanted is simply null and we load the previous download instead.
         Hopper.Result result = Hopper.run(gameDir, username(arguments), LOG, PROGRESS);
         wanted = result.wanted;
 
-        // Built after syncing so the delegate never sees a partially written file.
         Optional<IModDirectoryLocatorFactory> factory = env(Environment.Keys.MODDIRECTORYFACTORY);
         if (!factory.isPresent()) {
             throw new IllegalStateException("MODDIRECTORYFACTORY missing from the launch environment");
@@ -142,11 +86,9 @@ public final class HopperLocator1165 implements IModLocator {
 
         List<IModFile> found = delegate.scanMods();
         if (wanted == null) {
-            return found; // sync failed or disabled: take what we have
+            return found;
         }
 
-        // Belt and braces. sync() already deleted anything stale, but a delete can lose to
-        // antivirus or a read-only file, and a leftover jar must not load.
         List<IModFile> kept = new ArrayList<IModFile>(found.size());
         for (IModFile file : found) {
             if (file == null || wanted.contains(file.getFileName())) {
@@ -166,14 +108,6 @@ public final class HopperLocator1165 implements IModLocator {
         delegate.scanFile(modFile, pathConsumer);
     }
 
-    /**
-     * Delegated, and in practice never called on this instance: every
-     * {@code IModFile} we return was created by the delegate, so
-     * {@code modFile.getLocator()} is the delegate and FML asks it, not us. The
-     * same is true of the {@code findManifestAndSigners} default that forgespi
-     * 3.2.0 adds - which is why this module can be compiled against 1.5.0, where
-     * that method does not exist yet, without dropping anyone's code signers.
-     */
     @Override
     public Optional<Manifest> findManifest(final Path path) {
         return delegate.findManifest(path);
@@ -184,15 +118,6 @@ public final class HopperLocator1165 implements IModLocator {
         return delegate != null && delegate.isValid(modFile);
     }
 
-    // ---- launch environment ----
-
-    /**
-     * Who is playing, for the dashboard's client list. Minecraft is launched with
-     * {@code --username <name>}; FML's locator arguments are checked first in case
-     * a launcher ever passes it there, then the command line the JVM itself was
-     * given. {@code null} when neither has it - a dedicated server has no player
-     * at all, and that is a fine thing to report.
-     */
     private static String username(final Map<String, ?> arguments) {
         if (arguments != null) {
             Object fromArgs = arguments.get("username");
@@ -214,15 +139,11 @@ public final class HopperLocator1165 implements IModLocator {
         if (launcher == null) {
             return Optional.empty();
         }
-        // Assigned through the interface on purpose. Launcher.environment() is declared to return
-        // the concrete cpw.mods.modlauncher.Environment in every version this module claims
-        // (checked: modlauncher 4.1.0, 5.1.0, 8.0.9, 8.1.3 - identical signature), so the call
-        // site is stable, but nothing here depends on that class beyond the one call.
+
         IEnvironment environment = launcher.environment();
         return environment.getProperty(key.get());
     }
 
-    /** Writes a line onto the Forge early-loading window. The only UI we get this early. */
     private static final Consumer<String> PROGRESS = new Consumer<String>() {
         @Override
         public void accept(String message) {

@@ -24,8 +24,6 @@ describe('modSourceLabel', () => {
     expect(modSourceLabel(MOD_SOURCE.curseForge)).toBe('CurseForge');
   });
 
-  // A dashboard one version behind a server must not read a source it has never heard of as
-  // "Uploaded" - that would claim a jar has no provenance when it has some this build cannot show.
   it('does not fall back to the first case', () => {
     expect(modSourceLabel(99)).toBe('Unknown');
   });
@@ -50,8 +48,6 @@ describe('modLoaderFacet', () => {
     expect(modLoaderFacet(MOD_LOADER.quilt)).toBe('quilt');
   });
 
-  // An unknown facet name is not an error upstream, it is zero hits, so a wrong value here would
-  // look exactly like "no mods found". Null is what the page checks before it searches at all.
   it('is null for an unset loader', () => {
     expect(modLoaderFacet(MOD_LOADER.unknown)).toBeNull();
     expect(modLoaderFacet(42)).toBeNull();
@@ -100,8 +96,6 @@ describe('plan node labels', () => {
     expect(planNodeStatusDetail(PLAN_NODE_STATUS.otherVersionInstalled)).toContain('Replace');
   });
 
-  // Replace is offered on exactly the two statuses the install command honours it for. Offering it
-  // anywhere else would produce a tick that silently does nothing.
   it('offers Replace on exactly the two conflicting statuses', () => {
     expect(isReplaceable(PLAN_NODE_STATUS.new)).toBe(false);
     expect(isReplaceable(PLAN_NODE_STATUS.alreadyInstalled)).toBe(false);
@@ -125,13 +119,11 @@ describe('versionTypeLabel', () => {
 });
 
 describe('modrinthProjectUrl', () => {
-  // A search hit carries a slug and a stored Mod row carries only the base62 id; both resolve.
   it('builds a project link from either identifier', () => {
     expect(modrinthProjectUrl('jei')).toBe('https://modrinth.com/mod/jei');
     expect(modrinthProjectUrl('u6dRKJwZ')).toBe('https://modrinth.com/mod/u6dRKJwZ');
   });
 
-  // A hand-uploaded mod has no project at all, and /mod/undefined is worse than no link.
   it('is null without an identifier', () => {
     expect(modrinthProjectUrl(null)).toBeNull();
     expect(modrinthProjectUrl(undefined)).toBeNull();

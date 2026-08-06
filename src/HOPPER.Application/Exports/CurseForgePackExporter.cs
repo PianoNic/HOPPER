@@ -10,18 +10,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Exports
 {
-    /// <summary>Writes a CurseForge pack zip.
-    ///
-    /// The awkward format, and it is worth stating plainly rather than leaving as a surprise: a
-    /// CurseForge files[] entry is TWO INTEGERS - a CurseForge project id and file id - and carries no
-    /// filename, no URL, no hash and no size. HOPPER has neither integer for a Modrinth-sourced or a
-    /// hand-uploaded mod and cannot invent them, so every such jar ships inline in overrides/mods/ and
-    /// files[] comes out empty. That is a legitimate, importable pack; it is not a workaround, and it
-    /// is the same reason PendingMod exists on the import side.
-    ///
-    /// The branch that will one day populate files[] is written and guarded below. Nothing produces
-    /// CurseForge provenance yet, but when the pack importer starts recording it, those mods move out
-    /// of overrides and into the manifest with no change here.</summary>
     public class CurseForgePackExporter(HopperDbContext db, IBlobStorage blobs, IConfiguration configuration)
         : PackExporterBase(db, blobs, configuration), IPackExporter
     {
@@ -51,8 +39,6 @@ namespace HOPPER.Application.Exports
                     WriteJsonEntry(archive, "manifest.json", BuildManifest(context, referenced.Select(r => r.Entry).ToList()));
                     WriteTextEntry(archive, "modlist.html", BuildModList(context.Mods));
 
-                    // Only what is NOT in files[]. A jar listed in the manifest and also present in
-                    // overrides would be downloaded and then overwritten by itself.
                     foreach (var mod in bundled)
                         WriteBlobEntry(archive, "overrides/mods", mod, warnings);
                 }
@@ -66,9 +52,6 @@ namespace HOPPER.Application.Exports
             }
         }
 
-        /// <summary>The forward-looking branch. CurseForge ids are numeric, which is exactly why they
-        /// cannot be filled from Modrinth provenance: those ids are base62 strings and int.TryParse
-        /// refuses them, so a Modrinth mod can never take this path by accident.</summary>
         private static CurseForgeFileEntry? CurseForgeEntry(Mod mod)
         {
             if (mod.Source != ModSource.CurseForge)
@@ -89,8 +72,6 @@ namespace HOPPER.Application.Exports
                 [
                     new CurseForgeModLoader
                     {
-                        // Bare loader build with no Minecraft prefix - "forge-47.4.10". Consumers strip
-                        // the prefix and take the rest as the loader version verbatim.
                         Id = $"{LoaderIds.CurseForgePrefix(context.Loader)}-{context.LoaderVersion}",
                         Primary = true,
                     },
@@ -105,9 +86,6 @@ namespace HOPPER.Application.Exports
             Files = files,
         };
 
-        /// <summary>A flat list of what is in the pack. Optional in the format and purely for a human
-        /// reading the zip, which is why a missing project name degrades to the filename rather than
-        /// being omitted.</summary>
         private static string BuildModList(IReadOnlyList<Mod> mods)
         {
             var html = new StringBuilder();
@@ -117,8 +95,6 @@ namespace HOPPER.Application.Exports
             {
                 var label = WebUtility.HtmlEncode(mod.ProjectName ?? mod.FileName);
 
-                // Linked only where a slug-shaped project id is actually recorded. Everything here is
-                // HTML-encoded: a project title is upstream text and this file is opened in a browser.
                 if (mod.Source == ModSource.Modrinth && !string.IsNullOrWhiteSpace(mod.ProjectId))
                 {
                     var url = WebUtility.HtmlEncode($"https://modrinth.com/mod/{mod.ProjectId}");

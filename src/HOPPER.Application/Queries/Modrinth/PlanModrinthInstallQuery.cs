@@ -8,16 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Modrinth
 {
-    /// <summary>The preview half of the two-phase add: what would actually be written, before
-    /// anything is.
-    ///
-    /// A ticked optional arrives in <see cref="OptionalVersionIds"/> and is resolved as a ROOT, not as
-    /// an optional. That is deliberate and it is the whole mechanism behind "nothing arrives unseen":
-    /// ticking one re-runs this query, so whatever that optional itself requires appears in the "will
-    /// be added" list before the admin can confirm.
-    ///
-    /// It is a query and it writes nothing, but the controller exposes it as a POST - two arrays of
-    /// version ids do not fit a query string once optionals are being ticked on and off.</summary>
     public record PlanModrinthInstallQuery(
         Guid ServerId,
         IReadOnlyList<string> RootVersionIds,
@@ -57,9 +47,6 @@ namespace HOPPER.Application.Queries.Modrinth
             return result.ToDto();
         }
 
-        /// <summary>What the server carries, read once and handed to the resolver as data. The
-        /// resolver never touches the database itself, which is what keeps it a pure function of its
-        /// inputs and drivable from fixtures.</summary>
         private async Task<IReadOnlyList<InstalledMod>> InstalledAsync(Guid serverId, CancellationToken cancellationToken)
         {
             var rows = await db.Mods.AsNoTracking()

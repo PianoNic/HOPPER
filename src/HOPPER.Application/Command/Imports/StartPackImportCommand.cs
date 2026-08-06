@@ -11,12 +11,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Command.Imports
 {
-    /// <summary>Accepts a pack and hands it to the worker. Returns as soon as the bytes are on disk -
-    /// a 340-file pack takes minutes and the admin is not going to hold an HTTP request open for it.
-    ///
-    /// An upload is staged here, on the request thread, because that is the only place its stream
-    /// exists. A URL is not fetched here: the worker does that, so a slow or dead host delays one
-    /// background job rather than one browser.</summary>
     public record StartPackImportCommand(
         Guid ServerId,
         ImportSourceKind SourceKind,
@@ -47,8 +41,6 @@ namespace HOPPER.Application.Command.Imports
                 && (!Uri.TryCreate(sourceName, UriKind.Absolute, out var uri)
                     || !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
             {
-                // https only. A pack fetched over http could be swapped in flight for one whose index
-                // points wherever the attacker likes, and every hash in it would then agree.
                 throw new ArgumentException("A pack URL must be an absolute https:// URL.");
             }
 
@@ -65,8 +57,6 @@ namespace HOPPER.Application.Command.Imports
                 CreatedBy = currentUser.Name,
             };
 
-            // The row is written before the bytes are staged and before anything is queued, so an
-            // import that dies at any later point is still visible and still explains itself.
             db.ModImports.Add(import);
             await db.SaveChangesAsync(cancellationToken);
 

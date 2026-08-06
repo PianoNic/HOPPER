@@ -11,16 +11,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Exports
 {
-    /// <summary>
-    /// The exporters and the planners read and write the same three formats from opposite ends, and
-    /// nothing forces them to agree - they were written months apart against a published schema rather
-    /// than against each other. So the cheapest real check is that HOPPER's own export imports back
-    /// into HOPPER: PackDetector has to recognise it, and the matching planner has to find every jar.
-    ///
-    /// This catches the mistakes a schema test cannot, because they are about placement rather than
-    /// content: an index one directory too deep, an instance zip that detects as a Modrinth pack, a
-    /// game directory spelled ".minecraft" when the reader prefers "minecraft".
-    /// </summary>
     public class ExportRoundTripTests
     {
         private sealed class TempDir : IDisposable
@@ -108,8 +98,6 @@ namespace HOPPER.Tests.Exports
             }
         }
 
-        /// <summary>Buffers the export so it can be opened as a ZipArchive, which needs to seek to the
-        /// central directory at the end.</summary>
         private static async Task<ZipArchive> ReopenAsync(PackExportResult result)
         {
             var buffer = new MemoryStream();
@@ -134,7 +122,6 @@ namespace HOPPER.Tests.Exports
 
             var plan = ModrinthPlanner.Plan(archive, detection.Prefix);
 
-            // Two from files[] with their CDN URLs, one out of overrides/mods/ as a zip entry.
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "create.jar", "hand-uploaded.jar", "jei.jar" });
 
@@ -148,9 +135,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task ExportedPrismInstance_DetectsAsAnInstanceAndPlansEveryJarBack()
         {
-            // The two rules this proves together: no modrinth.index.json in the archive (or detection
-            // would pick Modrinth first and never look at instance.cfg), and "minecraft/" rather than
-            // ".minecraft/", which is what the planner prefers.
             using var fixture = new Fixture();
             var exporter = new PrismInstanceExporter(fixture.Db, fixture.Blobs, fixture.Configuration);
 
@@ -179,8 +163,6 @@ namespace HOPPER.Tests.Exports
             var plan = await CurseForgePlanner.PlanAsync(
                 archive, detection.Prefix, new KeylessCurseForge(), CancellationToken.None);
 
-            // files[] is empty by construction, so every jar arrives out of overrides and nothing ends
-            // up pending - which is precisely the property that makes an empty files[] acceptable.
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "create.jar", "hand-uploaded.jar", "jei.jar" });
 

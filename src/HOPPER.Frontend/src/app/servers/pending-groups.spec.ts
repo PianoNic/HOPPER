@@ -51,7 +51,7 @@ describe('groupPendingByImport', () => {
 
     expect(groups.map((g) => g.sourceName)).toEqual(['Cottage-Witch.mrpack', 'AllTheMods-9.zip']);
     expect(groups[0].entries.map((e) => e.id)).toEqual(['b']);
-    // Entries keep the order the server sent them in, which is the pack's own file order.
+
     expect(groups[1].entries.map((e) => e.id)).toEqual(['a', 'c']);
   });
 

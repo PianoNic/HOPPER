@@ -7,8 +7,6 @@ namespace HOPPER.Tests.Application
 {
     public class GetManifestQueryHandlerTests
     {
-        /// <summary>The server every row in these tests belongs to. A manifest is per-server now, so
-        /// the query needs one; which server it is does not matter to any assertion here.</summary>
         private static readonly Guid ServerId = Guid.NewGuid();
 
         private static HopperDbContext NewDb() =>
@@ -39,8 +37,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_BaseUrlWithATrailingSlash_DoesNotDoubleUpTheSeparator()
         {
-            // Hopper:PublicBaseUrl is typed by a human. "https://host//api/blobs/..." resolves on most
-            // servers but is a different URL to a cache and reads as a bug in the client's logs.
             await using var db = NewDb();
             db.Mods.Add(Row("jei.jar", new string('b', 64)));
             await db.SaveChangesAsync();
@@ -55,8 +51,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_SeveralMods_AreOrderedByFileName()
         {
-            // Two manifests taken at different times have to diff meaningfully, and a client comparing
-            // responses must never see a change that is only row ordering.
             await using var db = NewDb();
             db.Mods.AddRange(Row("zzz.jar", new string('c', 64)), Row("aaa.jar", new string('d', 64)), Row("mmm.jar", new string('e', 64)));
             await db.SaveChangesAsync();

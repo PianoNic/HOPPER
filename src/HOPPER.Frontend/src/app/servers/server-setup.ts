@@ -176,9 +176,6 @@ export class ServerSetup {
     return slug ? `Download ${slug}-hopper.jar` : 'Download client jar';
   });
 
-  // Built from the browser's own origin so a copy-paste works for the ordinary same-origin
-  // deployment. In the split dev setup this is the dev server's origin, which is wrong for a
-  // player but right for a sanity check.
   private readonly manifestUrl = `${window.location.origin}/api/manifest`;
 
   protected readonly maskedProperties = computed(() => this.build('<reveal the token>'));
@@ -189,8 +186,6 @@ export class ServerSetup {
       const id = this.serverId();
       if (id === '') return;
 
-      // Dropping a revealed token on navigation matters: without it, switching servers would leave
-      // the previous server's credential rendered under the new server's name.
       this.token.set(null);
 
       this.api.apiServersIdGet(id).subscribe({
@@ -210,7 +205,6 @@ export class ServerSetup {
     ].join('\n');
   }
 
-  /** Hiding is local only: the token is dropped from the component, not rotated. */
   protected toggleToken(): void {
     if (this.token() !== null) {
       this.token.set(null);
@@ -224,8 +218,7 @@ export class ServerSetup {
     if (id === '') return;
 
     this.revealing.set(true);
-    // Only ever fetched on this click. The list and detail endpoints omit the token on purpose, so
-    // it is never sitting in a response the dashboard makes on every page load.
+
     this.api.apiServersIdTokenGet(id).subscribe({
       next: (result) => {
         this.token.set(result.token);
@@ -254,8 +247,6 @@ export class ServerSetup {
     this.rotating.set(true);
     this.api.apiServersIdTokenPost(id).subscribe({
       next: (result) => {
-        // Shown straight away rather than re-masked: an admin who just invalidated every jar needs
-        // the replacement in front of them, not behind a second click.
         this.token.set(result.token);
         this.rotating.set(false);
         toast.success('Token rotated. Hand out a fresh jar.');
@@ -272,16 +263,13 @@ export class ServerSetup {
     if (!server) return;
 
     this.building.set(true);
-    // Declared FileResult, delivered Blob: the generated method runs with responseType 'blob'
-    // because application/java-archive is neither a text nor a JSON mime.
+
     this.api.apiServersIdJarGet(server.id).subscribe({
       next: (jar) => {
         downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);
         this.building.set(false);
       },
       error: async (err) => {
-        // A missing template answers 503 with a body naming Hopper:LocatorTemplatePath, and that
-        // body arrives as a Blob because the request asked for one.
         toast.error(await messageFromBlobError(err, 'Failed to build the client jar'));
         this.building.set(false);
       },

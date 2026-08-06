@@ -10,27 +10,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HOPPER.Tests.ModMetadata
 {
-    /// <summary>
-    /// Every row on every already-deployed server carries a null ModIds, and nothing re-uploads
-    /// those jars: the blob is on disk, the row is correct in every other respect, and without a
-    /// backfill the client would keep colliding with the player's own copy forever. So the feature
-    /// does nothing on exactly the installs that need it unless this runs.
-    ///
-    /// The distinction it has to preserve is null versus empty. Null is "we have not looked" and is
-    /// retried; empty is "we looked and it declares nothing" and is final. Collapsing the two would
-    /// turn a blob that was briefly unreadable into a permanent answer.
-    /// </summary>
     public class ModIdBackfillTests
     {
         private sealed class TempDir : IDisposable
         {
             public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "hopper-backfill-" + Guid.NewGuid().ToString("N"));
             public TempDir() => Directory.CreateDirectory(Path);
-            public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch { /* temp */ } }
+            public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch {  } }
         }
 
-        /// <summary>The service resolves a DbContext and a blob store per batch, so the test wires a
-        /// container holding exactly those two rather than booting the API.</summary>
         private sealed class Fixture : IDisposable
         {
             public TempDir Dir { get; } = new();
@@ -49,19 +37,12 @@ namespace HOPPER.Tests.ModMetadata
                     .AddInMemoryCollection(new Dictionary<string, string?> { ["Blobs:Directory"] = Dir.Path })
                     .Build());
 
-                // Both registered as instances so the container does not dispose the context when
-                // the service's per-batch scope ends. In the API these are a scoped DbContext and a
-                // singleton blob store; here one context has to survive several batches so the test
-                // can assert on the tracked entities it seeded.
                 var services = new ServiceCollection();
                 services.AddSingleton(Db);
                 services.AddSingleton(Blobs);
                 Services = services.BuildServiceProvider();
             }
 
-            /// <summary>StartAsync returns as soon as ExecuteAsync first yields, so the pass itself
-            /// is awaited through ExecuteTask. Asserting before that is a race the test would lose
-            /// intermittently rather than loudly.</summary>
             public async Task RunAsync()
             {
                 var service = new ModIdBackfillService(
@@ -120,8 +101,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Backfill_RowWhoseJarDeclaresNothing_BecomesEmptyRatherThanStayingNull()
         {
-            // The library case. It has to end as empty, or every boot forever would re-open the
-            // same blob to learn the same nothing.
             using var fixture = new Fixture();
             var row = await fixture.SeedAsync("lib.jar", ModIdExtractionTests.Zip(("a/B.class", "x")), modIds: null);
 
@@ -134,14 +113,11 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Backfill_RowWithAnEmptyModIdSet_IsLeftAlone()
         {
-            // Idempotence: a second pass must find nothing to do.
             using var fixture = new Fixture();
             var row = await fixture.SeedAsync("jei.jar", ModIdExtractionTests.ForgeJar("jei"), modIds: []);
 
             await fixture.RunAsync();
 
-            // Not refilled from the blob even though the blob would have yielded "jei". Empty is a
-            // decision that was already taken.
             await Assert.That(row.ModIds!).IsEmpty();
         }
 
@@ -170,9 +146,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Backfill_MoreRowsThanOneBatch_FillsThemAll()
         {
-            // The batch size is 200, so 250 rows crosses it and proves the paging does not stall or
-            // repeat. Every jar carries a distinct id, so a mis-paged run shows up as a wrong id
-            // rather than only as a wrong count.
             using var fixture = new Fixture();
 
             for (var i = 0; i < 250; i++)
@@ -200,8 +173,6 @@ namespace HOPPER.Tests.ModMetadata
         [Test]
         public async Task Backfill_WhenTheBlobStoreThrows_DoesNotPropagateAndLeavesRowsNull()
         {
-            // A backfill that cannot run is a dormant feature, not an API that fails to start. The
-            // rows stay null, which is exactly the state the next boot retries.
             using var fixture = new Fixture(new ThrowingBlobs());
             var row = await fixture.SeedAsync("jei.jar", bytes: null, modIds: null);
 

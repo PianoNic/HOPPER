@@ -8,7 +8,6 @@ namespace HOPPER.Infrastructure.Extensions
     {
         public static IServiceCollection AddBlobs(this IServiceCollection services)
         {
-            // Stateless and config-only, so a singleton is right; nothing here touches the DbContext.
             services.AddSingleton<IBlobStorage, FileSystemBlobStorage>();
             return services;
         }

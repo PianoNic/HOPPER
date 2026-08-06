@@ -2,11 +2,6 @@ using HOPPER.Application;
 
 namespace HOPPER.Tests.Application
 {
-    /// <summary>
-    /// The upload-time mirror of Syncer.sanitize() in the Java client. The two must agree: a name the
-    /// client refuses is a jar that silently never installs, and the player sees a partial mod set
-    /// with no error anywhere near the cause. The cases below are the client's rules, one for one.
-    /// </summary>
     public class ModFileNameValidatorTests
     {
         [Test]
@@ -26,7 +21,6 @@ namespace HOPPER.Tests.Application
         [Arguments("..jar")]
         public async Task Validate_PathEscape_IsRejected(string name)
         {
-            // Without this, a manifest entry could write outside hoppermods/ on every client at once.
             await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
         }
 
@@ -58,8 +52,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Validate_JarSuffix_IsCaseInsensitive()
         {
-            // Syncer.sanitize lowercases before the .jar check, so ".JAR" is legal there and must be
-            // legal here too - rejecting it would block an upload the client would happily install.
             await Assert.That(ModFileNameValidator.Validate("Mod.JaR")).IsEqualTo("Mod.JaR");
         }
     }

@@ -1,13 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace HOPPER.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class AddModProvenanceAndServerPlatform : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(
@@ -78,7 +76,6 @@ namespace HOPPER.Infrastructure.Migrations
                 columns: new[] { "ServerId", "ProjectId" });
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(

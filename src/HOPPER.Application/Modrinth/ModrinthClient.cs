@@ -7,13 +7,8 @@ namespace HOPPER.Application.Modrinth
 {
     public class ModrinthClient(IHttpClientFactory factory, IMemoryCache cache, IConfiguration configuration) : IModrinthClient
     {
-        /// <summary>Defined next to the models, and asserted there - see ModrinthJson.</summary>
         private static readonly JsonSerializerOptions Json = ModrinthJson.Options;
 
-        /// <summary>Modrinth's own CDN, and nothing else by default. Separate from
-        /// Hopper:PackDownloadHosts, which governs the pack importer: that one has to follow whatever
-        /// a third-party pack index points at, this one only ever fetches what the Modrinth API just
-        /// told us about.</summary>
         private static readonly string[] DefaultDownloadHosts = ["cdn.modrinth.com"];
 
         private string[] DownloadHosts =>
@@ -41,8 +36,6 @@ namespace HOPPER.Application.Modrinth
             if (!string.IsNullOrWhiteSpace(query))
                 parameters.Add($"query={Uri.EscapeDataString(query.Trim())}");
 
-            // Not cached. Paging and sort change per keystroke, and a stale hit list is worse than a
-            // request - the browser is the one place where "what Modrinth has right now" is the answer.
             return await GetAsync<ModrinthSearchResponse>($"search?{string.Join('&', parameters)}", null, cancellationToken)
                 ?? new ModrinthSearchResponse();
         }
@@ -121,8 +114,6 @@ namespace HOPPER.Application.Modrinth
                 parameters.Add($"game_versions={Uri.EscapeDataString(ModrinthFacets.JsonArray([validated]))}");
             }
 
-            // Always false for a list. JEI's forge/1.20.1 list is 199 KB with changelogs and 130 KB
-            // without, and the changelog is only ever read for the one version being inspected.
             if (!includeChangelog)
                 parameters.Add("include_changelog=false");
 
@@ -134,8 +125,6 @@ namespace HOPPER.Application.Modrinth
             var versions = await GetAsync<List<ModrinthVersion>>(
                 $"project/{Uri.EscapeDataString(id)}/version{query}", id, cancellationToken) ?? [];
 
-            // Short: the plan dialog re-runs this on every optional tick, and a two-minute window is
-            // the difference between one call and a dozen without ever showing a stale version list.
             cache.Set<IReadOnlyList<ModrinthVersion>>(key, versions, TimeSpan.FromMinutes(2));
             return versions;
         }
@@ -174,8 +163,6 @@ namespace HOPPER.Application.Modrinth
 
             var tags = new ModrinthTags(loaders, gameVersions);
 
-            // Six hours. Both lists change when Mojang or a loader ships, which is not something a
-            // dashboard needs to learn within the minute.
             cache.Set(key, tags, TimeSpan.FromHours(6));
             return tags;
         }
@@ -197,15 +184,11 @@ namespace HOPPER.Application.Modrinth
                 throw new ModrinthApiException($"Downloading {url} failed with {(int)response.StatusCode} {response.StatusCode}.");
             }
 
-            // The response is disposed with the stream: HttpContent's stream keeps its own connection
-            // alive, and the caller only ever gets the stream.
             return new ResponseStream(response, await response.Content.ReadAsStreamAsync(cancellationToken));
         }
 
         private void CacheProject(ModrinthProject project)
         {
-            // Under both keys the caller may ask by: a results page hands back ids, the dashboard's
-            // links hand back slugs, and both should hit.
             if (!string.IsNullOrWhiteSpace(project.Id))
                 cache.Set(ProjectKey(project.Id), project, TimeSpan.FromMinutes(5));
 
@@ -221,8 +204,6 @@ namespace HOPPER.Application.Modrinth
             if (string.IsNullOrEmpty(trimmed))
                 throw new ArgumentException("A Modrinth id or slug is required.");
 
-            // Base62 ids and slugs only. Anything else would be a path segment we are pasting into a
-            // URL, so it is refused rather than escaped and hoped for.
             foreach (var c in trimmed)
             {
                 if (!char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
@@ -232,9 +213,6 @@ namespace HOPPER.Application.Modrinth
             return trimmed;
         }
 
-        /// <summary>One place where a Modrinth response becomes either a model or an exception. 404 is
-        /// the only non-success status that is a normal answer; everything else is theirs to explain
-        /// and ours to pass on unchanged.</summary>
         private async Task<T?> GetAsync<T>(string relativeUrl, string? subject, CancellationToken cancellationToken)
         {
             var http = factory.CreateClient(ModrinthHttpClients.Modrinth);
@@ -273,8 +251,6 @@ namespace HOPPER.Application.Modrinth
             }
         }
 
-        /// <summary>Their error bodies are {"error","description"}. Best effort - a non-JSON body from
-        /// a proxy in front of them is not worth failing over.</summary>
         private static async Task<string?> DescriptionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
         {
             try
@@ -294,7 +270,6 @@ namespace HOPPER.Application.Modrinth
             }
         }
 
-        /// <summary>Ties an HttpResponseMessage's lifetime to the content stream handed to the caller.</summary>
         private sealed class ResponseStream(HttpResponseMessage response, Stream inner) : Stream
         {
             public override bool CanRead => inner.CanRead;
@@ -339,8 +314,6 @@ namespace HOPPER.Application.Modrinth
 
     public static class ModrinthHttpClients
     {
-        /// <summary>Named client for the Modrinth API and its CDN. One descriptive User-Agent and one
-        /// rate-limit handler, configured once in ModrinthExtensions.</summary>
         public const string Modrinth = "modrinth";
     }
 }

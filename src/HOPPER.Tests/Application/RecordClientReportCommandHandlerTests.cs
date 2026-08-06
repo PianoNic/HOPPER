@@ -7,8 +7,6 @@ namespace HOPPER.Tests.Application
 {
     public class RecordClientReportCommandHandlerTests
     {
-        /// <summary>The server these reports arrive on, standing in for the one the bearer token
-        /// would have resolved to.</summary>
         private static readonly Guid ServerId = Guid.NewGuid();
 
         private static HopperDbContext NewDb() =>
@@ -26,9 +24,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_NullUsername_RecordsTheClient()
         {
-            // A dedicated server has no username to report. Before this was allowed, every such
-            // install was invisible on the dashboard - and invisibly so, because Syncer.report()
-            // logs a warning and moves on.
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
@@ -46,7 +41,6 @@ namespace HOPPER.Tests.Application
         [Arguments("   ")]
         public async Task Handle_BlankUsername_IsStoredAsNull(string username)
         {
-            // One "no username" state for the dashboard to render instead of three.
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
@@ -80,8 +74,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_SecondReport_UpsertsRatherThanCreatingASecondRow()
         {
-            // There is no registration step - a client exists exactly when it has reported once - so
-            // the clientId has to behave as the natural key across launches.
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
@@ -95,8 +87,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_ClientThatLosesItsUsername_GoesBackToNull()
         {
-            // The same install can report a username on Monday (Prism) and none on Tuesday (a server
-            // start). The later report is the truth; a sticky old username would misattribute a row.
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
@@ -124,8 +114,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_ReportFromAnotherClient_IsNotDisturbed()
         {
-            // The wholesale replace is scoped to one client; a shared friend group would otherwise
-            // wipe each other's inventories on every launch.
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
@@ -144,8 +132,6 @@ namespace HOPPER.Tests.Application
         [Arguments("   ")]
         public async Task Handle_BlankClientId_IsRejected(string clientId)
         {
-            // Unlike the username this one is not optional: it is the row's identity, and the shipped
-            // client always has one (hoppermods/client-id, generated on first run).
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
@@ -168,8 +154,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_EmptyModSet_IsAccepted()
         {
-            // A fresh client with an empty manifest reports zero jars. That is a valid state, not an
-            // error, and it still has to put the client on the dashboard.
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 

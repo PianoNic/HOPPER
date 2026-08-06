@@ -7,9 +7,6 @@ import { MOD_SOURCE } from '../../servers/mod-labels';
 
 const NOW = Date.parse('2026-08-05T12:00:00Z');
 
-// Manual with no provenance, which is what every row was before the Modrinth browser existed and
-// what drift still only ever looks at: it compares filenames and hashes, and where a jar came from
-// has no bearing on whether a client is carrying it.
 function mod(fileName: string, sha256: string): ModDto {
   return {
     id: sha256,
@@ -86,7 +83,7 @@ describe('diffClient', () => {
     const result = diffClient(client([], stale), required, NOW);
 
     expect(result.status).toBe('offline');
-    // The diff is still computed - the dialog shows it - it just does not drive the badge.
+
     expect(result.missing).toHaveLength(1);
   });
 

@@ -5,11 +5,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Infrastructure
 {
-    /// <summary>
-    /// The hash this class computes is the jar's address on disk, the last segment of the download
-    /// URL, and the value the client compares against its own file. All three break together if it
-    /// is ever wrong or cased differently.
-    /// </summary>
     public class FileSystemBlobStorageTests
     {
         private sealed class TempDir : IDisposable
@@ -42,8 +37,6 @@ namespace HOPPER.Tests.Infrastructure
         [Test]
         public async Task SaveAsync_Hash_IsSixtyFourLowercaseHexCharacters()
         {
-            // The Java client compares with equalsIgnoreCase, but the URL path does not: an uppercase
-            // hash in the manifest points at a blob address the server will not resolve.
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
 
@@ -56,8 +49,6 @@ namespace HOPPER.Tests.Infrastructure
         [Test]
         public async Task SaveAsync_LargeContent_HashesTheWholeStreamNotJustTheFirstBuffer()
         {
-            // The copy loop runs over a rented 80 KiB buffer; a content mod is hundreds of times that,
-            // and a hash taken from one buffer would look plausible and be wrong for every big jar.
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = new byte[81920 * 3 + 977];
@@ -86,8 +77,6 @@ namespace HOPPER.Tests.Infrastructure
         [Test]
         public async Task SaveAsync_SameContentTwice_StoresOneFile()
         {
-            // Content addressing is what makes re-uploading the same jar under a second name free
-            // rather than a conflict.
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = Encoding.UTF8.GetBytes("identical");
@@ -149,8 +138,6 @@ namespace HOPPER.Tests.Infrastructure
         [Arguments("abc")]
         public async Task OpenRead_HashThatIsNotSixtyFourHexCharacters_IsRejected(string sha)
         {
-            // The hash arrives from the URL, so it is untrusted. This check is the whole traversal
-            // defence - nothing malformed may reach Path.Combine.
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
 
@@ -160,8 +147,6 @@ namespace HOPPER.Tests.Infrastructure
         [Test]
         public async Task OpenRead_UppercaseHash_IsRejectedRatherThanFolded()
         {
-            // A case-insensitive store would give one jar two addresses, and the two would diverge the
-            // moment anything enumerated the directory.
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var (sha, _) = await storage.SaveAsync(new MemoryStream(Encoding.UTF8.GetBytes("x")));
@@ -184,7 +169,6 @@ namespace HOPPER.Tests.Infrastructure
         [Test]
         public async Task Delete_BlobThatIsAlreadyGone_IsNotAnError()
         {
-            // Delete runs after the row is committed, so a retried request must not fail.
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
 

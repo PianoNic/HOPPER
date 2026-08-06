@@ -7,10 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HOPPER.API.Controllers
 {
-    /// <summary>The game client's inventory report. The path is fixed by the already-shipped Java
-    /// client, which derives it as manifestUrl.resolve("clients/report") - so it stays at
-    /// /api/clients/report and carries no server segment. The admin's view of the same data lives on
-    /// ServerClientsController instead.</summary>
     [ApiController]
     [Route("api/clients")]
     public class ClientsController(IMediator mediator) : ControllerBase

@@ -33,17 +33,8 @@ import { AppService } from '../api/api/app.service';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
 
-/**
- * One sidebar link. `exact` marks the ones that prefix-match their own children. A null `route`
- * means the link exists but has nowhere to go yet, which is how the per-server section renders
- * while no server is open.
- */
 type NavItem = { route: string | null; label: string; icon: string; exact: boolean };
 
-// Everything under /server/<uuid>. Singular on purpose: /servers is the list, /server/<id> is one
-// of them. The id is not validated as a UUID: the router already only
-// produces this shape, and a stricter pattern here would silently drop the whole section if the
-// route parameter ever changed form.
 const SERVER_ROUTE = /^\/server\/([^/]+)/;
 
 @Component({
@@ -77,8 +68,6 @@ export class Sidenav {
   private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
 
-  // Spartan cookies the open/closed state itself, but we mirror it into localStorage so the
-  // choice survives a cookie clear as well.
   private static readonly STORAGE_KEY = 'hopper.sidebar.open';
 
   constructor() {
@@ -92,13 +81,10 @@ export class Sidenav {
       try {
         localStorage.setItem(Sidenav.STORAGE_KEY, String(open));
       } catch {
-        /* private mode */
       }
     });
   }
 
-  // routerLinkActive sets classes, not attributes, so it cannot drive the helm menu button's
-  // [isActive] input. Derive the current URL once and let each item match against it instead.
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
@@ -113,12 +99,6 @@ export class Sidenav {
     return match ? match[1] : null;
   });
 
-  /**
-   * The open server's name, for the group heading. Fetched per id rather than by filtering a cached
-   * list, so the heading is right on a deep link into a server the sidebar has never listed. A
-   * failed fetch falls back to no name rather than a toast: the section still navigates, and the
-   * page the admin is looking at raises the real error already.
-   */
   private readonly currentServer = toSignal(
     toObservable(this.currentServerId).pipe(
       switchMap((id) =>
@@ -132,11 +112,6 @@ export class Sidenav {
 
   protected readonly currentServerName = computed(() => this.currentServer()?.name ?? '');
 
-  /**
-   * Every server, for the picker. Refetched on navigation rather than once at startup, so a server
-   * created on the list page is in the dropdown immediately instead of after a reload. The payload
-   * is a handful of rows; a stale picker would be the more expensive mistake.
-   */
   protected readonly servers = toSignal(
     toObservable(this.currentUrl).pipe(
       switchMap(() =>
@@ -146,10 +121,6 @@ export class Sidenav {
     { initialValue: [] as ServerDto[] },
   );
 
-  /**
-   * Switching keeps the sub-page: from one server's Mods you land on the next server's Mods, not
-   * its overview. Picking from anywhere else opens the overview.
-   */
   protected switchServer(id: string): void {
     const url = this.currentUrl();
     const match = SERVER_ROUTE.exec(url);
@@ -160,21 +131,17 @@ export class Sidenav {
   protected isRouteActive(route: string | null, exact: boolean): boolean {
     if (route === null) return false;
     const url = this.currentUrl();
-    // '/' and a server's overview both prefix-match their own children, so they only light up on
-    // an exact match; everything else is a leaf and can match its own subtree.
+
     if (exact) return url === route;
     return url === route || url.startsWith(route + '/');
   }
 
   protected readonly themeMode = this.theme.mode;
 
-  // No Home entry: the HOPPER button in the header already links to '/', and two controls for one
-  // destination is one too many.
   protected readonly rootNav: ReadonlyArray<NavItem> = [
     { route: '/servers', label: 'Servers', icon: 'lucideServer', exact: false },
   ];
 
-  /** The per-server pages, independent of which server is open, so they can render greyed out. */
   private static readonly SERVER_PAGES: ReadonlyArray<Omit<NavItem, 'route'> & { suffix: string }> =
     [
       { suffix: '', label: 'Overview', icon: 'lucideLayoutDashboard', exact: true },
@@ -185,11 +152,6 @@ export class Sidenav {
       { suffix: '/setup', label: 'Setup', icon: 'lucideBookOpen', exact: false },
     ];
 
-  /**
-   * Always the same six entries. Without a server they render greyed out rather than vanishing:
-   * a section that appears and disappears makes the sidebar jump and hides what the app can do
-   * from anyone who has not opened a server yet.
-   */
   protected readonly serverNav = computed<ReadonlyArray<NavItem>>(() => {
     const id = this.currentServerId();
     return Sidenav.SERVER_PAGES.map(({ suffix, ...rest }) => ({

@@ -61,8 +61,6 @@ export class ConfirmService {
 
   open(ctx: ConfirmDialogContext): Promise<boolean> {
     return new Promise((resolve) => {
-      // Alert-dialog semantics: do not dismiss on a backdrop click. Deleting a mod pulls the jar
-      // out of every player's install on their next launch, so it must not slip past by accident.
       const ref = this.dialog.open(ConfirmDialog, {
         context: ctx,
         contentClass: 'sm:max-w-md',

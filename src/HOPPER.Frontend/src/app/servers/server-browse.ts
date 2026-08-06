@@ -46,19 +46,10 @@ import {
 import { ModrinthVersionDialogService } from './modrinth-version-dialog';
 import { ModrinthPlanDialogService } from './modrinth-plan-dialog';
 
-/**
- * A full page rather than a dialog. A search box, two filters, a sort and paging is Prism's whole
- * browser pane, and a dialog that has to hold all of it and then open a second dialog on top for
- * the dependency preview is a worse version of the same thing. The preview is the dialog.
- */
-
-/** Fixed and modest. Modrinth clamp at 100; 20 is a screen and a bit, and Load more appends. */
 const PAGE_SIZE = 20;
 
-/** Long enough that typing a mod name is one request rather than one per letter. */
 const SEARCH_DEBOUNCE_MS = 350;
 
-/** The sort orders the search endpoint accepts. Anything else is a hard 400 upstream. */
 const SORTS: ReadonlyArray<{ value: number; label: string }> = [
   { value: SEARCH_INDEX.relevance, label: 'Relevance' },
   { value: SEARCH_INDEX.downloads, label: 'Downloads' },
@@ -67,13 +58,6 @@ const SORTS: ReadonlyArray<{ value: number; label: string }> = [
   { value: SEARCH_INDEX.updated, label: 'Updated' },
 ];
 
-/**
- * What the search pipeline is keyed on. A change to any field resets paging to the first page.
- *
- * `tick` is not sent anywhere - it exists so that re-running an identical query after an install is
- * possible at all. Everything else in this key is unchanged by adding a mod, and the pipeline drops
- * a repeated key on purpose.
- */
 type SearchKey = {
   serverId: string;
   query: string;
@@ -326,12 +310,10 @@ export class ServerBrowse {
   protected readonly index = signal<number>(SEARCH_INDEX.relevance);
   protected readonly offset = signal(0);
 
-  /** Bumped to force the identical query to run again. See SearchKey. */
   private readonly reloadTick = signal(0);
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
 
-  /** Both filters have to be known before a single request goes out. */
   protected readonly platformReady = computed(
     () => this.loader() !== '' && this.gameVersion() !== '',
   );
@@ -349,12 +331,6 @@ export class ServerBrowse {
     return `· ${total} result${total === 1 ? '' : 's'} for ${this.loader()} ${this.gameVersion()}`;
   });
 
-  /**
-   * Null until the server has loaded and both filters are known, which is what stops the pipeline
-   * firing a search against an empty loader while the page is still loading. An empty facet is not
-   * an error upstream - it is zero hits - so a request built from a half-loaded page would look
-   * exactly like "this mod does not exist".
-   */
   private readonly searchKey = computed<SearchKey | null>(() => {
     const serverId = this.serverId();
     if (serverId === '' || !this.platformReady()) return null;
@@ -376,11 +352,6 @@ export class ServerBrowse {
       if (id !== '') this.load(id);
     });
 
-    // One pipeline for the term, both filters, the sort and paging. distinctUntilChanged on the
-    // serialised key means re-emitting the same filters - which happens whenever a signal in the
-    // key is written with the value it already had - does not cost a request. switchMap because
-    // only the newest answer is worth rendering: an older page landing last would show results for
-    // a filter that is no longer on screen.
     toObservable(this.searchKey)
       .pipe(
         debounceTime(SEARCH_DEBOUNCE_MS),
@@ -399,10 +370,6 @@ export class ServerBrowse {
               key.serverId,
             )
             .pipe(
-              // Caught INSIDE the switchMap, which is the whole point. An error allowed to reach
-              // the outer subscription would complete it, and every later keystroke and filter
-              // change would then be silently ignored for the life of the page - a dead search box
-              // with no sign of why. Modrinth answering 502 has to cost one toast, not the feature.
               catchError((err: unknown) => {
                 toast.error(messageFrom(err, 'Failed to search Modrinth'));
                 this.loading.set(false);
@@ -413,7 +380,6 @@ export class ServerBrowse {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((result) => {
-        // Offset 0 is a new query and replaces the list; anything else is Load more and appends.
         this.hits.update((current) =>
           toNumber(result.offset) === 0 ? result.hits : [...current, ...result.hits],
         );
@@ -426,11 +392,6 @@ export class ServerBrowse {
     return formatCount(toNumber(hit.downloads));
   }
 
-  /**
-   * Search folds loaders into categories, so the hit's list holds both. The loader names are
-   * dropped here rather than shown: every card on this page matches the loader filter already, and
-   * repeating it on all twenty of them is noise.
-   */
   protected categories(hit: ModrinthSearchHitDto): ReadonlyArray<string> {
     const loaderNames = new Set(this.loaders().map((l) => l.toLowerCase()));
     return hit.categories.filter((c) => !loaderNames.has(c.toLowerCase())).slice(0, 4);
@@ -469,7 +430,6 @@ export class ServerBrowse {
     this.offset.set(this.hits().length);
   }
 
-  /** Opens the version picker, then hands whatever was picked to the dependency preview. */
   protected async versions(hit: ModrinthSearchHitDto): Promise<void> {
     const pick = await this.versionDialog.open({
       serverId: this.serverId(),
@@ -483,10 +443,6 @@ export class ServerBrowse {
     await this.plan(pick.versionId, pick.title);
   }
 
-  /**
-   * The shortcut: resolve the newest matching version and go straight to the preview. It skips the
-   * picker, never the preview - nothing is written before the admin has seen the full list by name.
-   */
   protected addLatest(hit: ModrinthSearchHitDto): void {
     if (this.picking() !== null) return;
     this.picking.set(hit.projectId);
@@ -501,7 +457,7 @@ export class ServerBrowse {
       .subscribe({
         next: async (versions) => {
           this.picking.set(null);
-          // Newest first upstream, and a version with no primary jar has nothing to download.
+
           const newest = versions.find((v) => (v.fileName ?? '') !== '');
           if (!newest) {
             toast.error(
@@ -529,8 +485,6 @@ export class ServerBrowse {
     const added = result.installed.length + result.adopted.length + result.replaced.length;
     if (added > 0) toast.success(`Added ${added} mod${added === 1 ? '' : 's'} to this server`);
 
-    // The installed badge on every card is computed server-side, so the page re-searches rather
-    // than patching one hit: a dependency two levels down may have landed on this results page too.
     this.refreshHits();
   }
 
@@ -538,12 +492,6 @@ export class ServerBrowse {
     this.offset.set(0);
   }
 
-  /**
-   * Re-runs the current query from the top. Adding a mod changes none of the filters, so the key
-   * would be identical and the pipeline would drop it - the tick is the one field that makes an
-   * unchanged query run again. Paging goes back to the first page because the appended pages were
-   * fetched against the old installed state.
-   */
   private refreshHits(): void {
     this.offset.set(0);
     this.reloadTick.update((t) => t + 1);
@@ -558,9 +506,7 @@ export class ServerBrowse {
       next: ({ server, tags }) => {
         this.server.set(server);
         this.gameVersions.set(tags.gameVersions);
-        // Only the four loaders HOPPER records. Modrinth list twenty-nine, most of them for
-        // resource packs and plugins, and offering them here would let an admin filter to a
-        // vocabulary the server's own platform field cannot express.
+
         const known = new Set(
           [MOD_LOADER.forge, MOD_LOADER.neoForge, MOD_LOADER.fabric, MOD_LOADER.quilt].map((l) =>
             modLoaderFacet(l),
@@ -568,17 +514,12 @@ export class ServerBrowse {
         );
         this.loaders.set(tags.loaders.filter((l) => known.has(l)));
 
-        // The filters default to what the server actually runs. An admin who wants to look at
-        // another combination can change them, but the first thing on screen is the set of mods
-        // this server could install today.
         this.loader.set(modLoaderFacet(server.loader) ?? '');
         this.gameVersion.set(server.minecraftVersion ?? '');
         this.resetPaging();
         this.loading.set(false);
 
         if (!this.platformReady()) {
-          // Not a toast: an unconfigured server is a state the page renders, and a toast on every
-          // visit would be nagging rather than informing.
           this.hits.set([]);
           this.totalHits.set(0);
         }

@@ -17,19 +17,11 @@ namespace HOPPER.Application.Queries.Clients
                 .OrderByDescending(c => c.LastSeenAt)
                 .ToListAsync(cancellationToken);
 
-            // Three flat reads and an in-memory grouping. At friend-group scale the reported-mod table
-            // is a few hundred rows, so pulling it whole beats one query per client (N+1) by a wide
-            // margin and keeps the "known" check to a single set lookup.
-            //
-            // ClientReportedMod carries no ServerId of its own - it hangs off Client.Id - so it is
-            // scoped by the client ids just read rather than by a column.
             var clientIds = clients.Select(c => c.Id).ToHashSet();
             var reported = await db.ClientReportedMods.AsNoTracking()
                 .Where(r => clientIds.Contains(r.ClientId))
                 .ToListAsync(cancellationToken);
 
-            // "Known" means known to THIS server. A jar another server distributes is still a jar
-            // this client was never sent.
             var knownHashes = (await db.Mods.AsNoTracking()
                     .Where(m => m.ServerId == query.ServerId)
                     .Select(m => m.Sha256)

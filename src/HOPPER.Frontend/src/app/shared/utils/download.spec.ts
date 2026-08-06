@@ -16,8 +16,6 @@ describe('fileNameFromDisposition', () => {
     );
   });
 
-  // ASP.NET sends both spellings whenever the name is not plain ASCII, and the percent-encoded one
-  // is the accurate half - the plain one is a transliteration.
   it('prefers the RFC 6266 encoded name and decodes it', () => {
     expect(
       fileNameFromDisposition(
@@ -27,15 +25,11 @@ describe('fileNameFromDisposition', () => {
     ).toBe('hütte-20260806.zip');
   });
 
-  // A proxy that drops the header, or a cross-origin deployment that forgot to expose it, must not
-  // land the file on disk under a blank name.
   it('falls back when the header is absent or unparseable', () => {
     expect(fileNameFromDisposition(null, FALLBACK)).toBe(FALLBACK);
     expect(fileNameFromDisposition('attachment', FALLBACK)).toBe(FALLBACK);
   });
 
-  // The header is a server-supplied string reaching a download attribute. It is not a path, and
-  // anything shaped like one is reduced to its last segment before it gets there.
   it('keeps only the last segment of anything path-shaped', () => {
     expect(fileNameFromDisposition('attachment; filename="../../etc/passwd"', FALLBACK)).toBe(
       'passwd',

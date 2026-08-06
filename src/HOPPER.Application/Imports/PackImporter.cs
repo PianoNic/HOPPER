@@ -16,14 +16,6 @@ namespace HOPPER.Application.Imports
         Task RunAsync(Guid importId, CancellationToken cancellationToken);
     }
 
-    /// <summary>Runs one import from staged bytes to Mod rows. Queued -> Staged -> Detected -> Planned
-    /// -> Verified -> Stored -> Completed, with anything that could not be fetched landing as a
-    /// PendingMod rather than failing the run.
-    ///
-    /// The import is NOT a transaction. Each file is saved as it lands, so a crash halfway leaves a
-    /// coherent partial import the admin can simply re-run - the duplicate check makes a re-run cheap
-    /// - and so the dashboard's polling shows real progress rather than nothing followed by
-    /// everything.</summary>
     public class PackImporter(
         HopperDbContext db,
         IBlobStorage blobs,
@@ -33,9 +25,6 @@ namespace HOPPER.Application.Imports
         IConfiguration configuration,
         ILogger<PackImporter> logger) : IPackImporter
     {
-        /// <summary>Modrinth's own upload whitelist, which is the right default for the same reason it
-        /// is theirs: a pack index is attacker-controlled text, and following an arbitrary URL out of
-        /// one turns HOPPER into a request proxy for whoever wrote the pack.</summary>
         private static readonly string[] DefaultDownloadHosts =
         [
             "cdn.modrinth.com",
@@ -93,9 +82,6 @@ namespace HOPPER.Application.Imports
 
                     if (file.ZipEntry is not null)
                     {
-                        // Already in an archive the admin handed us: there is no transport to
-                        // distrust, so there is nothing to verify. SaveAsync computes the sha256 that
-                        // actually addresses the blob.
                         var entry = archive.GetEntry(file.ZipEntry);
                         if (entry is null)
                         {
@@ -112,8 +98,6 @@ namespace HOPPER.Application.Imports
                     }
                 }
 
-                // Completed, not Failed, even with pendings: a pack that needs jars supplied by hand is
-                // the normal CurseForge outcome, not a broken run.
                 import.Status = ImportStatus.Completed;
             }
             catch (OperationCanceledException)
@@ -133,18 +117,11 @@ namespace HOPPER.Application.Imports
                 if (errors.Count > 0)
                     import.Error = string.Join("\n", errors.Take(50));
 
-                // CancellationToken.None: the row has to record what happened even when the host is
-                // shutting the worker down, or an interrupted import reads as still Running forever.
                 await db.SaveChangesAsync(CancellationToken.None);
                 staging.Cleanup(import.Id);
             }
         }
 
-        // ---- Step 2: stage a URL source -------------------------------------------------------
-
-        /// <summary>The pack URL itself is not host-restricted: an admin pasting a link is a deliberate
-        /// act, exactly as it is in Prism. The mod URLs found INSIDE a pack are restricted, because
-        /// those are chosen by whoever wrote the pack rather than by the person clicking.</summary>
         private async Task FetchPackAsync(ModImport import, CancellationToken cancellationToken)
         {
             if (!Uri.TryCreate(import.SourceName, UriKind.Absolute, out var uri)
@@ -175,8 +152,6 @@ namespace HOPPER.Application.Imports
             }
         }
 
-        // ---- Steps 5-6: download, verify, store ----------------------------------------------
-
         private async Task DownloadAndStoreAsync(ModImport import, PlannedFile file, List<string> errors, CancellationToken cancellationToken)
         {
             var allowed = AllowedHosts();
@@ -200,8 +175,6 @@ namespace HOPPER.Application.Imports
 
             string? lastProblem = null;
 
-            // downloads[] is a mirror list of the same file, so a failure moves to the next one before
-            // it becomes the admin's problem.
             foreach (var uri in candidates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -210,9 +183,6 @@ namespace HOPPER.Application.Imports
                 {
                     var (sha512, sha1) = await DownloadToAsync(uri, tempPath, cancellationToken);
 
-                    // sha512 when the index published one, else sha1. This is an integrity check
-                    // against what the pack described, not a security boundary - but a file that is
-                    // not what the pack named must never become a Mod row.
                     var expected = file.Sha512 ?? file.Sha1;
                     var actual = file.Sha512 is not null ? sha512 : sha1;
 
@@ -256,8 +226,6 @@ namespace HOPPER.Application.Imports
             }, cancellationToken);
         }
 
-        /// <summary>Streams to disk while computing SHA-512 and SHA-1 in the same pass, because the
-        /// index may publish either and a second read of a 200 MB jar to hash it is a second read.</summary>
         private async Task<(string Sha512, string Sha1)> DownloadToAsync(Uri uri, string path, CancellationToken cancellationToken)
         {
             using var http = httpClientFactory.CreateClient(ImportHttpClients.Packs);
@@ -296,9 +264,6 @@ namespace HOPPER.Application.Imports
                 return;
             }
 
-            // Imports are re-runnable: a jar this server already carries is skipped rather than
-            // conflicting, so re-importing a pack after resolving its pendings does not fail on
-            // everything that already worked.
             if (await db.Mods.AnyAsync(m => m.ServerId == import.ServerId && m.FileName == validated, cancellationToken))
             {
                 import.SkippedCount++;
@@ -316,14 +281,9 @@ namespace HOPPER.Application.Imports
                 Size = size,
                 UploadedBy = import.CreatedBy,
 
-                // After the save, by content address: the stream that got here may be an override
-                // inside the pack archive, which cannot seek. See ModIdReader.FromBlob.
                 ModIds = ModIdReader.FromBlob(blobs, sha256),
             });
 
-            // One save per file. That is what makes the counters the dashboard polls mean something
-            // while the import is still running, and what makes a crash halfway leave the jars that
-            // did land actually stored.
             import.ImportedCount++;
             await db.SaveChangesAsync(cancellationToken);
         }
