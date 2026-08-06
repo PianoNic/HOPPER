@@ -1,0 +1,18 @@
+# Git for Windows defaults to core.autocrlf=true, which rewrites checked-out text files to CRLF.
+# Docker copies the WORKING TREE, not the blob, so a file whose shebang picks up a \r becomes an
+# unrunnable script inside the image: `#!/bin/sh\r` makes the kernel look for an interpreter literally
+# named "/bin/sh\r" and the build dies with "./gradlew: not found". Everything below must stay LF on
+# every platform for that reason - it is a build correctness rule, not a style preference.
+gradlew         text eol=lf
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.dockerignore  text eol=lf
+
+# Windows-only, and genuinely wants CRLF.
+gradlew.bat     text eol=crlf
+*.cmd           text eol=crlf
+
+# Never touched. A jar or a png that gets newline-converted is a corrupt file.
+*.jar           binary
+*.png           binary
+*.ico           binary

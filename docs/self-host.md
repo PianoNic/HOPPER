@@ -88,7 +88,7 @@ Dashboard on `:58722`, the mock IdP on `:58538`. A server named `Default` exists
 | `Blobs__Directory` | `/data/blobs` | Content-addressed jar store. Shared across servers, so a jar used twice is stored once. |
 | `Hopper__PublicBaseUrl` | derived from the request | Host written into every manifest URL. Leave unset behind a proxy that sends `X-Forwarded-*`. |
 | `Hopper__BootstrapClientToken` | `change-me` | Token of the `Default` server created on an empty database. |
-| `Hopper__LocatorTemplatePath` | built into the image | The template jar the download endpoint patches per server. |
+| `Hopper__LocatorTemplateDirectory` | built into the image | Directory of template jars, one per loader generation. The download endpoint picks by the server's loader and Minecraft version. |
 | `Oidc__Authority` | bundled mock IdP | OIDC issuer for admin access. |
 | `Oidc__InternalAuthority` | unset | Set when the API reaches the IdP on a different address than the browser does. |
 | `CurseForge__ApiKey` | *(unset)* | Optional. Without it, CurseForge imports list unresolvable mods for manual upload. |

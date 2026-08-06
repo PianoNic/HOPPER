@@ -109,9 +109,16 @@ The API migrates at boot, so `dotnet ef database update` is never needed.
   its page layout collapses.
 - **The locator is loader-specific, the syncer is not.** Only the adapter under `src/HOPPER.Locator/`
   imports loader types. Keep it that way; it is what makes supporting another loader cheap.
-- **`Hopper:LocatorTemplatePath`** must point at the jar from
-  `cd src/HOPPER.Locator && ./gradlew build`. The Dockerfile builds it in a JDK stage; locally you
-  build it yourself or the jar endpoint fails.
+- **`Hopper:LocatorTemplateDirectory`** must point at the directory from
+  `cd src/HOPPER.Locator && ./gradlew templates`, not at a single jar. The locator is one adapter
+  per loader generation and `LocatorTemplates.For` picks one by the server's loader and Minecraft
+  version, so the endpoint needs all of them. The Dockerfile builds them in a JDK stage; locally you
+  run the task yourself or the jar endpoint 503s and names the file it wanted.
+- **The module-to-filename mapping lives in the `templates` task in `src/HOPPER.Locator/build.gradle`.**
+  `LocatorTemplates` addresses jars by unversioned name, so a version bump never touches C#. Adding a
+  loader means a module, an entry in that task, and an arm in `LocatorTemplates.For` - nothing else.
+- **Gradle 8.14.3 will not run on JDK 25.** It fails with "Unsupported class file major version 69".
+  Build the locator on JDK 21 or 24; the Dockerfile pins `eclipse-temurin:21-jdk` for this reason.
 
 ## Before you claim it works
 

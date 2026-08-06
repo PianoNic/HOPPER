@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure.Interfaces;
 using HOPPER.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
@@ -23,10 +24,14 @@ namespace HOPPER.Tests.Infrastructure
             public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch { } }
         }
 
-        /// <summary>A stand-in for src/HOPPER.Locator/build/libs/hopper-1.0.0.jar: a real zip carrying the service
-        /// registration the builder checks for, plus a class file and a manifest so there is something
-        /// to prove the builder left alone.</summary>
-        private static string WriteTemplate(string directory, string name = "hopper.jar")
+        /// <summary>The name LocatorTemplates picks for Forge on a modern Minecraft version, which is
+        /// what every test below that is not about selection asks for.</summary>
+        private const string ForgeModernJar = "hopper-forge-modern.jar";
+
+        /// <summary>A stand-in for src/HOPPER.Locator/build/templates/hopper-forge-modern.jar: a real zip
+        /// carrying the service registration the builder checks for, plus a class file and a manifest so
+        /// there is something to prove the builder left alone.</summary>
+        private static string WriteTemplate(string directory, string name = ForgeModernJar)
         {
             var path = Path.Combine(directory, name);
 
@@ -78,7 +83,7 @@ namespace HOPPER.Tests.Infrastructure
 
         private static string WriteTemplateFromTheJdkJarTool(string directory)
         {
-            var path = Path.Combine(directory, "jar-tool-produced.jar");
+            var path = Path.Combine(directory, ForgeModernJar);
             File.WriteAllBytes(path, Convert.FromBase64String(JarToolProducedJarBase64));
             return path;
         }
@@ -129,10 +134,15 @@ namespace HOPPER.Tests.Infrastructure
             }
         }
 
-        private static LocatorJarBuilder BuilderFor(string? templatePath) =>
+        private static LocatorJarBuilder BuilderFor(string? templateDirectory) =>
             new(new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["Hopper:LocatorTemplatePath"] = templatePath })
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Hopper:LocatorTemplateDirectory"] = templateDirectory })
                 .Build());
+
+        /// <summary>Forge on 1.20.1, which resolves to hopper-forge-modern.jar. The tests that are not
+        /// about template selection all go through here so the selection arguments stay in one place.</summary>
+        private static byte[] BuildModernForge(LocatorJarBuilder builder, Guid serverId, string manifestUrl, string token) =>
+            builder.Build(serverId, manifestUrl, token, ModLoader.Forge, "1.20.1");
 
         private static Dictionary<string, string> ReadProperties(byte[] jar)
         {
@@ -159,7 +169,8 @@ namespace HOPPER.Tests.Infrastructure
             // The whole feature rests on this: a jar is a zip, and an edit that corrupts the central
             // directory produces a file Forge silently ignores rather than one it complains about.
             using var dir = new TempDir();
-            var jar = BuilderFor(WriteTemplate(dir.Path)).Build(Guid.NewGuid(), "https://hopper.example.com/api/manifest", "t");
+            WriteTemplate(dir.Path);
+            var jar = BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://hopper.example.com/api/manifest", "t");
 
             using var archive = new ZipArchive(new MemoryStream(jar), ZipArchiveMode.Read);
 
@@ -190,7 +201,7 @@ namespace HOPPER.Tests.Infrastructure
                 .IsTrue()
                 .Because("the fixture must reproduce the shape the JDK jar tool writes");
 
-            var jar = BuilderFor(template).Build(Guid.NewGuid(), "https://hopper.example.com/api/manifest", "t");
+            var jar = BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://hopper.example.com/api/manifest", "t");
 
             await Assert.That(EntriesWithBrokenLocalHeaders(jar)).IsEmpty();
         }
@@ -215,7 +226,8 @@ namespace HOPPER.Tests.Infrastructure
         public async Task Build_Output_HasNoEntryWhoseLocalHeaderOffsetIsWrong()
         {
             using var dir = new TempDir();
-            var jar = BuilderFor(WriteTemplate(dir.Path)).Build(Guid.NewGuid(), "https://h/api/manifest", "t");
+            WriteTemplate(dir.Path);
+            var jar = BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t");
 
             await Assert.That(EntriesWithBrokenLocalHeaders(jar)).IsEmpty();
         }
@@ -227,8 +239,8 @@ namespace HOPPER.Tests.Infrastructure
             // kill switch, and a jar that set it would take that away.
             using var dir = new TempDir();
             var serverId = Guid.NewGuid();
-            var jar = BuilderFor(WriteTemplate(dir.Path))
-                .Build(serverId, "https://hopper.example.com/api/manifest", "0123456789abcdef");
+            WriteTemplate(dir.Path);
+            var jar = BuildModernForge(BuilderFor(dir.Path), serverId, "https://hopper.example.com/api/manifest", "0123456789abcdef");
 
             var properties = ReadProperties(jar);
 
@@ -246,7 +258,8 @@ namespace HOPPER.Tests.Infrastructure
             // resolves to a root entry named without the slash. Anywhere else and the jar configures
             // nothing while looking perfectly fine.
             using var dir = new TempDir();
-            var jar = BuilderFor(WriteTemplate(dir.Path)).Build(Guid.NewGuid(), "https://h/api/manifest", "t");
+            WriteTemplate(dir.Path);
+            var jar = BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t");
 
             using var archive = new ZipArchive(new MemoryStream(jar), ZipArchiveMode.Read);
             var entry = archive.Entries.Single(e => e.Name == "hopper-server.properties");
@@ -259,7 +272,7 @@ namespace HOPPER.Tests.Infrastructure
         {
             using var dir = new TempDir();
             var template = WriteTemplate(dir.Path);
-            var jar = BuilderFor(template).Build(Guid.NewGuid(), "https://h/api/manifest", "t");
+            var jar = BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t");
 
             using var before = ZipFile.OpenRead(template);
             using var after = new ZipArchive(new MemoryStream(jar), ZipArchiveMode.Read);
@@ -288,11 +301,11 @@ namespace HOPPER.Tests.Infrastructure
             // a jar that authenticates against the previous token and looks fine on inspection.
             using var dir = new TempDir();
             var template = WriteTemplate(dir.Path);
-            var builder = BuilderFor(template);
+            var builder = BuilderFor(dir.Path);
 
-            var first = builder.Build(Guid.NewGuid(), "https://first/api/manifest", "first-token");
+            var first = BuildModernForge(builder, Guid.NewGuid(), "https://first/api/manifest", "first-token");
             File.WriteAllBytes(template, first);
-            var second = builder.Build(Guid.NewGuid(), "https://second/api/manifest", "second-token");
+            var second = BuildModernForge(builder, Guid.NewGuid(), "https://second/api/manifest", "second-token");
 
             using var archive = new ZipArchive(new MemoryStream(second), ZipArchiveMode.Read);
 
@@ -307,7 +320,7 @@ namespace HOPPER.Tests.Infrastructure
             var template = WriteTemplate(dir.Path);
             var before = await File.ReadAllBytesAsync(template);
 
-            BuilderFor(template).Build(Guid.NewGuid(), "https://h/api/manifest", "t");
+            BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t");
 
             await Assert.That(await File.ReadAllBytesAsync(template)).IsEquivalentTo(before);
         }
@@ -315,26 +328,26 @@ namespace HOPPER.Tests.Infrastructure
         [Test]
         public async Task Build_MissingTemplate_ThrowsAndNamesThePathAndTheKey()
         {
+            // The directory exists and the Gradle task has not been run, which is the state a fresh
+            // checkout is in.
             using var dir = new TempDir();
-            var missing = Path.Combine(dir.Path, "not-built-yet.jar");
 
-            var exception = await Assert.That(() => BuilderFor(missing).Build(Guid.NewGuid(), "https://h/api/manifest", "t"))
+            var exception = await Assert.That(() => BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t"))
                 .Throws<LocatorTemplateMissingException>();
 
             // An admin who has not run the Gradle build needs to be told where HOPPER looked and which
             // key moves it, not "object reference not set".
-            await Assert.That(exception!.Message).Contains("not-built-yet.jar");
-            await Assert.That(exception.Message).Contains("Hopper:LocatorTemplatePath");
+            await Assert.That(exception!.Message).Contains(ForgeModernJar);
+            await Assert.That(exception.Message).Contains("Hopper:LocatorTemplateDirectory");
         }
 
         [Test]
         public async Task Build_TemplateThatIsNotAZip_ThrowsRatherThanServingRubbish()
         {
             using var dir = new TempDir();
-            var path = Path.Combine(dir.Path, "hopper.jar");
-            await File.WriteAllTextAsync(path, "this is not a zip");
+            await File.WriteAllTextAsync(Path.Combine(dir.Path, ForgeModernJar), "this is not a zip");
 
-            await Assert.That(() => BuilderFor(path).Build(Guid.NewGuid(), "https://h/api/manifest", "t"))
+            await Assert.That(() => BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t"))
                 .Throws<LocatorTemplateMissingException>();
         }
 
@@ -344,16 +357,110 @@ namespace HOPPER.Tests.Infrastructure
             // Without the service registration Forge loads the jar and never calls into it, so the
             // player gets a mods folder that syncs nothing and no error at all.
             using var dir = new TempDir();
-            var path = Path.Combine(dir.Path, "some-other.jar");
 
-            using (var file = File.Create(path))
+            using (var file = File.Create(Path.Combine(dir.Path, ForgeModernJar)))
             using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
             using (var stream = archive.CreateEntry("META-INF/MANIFEST.MF").Open())
             {
                 stream.Write("Manifest-Version: 1.0\n"u8);
             }
 
-            await Assert.That(() => BuilderFor(path).Build(Guid.NewGuid(), "https://h/api/manifest", "t"))
+            await Assert.That(() => BuildModernForge(BuilderFor(dir.Path), Guid.NewGuid(), "https://h/api/manifest", "t"))
+                .Throws<LocatorTemplateMissingException>();
+        }
+
+        // ---- template selection --------------------------------------------------------------
+
+        [Test]
+        [Arguments(ModLoader.Forge, "1.12.2", "hopper-forge-1122.jar")]
+        [Arguments(ModLoader.Forge, "1.16.5", "hopper-forge-1165.jar")]
+        [Arguments(ModLoader.Forge, "1.14.4", "hopper-forge-1165.jar")]
+        [Arguments(ModLoader.Forge, "1.18.2", "hopper-forge-1182.jar")]
+        [Arguments(ModLoader.Forge, "1.17.1", "hopper-forge-1182.jar")]
+        [Arguments(ModLoader.Forge, "1.19.2", "hopper-forge-modern.jar")]
+        [Arguments(ModLoader.Forge, "1.21.4", "hopper-forge-modern.jar")]
+        [Arguments(ModLoader.NeoForge, "1.21.1", "hopper-neoforge.jar")]
+        [Arguments(ModLoader.Fabric, "1.21.1", "hopper-fabric.jar")]
+        public async Task For_LoaderAndVersion_PicksTheAdapterThatLoaderCanActuallyRead(
+            ModLoader loader, string minecraftVersion, string expected)
+        {
+            // A loader resolves ONE jar out of mods/ and ignores every other, so picking the wrong
+            // adapter is not a degraded install - it is a file the loader never opens.
+            await Assert.That(LocatorTemplates.For(loader, minecraftVersion).FileName).IsEqualTo(expected);
+        }
+
+        [Test]
+        public async Task For_Quilt_IsServedTheFabricJar()
+        {
+            // Not a shortcut. Quilt runs Fabric mods through StandardFabricPlugin, while the real
+            // QuiltLoaderPlugin variant throws a ParseException unless the player passes
+            // -Dloader.experimental.allow_loading_plugins=true - a launcher argument, which is the one
+            // thing HOPPER exists to avoid needing.
+            await Assert.That(LocatorTemplates.For(ModLoader.Quilt, "1.21.1").FileName).IsEqualTo("hopper-fabric.jar");
+        }
+
+        [Test]
+        [Arguments("25w14a")]
+        [Arguments("23w13a_or_b")]
+        [Arguments("")]
+        [Arguments(null)]
+        public async Task For_AVersionThatIsNotAPlainRelease_FallsForwardToModern(string? minecraftVersion)
+        {
+            // Minecraft versions are not semver. A snapshot IS newer than every release, so guessing
+            // newest is the right guess - and the modern signature has held since 1.19.
+            await Assert.That(LocatorTemplates.For(ModLoader.Forge, minecraftVersion).FileName)
+                .IsEqualTo("hopper-forge-modern.jar");
+        }
+
+        [Test]
+        public async Task For_UnknownLoader_ThrowsRatherThanGuessing()
+        {
+            // Mapped to 400. Handing a Forge jar to a server whose loader nobody has set would look
+            // like it worked right up until the player launches and nothing syncs.
+            await Assert.That(() => LocatorTemplates.For(ModLoader.Unknown, "1.20.1"))
+                .Throws<LocatorLoaderNotConfiguredException>();
+        }
+
+        [Test]
+        public async Task Build_UnknownLoader_ThrowsBeforeItLooksForAFile()
+        {
+            // No template directory at all: the loader check has to come first, or an unconfigured
+            // server reports a deployment problem instead of the row the admin has to fix.
+            await Assert.That(() => BuilderFor("/no/such/directory")
+                    .Build(Guid.NewGuid(), "https://h/api/manifest", "t", ModLoader.Unknown, "1.20.1"))
+                .Throws<LocatorLoaderNotConfiguredException>();
+        }
+
+        [Test]
+        public async Task Build_MarkerCheck_IsPerLoaderRatherThanAlwaysForge()
+        {
+            // The Forge service entry is absent from every non-Forge adapter, so a Forge-only check
+            // would reject the NeoForge, Fabric and Quilt jars outright - a 503 on every download for
+            // three of the four loaders HOPPER claims to support.
+            using var dir = new TempDir();
+
+            using (var file = File.Create(Path.Combine(dir.Path, "hopper-fabric.jar")))
+            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
+            using (var stream = archive.CreateEntry("fabric.mod.json").Open())
+            {
+                stream.Write("""{"schemaVersion":1,"id":"hopper"}"""u8);
+            }
+
+            var jar = BuilderFor(dir.Path).Build(Guid.NewGuid(), "https://h/api/manifest", "tok", ModLoader.Fabric, "1.21.1");
+
+            await Assert.That(ReadProperties(jar)["token"]).IsEqualTo("tok");
+        }
+
+        [Test]
+        public async Task Build_AdapterForAnotherLoader_IsRejected()
+        {
+            // A Forge jar sitting under the Fabric name. Accepting it would produce a download that
+            // installs cleanly and never runs.
+            using var dir = new TempDir();
+            WriteTemplate(dir.Path, "hopper-fabric.jar");
+
+            await Assert.That(() => BuilderFor(dir.Path)
+                    .Build(Guid.NewGuid(), "https://h/api/manifest", "t", ModLoader.Fabric, "1.21.1"))
                 .Throws<LocatorTemplateMissingException>();
         }
     }

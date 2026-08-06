@@ -34,13 +34,17 @@ COPY src .
 COPY application.properties /src/application.properties
 RUN dotnet publish "HOPPER.API/HOPPER.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# ---------- Stage 3b: the Forge locator template jar ----------
-# GET /api/servers/{id}/jar serves per-server copies of this jar, so a deployed HOPPER cannot hand
-# out a client without it. Built here rather than committed as a binary, so the jar always matches
-# the locator sources in this repo.
+# ---------- Stage 3b: the locator template jars, one per loader generation ----------
+# GET /api/servers/{id}/jar serves per-server copies of one of these, so a deployed HOPPER cannot
+# hand out a client without them. Built here rather than committed as binaries, so the jars always
+# match the locator sources in this repo.
 #
-# BUILDPLATFORM again: the output is Java bytecode built with --release 17, identical on every arch.
-# The Gradle wrapper pins its own version and checksum, so this stage needs only a JDK.
+# BUILDPLATFORM again: the output is Java bytecode built with a pinned --release, identical on every
+# arch. The Gradle wrapper pins its own version and checksum, so this stage needs only a JDK.
+#
+# 21, not the newest JDK: Gradle 8.14.3 refuses to run on Java 25 ("Unsupported class file major
+# version 69"). The modules compile to 8 and 17 through --release regardless of the JDK running the
+# build, so the runtime bytecode does not depend on this number.
 FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS locator-build
 WORKDIR /src/locator
 COPY src/HOPPER.Locator/gradle ./gradle
@@ -48,9 +52,14 @@ COPY src/HOPPER.Locator/gradlew src/HOPPER.Locator/settings.gradle src/HOPPER.Lo
 # Warm the wrapper and dependency cache in its own layer, so editing a .java file does not re-download
 # Gradle itself on every build.
 RUN chmod +x ./gradlew && ./gradlew --no-daemon --version
-COPY src/HOPPER.Locator/src ./src
-RUN ./gradlew --no-daemon build \
-    && cp build/libs/hopper-*.jar /artifacts-locator.jar
+# The whole directory: the locator is a multi-module Gradle build, so every module's own build.gradle
+# and src/ has to be here before `build` can resolve the project graph.
+COPY src/HOPPER.Locator ./
+# `build templates`: build runs the tests, templates collects the shipped adapters under the
+# unversioned names LocatorTemplates addresses them by. The module-to-filename mapping lives in
+# build.gradle's `templates` task and is deliberately not restated here.
+RUN chmod +x ./gradlew && ./gradlew --no-daemon build templates \
+    && cp -r build/templates /artifacts-locator
 
 # ---------- Stage 4: runtime ----------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.8-azurelinux3.0 AS final
@@ -63,12 +72,12 @@ ENV ASPNETCORE_URLS=http://+:8080 ASPNETCORE_ENVIRONMENT=Production
 # at a dev host, which is not something a container should quietly reach for. compose.yml sets it.
 ENV Blobs__Directory=/data/blobs
 
-# The template the jar endpoint patches per server. Baked in rather than mounted, so the jar handed
-# to players always matches the API serving it.
-ENV Hopper__LocatorTemplatePath=/app/locator/hopper-template.jar
+# The directory of templates the jar endpoint patches per server, one per loader generation. Baked
+# in rather than mounted, so the jar handed to players always matches the API serving it.
+ENV Hopper__LocatorTemplateDirectory=/app/locator
 
 COPY --from=backend-build /app/publish .
-COPY --from=locator-build /artifacts-locator.jar ./locator/hopper-template.jar
+COPY --from=locator-build /artifacts-locator ./locator
 
 # This is what makes environment.prod.ts's `apiBaseUrl: window.location.origin` true: the built SPA
 # is served by the API itself out of wwwroot (Program.cs: UseSpaStaticFiles + MapFallbackToFile),

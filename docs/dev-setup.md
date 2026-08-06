@@ -54,10 +54,26 @@ dotnet ef migrations add <Name> -p src/HOPPER.Infrastructure -s src/HOPPER.API
 ## The locator jar
 
 ```bash
-cd src/HOPPER.Locator && ./gradlew build
+cd src/HOPPER.Locator && ./gradlew templates
 ```
 
-Produces `src/HOPPER.Locator/build/libs/hopper-1.0.0.jar`. That is the **template**: point `Hopper:LocatorTemplatePath` at it and `GET /api/servers/{id}/jar` serves per-server copies. The Dockerfile builds it in its own JDK stage, so a deployed HOPPER has one without anyone running Gradle.
+Produces `src/HOPPER.Locator/build/templates/`, one jar per loader generation under an unversioned name. That directory is what `Hopper:LocatorTemplateDirectory` points at, and `GET /api/servers/{id}/jar` picks one out of it by the server's loader and Minecraft version before patching a per-server copy. The Dockerfile runs the same task in its own JDK stage, so a deployed HOPPER has the set without anyone running Gradle.
+
+`./gradlew build` compiles and tests every module but does not collect them; `templates` is the task that produces the layout the API reads. Run it on JDK 21 or 24 - Gradle 8.14.3 refuses to start on JDK 25 with "Unsupported class file major version 69".
+
+Which jar a server gets:
+
+| Server loader | Template |
+| --- | --- |
+| Forge, MC 1.12.x | `hopper-forge-1122.jar` |
+| Forge, MC 1.13-1.16.5 | `hopper-forge-1165.jar` |
+| Forge, MC 1.17-1.18.2 | `hopper-forge-1182.jar` |
+| Forge, MC 1.19+ | `hopper-forge-modern.jar` |
+| NeoForge | `hopper-neoforge.jar` |
+| Fabric | `hopper-fabric.jar` |
+| Quilt | `hopper-fabric.jar` |
+
+Quilt is served the Fabric jar on purpose. Quilt runs Fabric mods through `StandardFabricPlugin`, so the `preLaunch` entrypoint works unchanged, while `hopper-quilt-plugin.jar` hard-fails with a `ParseException` unless the player adds `-Dloader.experimental.allow_loading_plugins=true` - a launcher argument, which is the thing HOPPER exists to avoid. It is still built and tested; it is just not a template.
 
 No ForgeGradle and no reobf, because a locator never touches a Minecraft class and there is nothing to remap. Dependencies are pinned to what `fmlloader-1.20.1-47.1.3.pom` itself declares: forgespi 7.0.1, modlauncher 10.0.9.
 

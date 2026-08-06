@@ -65,3 +65,37 @@ configure(subprojects.findAll { it.name != 'hopper-core' }) {
         manifest.attributes('Implementation-Version': project.version)
     }
 }
+
+// ---- the directory the API serves from ----
+//
+// HOPPER picks a template by loader and Minecraft version (LocatorTemplates.For) and addresses it
+// by an unversioned name, so a version bump here never needs a matching edit in C#. This task is
+// what makes those names exist, and it is the ONLY place the module-to-filename mapping lives -
+// the Dockerfile and a local `dotnet run` both consume its output rather than restating it.
+//
+// hopper-quilt-plugin is deliberately not shipped. Quilt servers are served hopper-fabric.jar,
+// because the plugin variant throws a ParseException unless the player adds a JVM argument; the
+// jar is still built and tested, it is just not a template. See hopper-quilt/build.gradle.
+def shippedAdapters = [
+        'hopper-forge-1122',
+        'hopper-forge-1165',
+        'hopper-forge-1182',
+        'hopper-forge-modern',
+        'hopper-neoforge',
+        'hopper-fabric',
+]
+
+tasks.register('templates', Copy) {
+    group = 'build'
+    description = 'Collects the shipped adapter jars into build/templates under unversioned names.'
+
+    into layout.buildDirectory.dir('templates')
+
+    shippedAdapters.each { name ->
+        // from(task) rather than from(file): it carries the dependency on that module's jar task, so
+        // `./gradlew templates` builds what it needs instead of silently copying nothing.
+        from(project(":$name").tasks.named('jar')) {
+            rename '.*\\.jar', "${name}.jar"
+        }
+    }
+}
