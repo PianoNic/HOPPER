@@ -63,15 +63,21 @@ The dashboard is live at `http://localhost:58722`.
 
 ## Try it without an IdP
 
-The repo's own `compose.yml` bundles a throwaway OIDC provider, so a fresh checkout can log in without standing up Keycloak first. It signs a token for anyone who asks, which is fine on your own machine and nowhere else.
+`compose.demo.yml` adds a throwaway OIDC provider, so a fresh checkout can log in without standing up Keycloak first. It signs a token for anyone who asks, which is fine on your own machine and nowhere else - which is why it is a separate file that a plain `docker compose up -d` cannot pick up by accident.
 
 ```bash
 git clone https://github.com/PianoNic/HOPPER.git
 cd HOPPER
-docker compose up -d --build
+docker compose -f compose.yml -f compose.demo.yml up -d --build
 ```
 
-Dashboard on `:58722`, the mock IdP on `:58538`. A server named `Default` exists immediately, so you can download a client jar without configuring anything.
+Dashboard on `:58722`, the mock IdP on `:58538`. A server named `Default` exists immediately, so you can download a client jar without configuring anything. Its client token is generated at first boot and shown on the server's setup page - nothing in this repository knows it.
+
+## `.env` overrides everything
+
+Every value in the repo's `compose.yml` is written `${VAR:-default}`, so anything you put in `.env` wins. That shape matters: Compose ranks an inline `environment:` value above `env_file`, so a literal there would beat your `.env` without saying so. Keep the interpolation when you add a setting.
+
+`compose.yml` on its own is a real deployment. It starts no identity provider and defaults `Oidc__Authority` to empty, so admin sign-in fails until you name yours - which beats quietly trusting one that signs tokens for anybody.
 
 ## Two credentials, no overlap
 
