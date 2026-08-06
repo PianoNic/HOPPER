@@ -85,8 +85,10 @@ namespace HOPPER.Tests.Infrastructure
             var (second, _) = await storage.SaveAsync(new MemoryStream(bytes));
 
             await Assert.That(second).IsEqualTo(first);
+
+            var scratch = Path.Combine(dir.Path, "tmp") + Path.DirectorySeparatorChar;
             var stored = Directory.GetFiles(dir.Path, "*", SearchOption.AllDirectories)
-                .Where(p => !p.Contains($"{Path.DirectorySeparatorChar}tmp{Path.DirectorySeparatorChar}"))
+                .Where(p => !p.StartsWith(scratch, StringComparison.Ordinal))
                 .ToList();
             await Assert.That(stored).Count().IsEqualTo(1);
         }

@@ -115,7 +115,8 @@ jobs:
           load: true
           tags: hopper:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # ignore-error so a cache-backend hiccup cannot fail a build that succeeded.
+          cache-to: type=gha,mode=max,ignore-error=true
           provenance: false
           sbom: false
 
