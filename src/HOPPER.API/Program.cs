@@ -12,8 +12,6 @@ using HOPPER.Application.Command.Imports;
 using HOPPER.Infrastructure.Extensions;
 using HOPPER.Infrastructure.Interfaces;
 using HOPPER.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
@@ -90,41 +88,10 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         // so without failing the download.
         .WithExposedHeaders("Content-Disposition", "X-Hopper-Export-Warnings")));
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        // NullIfBlank, not ??. Compose interpolates an unset variable to an EMPTY STRING rather than
-        // leaving the key absent, so `Oidc__InternalAuthority: "${Oidc__InternalAuthority:-}"`
-        // arrives here as "" - which ?? happily accepts, skipping the block below and leaving the
-        // scheme with neither a MetadataAddress nor an Authority. Every admin request then fails to
-        // authenticate for a reason nothing in the configuration hints at.
-        var publicAuthority = NullIfBlank(builder.Configuration["Oidc:Authority"]);
-        var internalAuthority = NullIfBlank(builder.Configuration["Oidc:InternalAuthority"]) ?? publicAuthority;
-
-        // In Docker the browser reaches the IdP on a published port while the API reaches it on the
-        // compose network, so metadata is fetched from the internal URL but the issuer inside the
-        // token is validated against the public one.
-        if (!string.IsNullOrWhiteSpace(internalAuthority))
-        {
-            options.MetadataAddress = $"{internalAuthority.TrimEnd('/')}/.well-known/openid-configuration";
-            options.TokenValidationParameters.ValidIssuer = publicAuthority;
-        }
-
-        options.RequireHttpsMetadata = builder.Configuration.GetValue("Oidc:RequireHttpsMetadata", true);
-        options.TokenValidationParameters.NameClaimType = "name";
-        options.TokenValidationParameters.RoleClaimType = "roles";
-        options.TokenValidationParameters.ValidateAudience = false;
-    })
-    .AddClientToken();
-
-builder.Services.AddAuthorization(options =>
-{
-    // Secure by default: an endpoint is protected by doing nothing. Client endpoints carry an
-    // explicit [Authorize(AuthenticationSchemes = "ClientToken")], which replaces this policy for
-    // those actions, so an OIDC token never opens the manifest and a client token never opens the
-    // admin surface.
-    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
-});
+// Who HOPPER trusts, and what being trusted gets you. Both live in AuthExtensions so they can be
+// asserted without a live IdP - see HOPPER.Tests/Api/AdminAuthorizationTests.cs.
+builder.Services.AddHopperAuthentication(builder.Configuration);
+builder.Services.AddHopperAuthorization(builder.Configuration);
 
 var app = builder.Build();
 
@@ -264,10 +231,4 @@ app.Run();
 // Exposed so Microsoft.AspNetCore.Mvc.Testing's WebApplicationFactory<Program> can find this
 // assembly's entry point. Top-level statements compile to an internal Program class, which the
 // factory cannot reference; this is the documented way to widen it.
-public partial class Program
-{
-    /// <summary>Treats an empty or whitespace configuration value as absent. Needed wherever a value
-    /// can arrive from Compose interpolation, which writes "" for an unset variable instead of
-    /// omitting the key.</summary>
-    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
-}
+public partial class Program;

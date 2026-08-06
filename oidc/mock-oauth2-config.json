@@ -16,7 +16,8 @@
             "preferred_username": "admin",
             "email": "admin@hopper.local",
             "email_verified": true,
-            "roles": ["admin"]
+            "aud": ["hopper"],
+            "roles": ["admin", "hopper-admin"]
           }
         }
       ]
