@@ -21,7 +21,7 @@ public final class HopperQuiltPlugin implements QuiltLoaderPlugin {
 
         Path gameDir = gameDir(context);
 
-        Hopper.Result result = Hopper.run(gameDir, username(), LOG, null);
+        Hopper.Result result = Hopper.run(gameDir, LaunchArgs.username(), LOG, null);
 
         boolean isNew = context.addFolderToScan(result.dir);
         if (!isNew) {
@@ -48,13 +48,4 @@ public final class HopperQuiltPlugin implements QuiltLoaderPlugin {
         return Paths.get(".");
     }
 
-    private static String username() {
-        String[] launch = System.getProperty("sun.java.command", "").split(" ");
-        for (int i = 0; i + 1 < launch.length; i++) {
-            if ("--username".equals(launch[i]) && !launch[i + 1].trim().isEmpty()) {
-                return launch[i + 1];
-            }
-        }
-        return null;
-    }
 }
