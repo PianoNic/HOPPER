@@ -27,8 +27,8 @@
 **/values.dev.yaml
 **/*.db
 **/blobs
-locator/build
-locator/.gradle
+src/HOPPER.Locator/build
+src/HOPPER.Locator/.gradle
 LICENSE
 README.md
 !**/.gitignore

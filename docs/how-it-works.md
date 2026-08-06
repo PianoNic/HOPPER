@@ -64,19 +64,30 @@ None of the three client endpoints carries a server segment, and that is deliber
 - Filenames are rejected if they contain a path separator, `..`, a leading dot, or do not end in `.jar`.
 - A failed report never fails the sync, and a failed sync never blocks the launch.
 
-## Version coverage
+## Loader coverage
 
-The locator SPI changed across Forge generations, so one jar cannot serve all of them:
+Every loader that exposes a hook running *before* mod discovery can do the no-restart trick. The hook is different in each of them, so one jar cannot serve them all:
 
-| Generation | Interface | `scanMods()` returns |
+| Loader | Same launch | Hook |
 | --- | --- | --- |
-| Forge 1.16.x | `forgespi.locating.IModLocator` (SPI 3.2/4.0) | `List<IModFile>` |
-| Forge 1.17 to 1.20.1 | same name, SPI 7.0 | `List<ModFileOrException>` |
-| NeoForge 1.20.2+ | `neoforgespi.locating.IModFileCandidateLocator` | different package |
+| Forge 1.16.x | yes | `forgespi.locating.IModLocator` (SPI 3.2/4.0), `scanMods()` returns `List<IModFile>` |
+| Forge 1.17 to 1.20.1 | yes | same class name, SPI 7.0, `scanMods()` returns `List<ModFileOrException>` |
+| NeoForge 1.20.2+ | yes | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
+| Quilt | yes | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin` |
+| Fabric | **no** | see below |
+| Forge 1.12.2 and older | yes | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
 
-Forge keeps the same class name across generations but the signatures are binary incompatible, so a single jar cannot implement both. Supporting more versions means a shared core plus one thin adapter per generation.
+Forge keeps the same class name across generations while changing the signature, so those two are binary incompatible with each other: a single class cannot implement both. Supporting more loaders means a shared core plus one thin adapter each.
 
-Fabric and Quilt have no public SPI that runs before mod discovery, which is why AutoModpack restarts the game there.
+Only the adapter is loader-specific. `Syncer` imports nothing from any loader, which is what makes this cheap.
+
+### Fabric
+
+Fabric has no public pre-discovery hook. Its only lever is the `fabric.addMods` system property, read by `ArgumentModCandidateFinder` during discovery, and a system property means a JVM argument, which means a launcher setting. That is exactly what HOPPER avoids, because the CurseForge app does not expose one.
+
+Everything else in Fabric's discovery lives under `net.fabricmc.loader.impl`, which is internal and free to break at any time.
+
+So Fabric gets the honest version instead: sync from the `preLaunch` entrypoint, and when something changed, tell the player a restart is needed. That is what AutoModpack does, and for the same reason. Same `core/`, worse promise.
 
 ## Limits
 

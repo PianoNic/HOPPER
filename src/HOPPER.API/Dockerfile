@@ -43,12 +43,12 @@ RUN dotnet publish "HOPPER.API/HOPPER.API.csproj" -c $BUILD_CONFIGURATION -o /ap
 # The Gradle wrapper pins its own version and checksum, so this stage needs only a JDK.
 FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS locator-build
 WORKDIR /src/locator
-COPY locator/gradle ./gradle
-COPY locator/gradlew locator/settings.gradle locator/build.gradle ./
+COPY src/HOPPER.Locator/gradle ./gradle
+COPY src/HOPPER.Locator/gradlew src/HOPPER.Locator/settings.gradle src/HOPPER.Locator/build.gradle ./
 # Warm the wrapper and dependency cache in its own layer, so editing a .java file does not re-download
 # Gradle itself on every build.
 RUN chmod +x ./gradlew && ./gradlew --no-daemon --version
-COPY locator/src ./src
+COPY src/HOPPER.Locator/src ./src
 RUN ./gradlew --no-daemon build \
     && cp build/libs/hopper-*.jar /artifacts-locator.jar
 

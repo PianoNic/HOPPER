@@ -24,8 +24,8 @@ dist/
 *.tsbuildinfo
 
 # ---- locator (Gradle) ----
-locator/.gradle/
-locator/build/
+src/HOPPER.Locator/.gradle/
+src/HOPPER.Locator/build/
 
 # ---- editors / OS ----
 .idea/

@@ -54,10 +54,10 @@ dotnet ef migrations add <Name> -p src/HOPPER.Infrastructure -s src/HOPPER.API
 ## The locator jar
 
 ```bash
-cd locator && ./gradlew build
+cd src/HOPPER.Locator && ./gradlew build
 ```
 
-Produces `locator/build/libs/hopper-1.0.0.jar`. That is the **template**: point `Hopper:LocatorTemplatePath` at it and `GET /api/servers/{id}/jar` serves per-server copies. The Dockerfile builds it in its own JDK stage, so a deployed HOPPER has one without anyone running Gradle.
+Produces `src/HOPPER.Locator/build/libs/hopper-1.0.0.jar`. That is the **template**: point `Hopper:LocatorTemplatePath` at it and `GET /api/servers/{id}/jar` serves per-server copies. The Dockerfile builds it in its own JDK stage, so a deployed HOPPER has one without anyone running Gradle.
 
 No ForgeGradle and no reobf, because a locator never touches a Minecraft class and there is nothing to remap. Dependencies are pinned to what `fmlloader-1.20.1-47.1.3.pom` itself declares: forgespi 7.0.1, modlauncher 10.0.9.
 
@@ -68,7 +68,7 @@ The template must contain `META-INF/services/net.minecraftforge.forgespi.locatin
 ## Layout
 
 ```
-locator/                    Forge mod locator (Java 17, Gradle)
+src/HOPPER.Locator/         Forge mod locator (Java 17, Gradle)
 src/HOPPER.Domain/          entities
 src/HOPPER.Infrastructure/  EF Core, blob storage, jar patching
 src/HOPPER.Application/     Mediator commands, queries, DTOs, pack import

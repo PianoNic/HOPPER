@@ -23,7 +23,7 @@ namespace HOPPER.Tests.Infrastructure
             public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch { } }
         }
 
-        /// <summary>A stand-in for locator/build/libs/hopper-1.0.0.jar: a real zip carrying the service
+        /// <summary>A stand-in for src/HOPPER.Locator/build/libs/hopper-1.0.0.jar: a real zip carrying the service
         /// registration the builder checks for, plus a class file and a manifest so there is something
         /// to prove the builder left alone.</summary>
         private static string WriteTemplate(string directory, string name = "hopper.jar")
