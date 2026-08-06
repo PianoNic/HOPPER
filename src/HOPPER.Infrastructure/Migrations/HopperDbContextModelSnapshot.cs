@@ -97,24 +97,45 @@ namespace HOPPER.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DownloadUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("FileName")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProjectId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProjectName")
                         .HasColumnType("text");
 
                     b.Property<Guid>("ServerId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Sha1")
+                        .HasColumnType("text");
+
                     b.Property<string>("Sha256")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sha512")
                         .HasColumnType("text");
 
                     b.Property<long>("Size")
                         .HasColumnType("bigint");
 
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UploadedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("VersionId")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -123,6 +144,8 @@ namespace HOPPER.Infrastructure.Migrations
 
                     b.HasIndex("ServerId", "FileName")
                         .IsUnique();
+
+                    b.HasIndex("ServerId", "ProjectId");
 
                     b.ToTable("Mods");
                 });
@@ -245,6 +268,15 @@ namespace HOPPER.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Loader")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LoaderVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MinecraftVersion")
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()

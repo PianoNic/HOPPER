@@ -21,6 +21,14 @@ namespace HOPPER.Infrastructure.DBConfigurations
             // composite with ServerId and deliberately not unique: the orphan check has to ask "does
             // ANY server still reference this blob", which is a lookup on the hash alone.
             builder.HasIndex(m => m.Sha256);
+
+            // The Modrinth browser asks "is this project already on this server" once per card on a
+            // results page, and the install planner asks it again per node of a dependency tree.
+            // Composite because that question is always server-scoped, and non-unique because a
+            // server may legitimately carry two rows for one project for the moment a version
+            // replacement is in flight. It does not replace the Sha256 index: the orphan check is
+            // still a global lookup on the hash alone, across every server.
+            builder.HasIndex(m => new { m.ServerId, m.ProjectId });
         }
     }
 }

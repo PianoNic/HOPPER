@@ -3,7 +3,9 @@ using HOPPER.API.Auth;
 using HOPPER.API.Extensions;
 using HOPPER.API.OpenApi;
 using HOPPER.Application;
+using HOPPER.Application.Exports;
 using HOPPER.Application.Imports;
+using HOPPER.Application.Modrinth;
 using HOPPER.Application.Queries.Imports;
 using HOPPER.Application.Command.Imports;
 using HOPPER.Infrastructure.Extensions;
@@ -57,6 +59,13 @@ builder.Services.AddLocatorJar();
 // Queue, staging directory, HTTP client and the single background worker that drains them.
 builder.Services.AddPackImports();
 
+// The mod browser: an HTTP client carrying the descriptive User-Agent Modrinth require, a
+// process-wide token bucket for their 300-per-minute limit, and the dependency resolver.
+builder.Services.AddModrinth();
+
+// The three pack writers behind one interface, selected by format.
+builder.Services.AddPackExports();
+
 // Defaults to no cross-origin allowlist. A deployment that serves the SPA from the API's wwwroot
 // (src/HOPPER.API/Dockerfile copies it there) is same-origin and needs none. The split dev setup -
 // `bun start` on :4200 against `dotnet run` on :5170 - is cross-origin, and sets
@@ -64,7 +73,14 @@ builder.Services.AddPackImports();
 // for a deployment that does serve the dashboard from a separate origin.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-    policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+    policy.WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        // Response headers are invisible to cross-origin JavaScript unless they are named here, and
+        // both of these are read by the dashboard: Content-Disposition carries the exported pack's
+        // filename, and the warnings header is how a pack that skipped a mod with a missing blob says
+        // so without failing the download.
+        .WithExposedHeaders("Content-Disposition", "X-Hopper-Export-Warnings")));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -165,6 +181,36 @@ app.Use(async (context, next) =>
     catch (PendingModNotFoundException ex) when (!context.Response.HasStarted)
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    // A stale link in the dashboard, not a fault: a project Modrinth no longer has should read as
+    // 404 rather than as "Modrinth is broken".
+    catch (ModrinthProjectNotFoundException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    // 409: the request named a set that cannot load together. Nothing was written, and the message
+    // names both mods, so retrying without one of them is an obvious next step.
+    catch (IncompatibleModException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status409Conflict;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    // 400: a server whose Minecraft version or loader the admin has not filled in yet. Not a fault -
+    // the message names exactly which fields to set.
+    catch (ServerPlatformNotConfiguredException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    // 502, not 500: Modrinth being down, rate-limiting us or answering with something unreadable is
+    // an upstream failing, not HOPPER malfunctioning. The message names Modrinth so an admin does not
+    // file a HOPPER bug for someone else's outage. This catch must sit above the ArgumentException
+    // one but is otherwise order-independent.
+    catch (ModrinthApiException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status502BadGateway;
         await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
     catch (PackImportException ex) when (!context.Response.HasStarted)

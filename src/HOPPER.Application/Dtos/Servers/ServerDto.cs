@@ -1,3 +1,5 @@
+using HOPPER.Domain.Enums;
+
 namespace HOPPER.Application.Dtos.Servers
 {
     /// <summary>Admin view of one server. Deliberately carries no token: the token is a credential
@@ -19,5 +21,17 @@ namespace HOPPER.Application.Dtos.Servers
 
         public required int ClientCount { get; init; }
         public required DateTime CreatedAt { get; init; }
+
+        /// <summary>Null until an admin sets it. The browser and the pack export both refuse to run
+        /// without it, and say so rather than filtering on a guess.</summary>
+        public string? MinecraftVersion { get; init; }
+
+        /// <summary>0 Unknown, 1 Forge, 2 NeoForge, 3 Fabric, 4 Quilt. Mirrored by number on the
+        /// frontend.</summary>
+        public required ModLoader Loader { get; init; }
+
+        /// <summary>Bare, with no Minecraft prefix - "47.4.10", not "1.20.1-47.4.10". Each exporter
+        /// prepends whatever its own format wants.</summary>
+        public string? LoaderVersion { get; init; }
     }
 }

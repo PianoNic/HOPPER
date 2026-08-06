@@ -2,6 +2,7 @@ using HOPPER.Application.Command.Servers;
 using HOPPER.Application.Dtos.Servers;
 using HOPPER.Application.Queries.Jar;
 using HOPPER.Application.Queries.Servers;
+using HOPPER.Domain.Enums;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,7 +38,9 @@ namespace HOPPER.API.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<IActionResult> Create([FromBody] CreateServerRequest body, CancellationToken cancellationToken = default)
         {
-            var result = await mediator.Send(new CreateServerCommand(body.Name, body.Slug), cancellationToken);
+            var result = await mediator.Send(
+                new CreateServerCommand(body.Name, body.Slug, body.MinecraftVersion, body.Loader, body.LoaderVersion),
+                cancellationToken);
             return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
         }
 
@@ -48,7 +51,9 @@ namespace HOPPER.API.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateServerRequest body, CancellationToken cancellationToken = default)
         {
-            var result = await mediator.Send(new UpdateServerCommand(id, body.Name, body.Slug), cancellationToken);
+            var result = await mediator.Send(
+                new UpdateServerCommand(id, body.Name, body.Slug, body.MinecraftVersion, body.Loader, body.LoaderVersion),
+                cancellationToken);
             return Ok(result);
         }
 
@@ -113,8 +118,20 @@ namespace HOPPER.API.Controllers
         }
     }
 
-    /// <summary>Slug is optional: the dashboard asks for a name and lets HOPPER derive one.</summary>
-    public record CreateServerRequest(string Name, string? Slug);
+    /// <summary>Slug is optional: the dashboard asks for a name and lets HOPPER derive one. The three
+    /// platform fields are optional too - they are what the Modrinth browser filters on and what the
+    /// exporters write, and a server without them behaves exactly as it did before either existed.</summary>
+    public record CreateServerRequest(
+        string Name,
+        string? Slug,
+        string? MinecraftVersion = null,
+        ModLoader Loader = ModLoader.Unknown,
+        string? LoaderVersion = null);
 
-    public record UpdateServerRequest(string Name, string Slug);
+    public record UpdateServerRequest(
+        string Name,
+        string Slug,
+        string? MinecraftVersion = null,
+        ModLoader Loader = ModLoader.Unknown,
+        string? LoaderVersion = null);
 }

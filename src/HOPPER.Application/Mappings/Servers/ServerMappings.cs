@@ -15,6 +15,9 @@ namespace HOPPER.Application.Mappings.Servers
             ModCount = modCount,
             ClientCount = clientCount,
             CreatedAt = s.CreatedAt,
+            MinecraftVersion = s.MinecraftVersion,
+            Loader = s.Loader,
+            LoaderVersion = s.LoaderVersion,
         };
 
         public static ServerTokenDto ToTokenDto(this Server s) => new()

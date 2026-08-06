@@ -1,3 +1,5 @@
+using HOPPER.Domain.Enums;
+
 namespace HOPPER.Domain
 {
     /// <summary>One row per jar in one server's distributed set. The rows for a given ServerId are
@@ -33,5 +35,54 @@ namespace HOPPER.Domain
         /// <summary>Display name of the admin who uploaded it, from the OIDC "name" claim.
         /// Null when the upload happened outside an authenticated context.</summary>
         public string? UploadedBy { get; set; }
+
+        /// <summary>Where this jar came from. Manual is the default and the only value existing rows
+        /// carry: everything uploaded or pack-imported before the Modrinth browser existed is Manual
+        /// with every provenance column null. Nothing may read a provenance column without checking
+        /// it for null first.
+        ///
+        /// Provenance is invisible on the wire. The client manifest is still exactly
+        /// {"file","url","sha256","size"} for a Modrinth mod and a hand-uploaded one alike; these
+        /// columns exist so a server can be exported as a portable pack, nothing else.
+        ///
+        /// Settable rather than init-only because adopting an existing hand-uploaded row - the same
+        /// bytes turning out to be a known Modrinth file - rewrites provenance in place instead of
+        /// inserting a duplicate row.</summary>
+        public ModSource Source { get; set; } = ModSource.Manual;
+
+        /// <summary>Modrinth base62 project id, for example "u6dRKJwZ". Null unless the provenance
+        /// was recorded.
+        ///
+        /// Deliberately a string and deliberately not shared with PendingMod.ProjectId, which is an
+        /// int because CurseForge project ids are numeric. Modrinth's are not, so the two cannot be
+        /// the same column.</summary>
+        public string? ProjectId { get; set; }
+
+        /// <summary>Modrinth version id, for example "mcC2LhSG". Identifies the exact file that was
+        /// downloaded, not the project, which is what makes "is this already installed, and at which
+        /// version" answerable without hitting the API.</summary>
+        public string? VersionId { get; set; }
+
+        /// <summary>Project title as it read when the mod was added, cached for the dashboard and
+        /// for the exported modlist.html. A display value only - nothing ever resolves by it.</summary>
+        public string? ProjectName { get; set; }
+
+        /// <summary>The upstream CDN URL the jar was fetched from, written verbatim into an exported
+        /// .mrpack's downloads[]. This column is the entire reason a portable pack is possible:
+        /// HOPPER's own blob URL is reachable only by a client holding this server's token, so it
+        /// must never appear inside an exported pack.</summary>
+        public string? DownloadUrl { get; set; }
+
+        /// <summary>SHA-1 as the upstream published it, 40 lowercase hex characters.
+        ///
+        /// Stored in addition to - never instead of - <see cref="Sha256"/>. Modrinth publishes sha1
+        /// and sha512 and never sha256, while the blob store addresses by sha256 and the client wire
+        /// format pins it, so a downloaded jar is verified against these two and then hashed a third
+        /// time by HOPPER. The pack formats require sha1 and sha512 verbatim.</summary>
+        public string? Sha1 { get; set; }
+
+        /// <summary>SHA-512 as the upstream published it, 128 lowercase hex characters. See
+        /// <see cref="Sha1"/> for why both live alongside <see cref="Sha256"/>.</summary>
+        public string? Sha512 { get; set; }
     }
 }

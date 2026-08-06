@@ -13,6 +13,11 @@ namespace HOPPER.Application.Mappings.Mods
             Size = m.Size,
             UploadedBy = m.UploadedBy,
             CreatedAt = m.CreatedAt,
+            Source = m.Source,
+            ProjectId = m.ProjectId,
+            VersionId = m.VersionId,
+            ProjectName = m.ProjectName,
+            DownloadUrl = m.DownloadUrl,
         };
     }
 }

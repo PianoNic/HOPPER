@@ -1,5 +1,10 @@
 using System.Text.Json;
 using HOPPER.Application.Dtos.Manifest;
+using HOPPER.Application.Queries.Manifest;
+using HOPPER.Domain;
+using HOPPER.Domain.Enums;
+using HOPPER.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Tests.Wire
 {
@@ -104,6 +109,55 @@ namespace HOPPER.Tests.Wire
 
             var names = document.RootElement.GetProperty("mods")[0].EnumerateObject().Select(p => p.Name).ToList();
             await Assert.That(names).IsEquivalentTo(new[] { "file", "url", "sha256", "size" });
+        }
+
+        [Test]
+        public async Task Serialize_ModWithFullModrinthProvenance_LooksIdenticalOnTheWire()
+        {
+            // Provenance is invisible to the client, by design. A mod added from the browser carries a
+            // project id, a version id, a CDN URL and Modrinth's sha1/sha512; none of that belongs in
+            // the manifest, and a client in the field would not know what to do with it. The one hash
+            // that appears here is HOPPER's own sha256, which Modrinth never publishes and which the
+            // installer computed from the bytes it stored.
+            var db = new HopperDbContext(new DbContextOptionsBuilder<HopperDbContext>()
+                .UseInMemoryDatabase($"hopper-wire-{Guid.NewGuid():N}")
+                .Options);
+
+            await using (db)
+            {
+                var serverId = Guid.NewGuid();
+
+                db.Mods.Add(new Mod
+                {
+                    ServerId = serverId,
+                    FileName = "jei-1.20.1-15.2.0.27.jar",
+                    Sha256 = new string('a', 64),
+                    Size = 1234567,
+                    Source = ModSource.Modrinth,
+                    ProjectId = "u6dRKJwZ",
+                    VersionId = "mcC2LhSG",
+                    ProjectName = "Just Enough Items",
+                    DownloadUrl = "https://cdn.modrinth.com/data/u6dRKJwZ/versions/mcC2LhSG/jei.jar",
+                    Sha1 = new string('1', 40),
+                    Sha512 = new string('5', 128),
+                });
+
+                await db.SaveChangesAsync();
+
+                var manifest = await new GetManifestQueryHandler(db).Handle(
+                    new GetManifestQuery(serverId, "https://hopper.example.com"), CancellationToken.None);
+
+                var json = JsonSerializer.Serialize(manifest);
+
+                // Byte-identical to the hand-uploaded case above.
+                await Assert.That(json).IsEqualTo(
+                    """{"mods":[{"file":"jei-1.20.1-15.2.0.27.jar","url":"https://hopper.example.com/api/blobs/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":1234567}]}""");
+
+                // And nothing from provenance leaked in under any name.
+                await Assert.That(json).DoesNotContain("u6dRKJwZ");
+                await Assert.That(json).DoesNotContain("cdn.modrinth.com");
+                await Assert.That(json).DoesNotContain(new string('5', 128));
+            }
         }
 
         [Test]

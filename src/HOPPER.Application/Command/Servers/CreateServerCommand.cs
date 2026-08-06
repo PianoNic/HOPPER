@@ -1,6 +1,7 @@
 using HOPPER.Application.Dtos.Servers;
 using HOPPER.Application.Mappings.Servers;
 using HOPPER.Domain;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,17 @@ namespace HOPPER.Application.Command.Servers
 {
     /// <summary>Slug is optional: the dashboard's create dialog asks for a name and lets the slug be
     /// derived, because an admin naming "Friday Night SMP" should not also have to invent
-    /// "friday-night-smp". Supplying one explicitly is still allowed, and then it is taken literally.</summary>
-    public record CreateServerCommand(string Name, string? Slug) : ICommand<ServerDto>;
+    /// "friday-night-smp". Supplying one explicitly is still allowed, and then it is taken literally.
+    ///
+    /// The platform fields are optional at creation for the same reason they are nullable on the
+    /// entity: an admin creating a server has not necessarily decided which Forge build it runs, and
+    /// making them mandatory here would break the one-field create dialog that already exists.</summary>
+    public record CreateServerCommand(
+        string Name,
+        string? Slug,
+        string? MinecraftVersion = null,
+        ModLoader Loader = ModLoader.Unknown,
+        string? LoaderVersion = null) : ICommand<ServerDto>;
 
     public class CreateServerCommandHandler(HopperDbContext db) : ICommandHandler<CreateServerCommand, ServerDto>
     {
@@ -36,6 +46,9 @@ namespace HOPPER.Application.Command.Servers
                 slug = await UniqueAsync(derived, cancellationToken);
             }
 
+            if (!Enum.IsDefined(command.Loader))
+                throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");
+
             var server = new Server
             {
                 Name = name,
@@ -44,6 +57,9 @@ namespace HOPPER.Application.Command.Servers
                 // token as strong as an admin's imagination, and this one is what stands between the
                 // internet and the mod set.
                 Token = ServerTokenGenerator.New(),
+                MinecraftVersion = ServerPlatform.NormaliseVersion(command.MinecraftVersion, "Minecraft version"),
+                Loader = command.Loader,
+                LoaderVersion = ServerPlatform.NormaliseVersion(command.LoaderVersion, "Loader version"),
             };
 
             db.Servers.Add(server);
