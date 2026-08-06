@@ -79,9 +79,19 @@ Every value in the repo's `compose.yml` is written `${VAR:-default}`, so anythin
 
 `compose.yml` on its own is a real deployment. It starts no identity provider and defaults `Oidc__Authority` to empty, so admin sign-in fails until you name yours - which beats quietly trusting one that signs tokens for anybody.
 
+## Grant yourself the admin role
+
+HOPPER requires the `hopper-admin` role on the admin surface, so pointing it at an existing realm does not hand your whole user base the keys. Set it up once:
+
+1. Create a realm role named `hopper-admin` and assign it to your own account.
+2. Make sure it reaches the token. In Keycloak that means a mapper on the `hopper` client putting realm roles into a claim named `roles` - the built-in "realm roles" mapper with Token Claim Name set to `roles`.
+3. Sign in. A token without the role gets a 403, not a 401, so a rejection here is a role problem rather than a login problem.
+
+Rename the role with `Oidc__AdminRole`, or set it empty to accept any authenticated user - reasonable only when HOPPER is the realm's only client.
+
 ## Two credentials, no overlap
 
-- **Admin** (the dashboard, `/api/servers/...`) is OIDC. Point `Oidc__Authority` at your own provider.
+- **Admin** (the dashboard, `/api/servers/...`) is OIDC. Point `Oidc__Authority` at your own provider, and grant yourself `hopper-admin`.
 - **Client** (`/api/manifest`, `/api/blobs/{sha256}`, `/api/clients/report`) is a per-server token, minted by HOPPER and resolved to a server on every request. A token matching no server is a 401, and a database with no servers rejects every client rather than opening the door.
 
 `Hopper__BootstrapClientToken` only seeds the token of the `Default` server created on an empty database. It is applied while the Servers table is empty and never again, so rotating in the dashboard afterwards sticks.
@@ -95,7 +105,9 @@ Every value in the repo's `compose.yml` is written `${VAR:-default}`, so anythin
 | `Hopper__PublicBaseUrl` | derived from the request | Host written into every manifest URL. Leave unset behind a proxy that sends `X-Forwarded-*`. |
 | `Hopper__BootstrapClientToken` | `change-me` | Token of the `Default` server created on an empty database. |
 | `Hopper__LocatorTemplateDirectory` | built into the image | Directory of template jars, one per loader generation. The download endpoint picks by the server's loader and Minecraft version. |
-| `Oidc__Authority` | bundled mock IdP | OIDC issuer for admin access. |
+| `Oidc__Authority` | *(unset)* | OIDC issuer for admin access. Nothing is trusted until you set it. |
+| `Oidc__AdminRole` | `hopper-admin` | Role an account must carry to administer HOPPER. Empty means any authenticated user. |
+| `Oidc__ValidAudiences__0` | `Oidc__ClientId` | Accepted `aud` values. Set when your issuer stamps something else. |
 | `Oidc__InternalAuthority` | unset | Set when the API reaches the IdP on a different address than the browser does. |
 | `CurseForge__ApiKey` | *(unset)* | Optional. Without it, CurseForge imports list unresolvable mods for manual upload. |
 
