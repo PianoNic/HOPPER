@@ -1,31 +1,11 @@
 name: Release
 
-# One pipeline for a published GitHub Release, in order:
-#   1. ci           - every gate in ci.yaml, against the tagged tree.
-#   2. sync-version - bump application.properties to the release tag, commit it to main.
-#   3. docker       - build + push the multi-arch image from the bumped main.
-#
-# ci comes FIRST, and sync-version needs it. The bump is a push to main, so running it ahead of the
-# gates means a release that cannot build still moves main - which is exactly what happened when the
-# Dockerfile's locator stage broke: nothing verified the image, and the only signal was a red job
-# after the version had already landed.
-#
-# docker depends on sync-version and checks out main *after* the bump, so the image is built from
-# the version-bumped tree. Directory.Build.props reads application.properties, so the version the
-# dashboard reports and the version on the tag are the same thing by construction, with no separate
-# stamping step and no drift.
-#
-# Unlike KRINT there is no desktop job: HOPPER ships a container and a client jar, not an installer.
-# The client jar is not a release artifact either - it is built into the image by the Dockerfile's
-# JDK stage and patched per server at download time, so there is nothing to attach here.
 
 on:
   release:
     types: [published]
 
 jobs:
-  # The same gates a pull request gets, reused rather than restated - a second copy would drift, and
-  # the copy that drifted would be the one guarding releases.
   ci:
     name: Gates
     uses: ./.github/workflows/ci.yaml
@@ -53,7 +33,6 @@ jobs:
         id: sync
         run: |
           TAG_VERSION="${{ github.event.release.tag_name }}"
-          # Tags ship inconsistently cased (e.g. "V1.2.0"); strip any non-digit prefix.
           TAG_VERSION="$(printf '%s' "$TAG_VERSION" | sed -E 's/^[^0-9]*//')"
           FILE_VERSION=$(grep -oP '(?<=<version>)[^<]+' application.properties)
           echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
@@ -68,9 +47,6 @@ jobs:
 
           sed -i "s|<version>$FILE_VERSION</version>|<version>$TAG_VERSION</version>|" application.properties
 
-          # main is not protected on this repo, so the bump goes straight in with the default
-          # GITHUB_TOKEN. If main is ever protected, this step is the one that breaks, and the fix
-          # is KRINT's approach: land it through an admin-merged PR with a PAT.
           git add application.properties
           git commit -m "Bumped application.properties to $TAG_VERSION for release"
           git push origin main
@@ -79,15 +55,11 @@ jobs:
     name: Build and push multi-arch image
     needs: sync-version
     runs-on: ubuntu-latest
-    # The heavy stages build once on the runner's native arch (see the Dockerfile's BUILDPLATFORM
-    # pins), so this is a minutes-long job. Fail fast if that ever regresses to emulated per-arch
-    # builds instead of burning the default 6h ceiling before being cancelled.
     timeout-minutes: 60
     permissions:
       contents: read
       packages: write
     steps:
-      # main now carries the version bump from sync-version.
       - name: Checkout main
         uses: actions/checkout@v4
         with:
