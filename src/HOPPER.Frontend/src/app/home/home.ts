@@ -11,7 +11,6 @@ import {
 } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmCardImports } from '@spartan-ng/helm/card';
-import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { messageFrom, toNumber } from '../shared/utils/format';
 import { ServersService } from '../api/api/servers.service';
@@ -33,7 +32,6 @@ import { ServerDto } from '../api/model/serverDto';
     NgIcon,
     HlmButtonImports,
     HlmCardImports,
-    HlmTableImports,
   ],
   providers: [
     provideIcons({
@@ -100,59 +98,6 @@ import { ServerDto } from '../api/model/serverDto';
               generates.
             </p>
           </div>
-        } @else {
-          <section hlmCard class="mt-4">
-            <div hlmCardHeader class="pb-2">
-              <h3 hlmCardTitle class="text-sm">Servers</h3>
-              <p hlmCardDescription class="text-xs">
-                Every server in this deployment. Each one hands out its own jar, and a client only
-                ever sees the server whose token it carries.
-              </p>
-            </div>
-            <div hlmCardContent>
-              <table hlmTable>
-                <thead hlmTableHeader>
-                  <tr hlmTableRow>
-                    <th hlmTableHead>Name</th>
-                    <th hlmTableHead class="text-right">Mods</th>
-                    <th hlmTableHead class="text-right">Clients</th>
-                    <th hlmTableHead class="w-10"></th>
-                  </tr>
-                </thead>
-                <tbody hlmTableBody>
-                  @for (server of servers(); track server.id) {
-                    <tr hlmTableRow>
-                      <td hlmTableCell>
-                        <a [routerLink]="['/server', server.id]" class="hover:underline">
-                          {{ server.name }}
-                        </a>
-                        <span class="text-muted-foreground ml-2 font-mono text-xs">
-                          {{ server.slug }}
-                        </span>
-                      </td>
-                      <td hlmTableCell class="text-right tabular-nums">
-                        {{ count(server.modCount) }}
-                      </td>
-                      <td hlmTableCell class="text-right tabular-nums">
-                        {{ count(server.clientCount) }}
-                      </td>
-                      <td hlmTableCell>
-                        <a
-                          hlmBtn
-                          variant="ghost"
-                          size="icon"
-                          [routerLink]="['/server', server.id]"
-                          [attr.aria-label]="'Open ' + server.name"
-                        >
-                          <ng-icon name="lucideArrowRight" size="14" />
-                        </a>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </section>
         }
       </div>
     </section>
@@ -166,10 +111,6 @@ export class Home {
 
   constructor() {
     this.load();
-  }
-
-  protected count(value: unknown): number {
-    return toNumber(value);
   }
 
   protected readonly stats = computed(() => {

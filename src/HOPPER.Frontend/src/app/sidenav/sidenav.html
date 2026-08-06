@@ -76,17 +76,15 @@
         </li>
       </ul>
 
-      <!-- Only rendered while a server is open. The dashboard is a list of servers first and one
-           server's pages second, so these links have no meaning without an :id to point at. -->
-      @if (serverNav().length > 0) {
-        <div hlmSidebarGroup>
-          <div hlmSidebarGroupLabel class="!w-56 mx-auto truncate">
-            {{ currentServerName() || 'Server' }}
-          </div>
-          <div hlmSidebarGroupContent>
-            <ul hlmSidebarMenu>
-              @for (item of serverNav(); track item.route) {
-                <li hlmSidebarMenuItem>
+      <!-- Always rendered. Without a server open the entries are greyed out instead of hidden, so
+           the sidebar keeps its shape and still shows what a server can do. -->
+      <div hlmSidebarGroup>
+        <div hlmSidebarGroupLabel class="!w-56 mx-auto truncate">Management</div>
+        <div hlmSidebarGroupContent>
+          <ul hlmSidebarMenu>
+            @for (item of serverNav(); track item.label) {
+              <li hlmSidebarMenuItem>
+                @if (item.route) {
                   <a
                     hlmSidebarMenuButton
                     [routerLink]="item.route"
@@ -96,12 +94,21 @@
                     <ng-icon [name]="item.icon" />
                     <span>{{ item.label }}</span>
                   </a>
-                </li>
-              }
-            </ul>
-          </div>
+                } @else {
+                  <span
+                    hlmSidebarMenuButton
+                    aria-disabled="true"
+                    class="!w-56 mx-auto cursor-not-allowed opacity-50"
+                  >
+                    <ng-icon [name]="item.icon" />
+                    <span>{{ item.label }}</span>
+                  </span>
+                }
+              </li>
+            }
+          </ul>
         </div>
-      }
+      </div>
     </hlm-sidebar-content>
 
     <hlm-sidebar-footer>

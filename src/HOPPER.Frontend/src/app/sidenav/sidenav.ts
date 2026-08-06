@@ -32,8 +32,12 @@ import { AppService } from '../api/api/app.service';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
 
-/** One sidebar link. `exact` marks the ones that prefix-match their own children. */
-type NavItem = { route: string; label: string; icon: string; exact: boolean };
+/**
+ * One sidebar link. `exact` marks the ones that prefix-match their own children. A null `route`
+ * means the link exists but has nowhere to go yet, which is how the per-server section renders
+ * while no server is open.
+ */
+type NavItem = { route: string | null; label: string; icon: string; exact: boolean };
 
 // Everything under /server/<uuid>. Singular on purpose: /servers is the list, /server/<id> is one
 // of them. The id is not validated as a UUID: the router already only
@@ -151,7 +155,8 @@ export class Sidenav {
     void this.router.navigateByUrl(`/server/${id}${tail}`);
   }
 
-  protected isRouteActive(route: string, exact: boolean): boolean {
+  protected isRouteActive(route: string | null, exact: boolean): boolean {
+    if (route === null) return false;
     const url = this.currentUrl();
     // '/' and a server's overview both prefix-match their own children, so they only light up on
     // an exact match; everything else is a leaf and can match its own subtree.
@@ -161,25 +166,33 @@ export class Sidenav {
 
   protected readonly themeMode = this.theme.mode;
 
+  // No Home entry: the HOPPER button in the header already links to '/', and two controls for one
+  // destination is one too many.
   protected readonly rootNav: ReadonlyArray<NavItem> = [
-    { route: '/', label: 'Home', icon: 'lucideLayoutDashboard', exact: true },
     { route: '/servers', label: 'Servers', icon: 'lucideServer', exact: false },
   ];
 
+  /** The per-server pages, independent of which server is open, so they can render greyed out. */
+  private static readonly SERVER_PAGES: ReadonlyArray<Omit<NavItem, 'route'> & { suffix: string }> =
+    [
+      { suffix: '', label: 'Overview', icon: 'lucideLayoutDashboard', exact: true },
+      { suffix: '/mods', label: 'Mods', icon: 'lucidePackage', exact: false },
+      { suffix: '/clients', label: 'Clients', icon: 'lucideUsers', exact: false },
+      { suffix: '/pending', label: 'Fetch by hand', icon: 'lucideClipboardList', exact: false },
+      { suffix: '/setup', label: 'Setup', icon: 'lucideBookOpen', exact: false },
+    ];
+
+  /**
+   * Always the same five entries. Without a server they render greyed out rather than vanishing:
+   * a section that appears and disappears makes the sidebar jump and hides what the app can do
+   * from anyone who has not opened a server yet.
+   */
   protected readonly serverNav = computed<ReadonlyArray<NavItem>>(() => {
     const id = this.currentServerId();
-    if (id === null) return [];
-    const base = `/server/${id}`;
-    return [
-      { route: base, label: 'Overview', icon: 'lucideLayoutDashboard', exact: true },
-      { route: `${base}/mods`, label: 'Mods', icon: 'lucidePackage', exact: false },
-      { route: `${base}/clients`, label: 'Clients', icon: 'lucideUsers', exact: false },
-      // Listed unconditionally rather than only when something is open: the sidenav would have to
-      // poll the pending endpoint per server to know, and a link that appears and disappears is a
-      // worse way back to a checklist than one that is always in the same place.
-      { route: `${base}/pending`, label: 'Fetch by hand', icon: 'lucideClipboardList', exact: false },
-      { route: `${base}/setup`, label: 'Setup', icon: 'lucideBookOpen', exact: false },
-    ];
+    return Sidenav.SERVER_PAGES.map(({ suffix, ...rest }) => ({
+      ...rest,
+      route: id === null ? null : `/server/${id}${suffix}`,
+    }));
   });
 
   protected readonly themeOptions: ReadonlyArray<{ mode: ThemeMode; label: string; icon: string }> =
