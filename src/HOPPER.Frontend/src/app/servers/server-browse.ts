@@ -126,33 +126,39 @@ type SearchKey = {
               <hlm-select-trigger size="sm" class="w-32 text-xs">
                 <hlm-select-value placeholder="Version" />
               </hlm-select-trigger>
-              <hlm-select-content>
-                @for (v of gameVersions(); track v.version) {
-                  <hlm-select-item [value]="v.version">{{ v.version }}</hlm-select-item>
-                }
-              </hlm-select-content>
+              <ng-template hlmSelectPortal>
+                <hlm-select-content>
+                  @for (v of gameVersions(); track v.version) {
+                    <hlm-select-item [value]="v.version">{{ v.version }}</hlm-select-item>
+                  }
+                </hlm-select-content>
+              </ng-template>
             </hlm-select>
 
             <hlm-select [value]="loader()" (valueChange)="onLoader($event)">
               <hlm-select-trigger size="sm" class="w-32 text-xs">
                 <hlm-select-value placeholder="Loader" />
               </hlm-select-trigger>
-              <hlm-select-content>
-                @for (l of loaders(); track l) {
-                  <hlm-select-item [value]="l">{{ l }}</hlm-select-item>
-                }
-              </hlm-select-content>
+              <ng-template hlmSelectPortal>
+                <hlm-select-content>
+                  @for (l of loaders(); track l) {
+                    <hlm-select-item [value]="l">{{ l }}</hlm-select-item>
+                  }
+                </hlm-select-content>
+              </ng-template>
             </hlm-select>
 
             <hlm-select [value]="sortValue()" (valueChange)="onSort($event)">
               <hlm-select-trigger size="sm" class="w-32 text-xs">
                 <hlm-select-value placeholder="Sort" />
               </hlm-select-trigger>
-              <hlm-select-content>
-                @for (s of sorts; track s.value) {
-                  <hlm-select-item [value]="s.label">{{ s.label }}</hlm-select-item>
-                }
-              </hlm-select-content>
+              <ng-template hlmSelectPortal>
+                <hlm-select-content>
+                  @for (s of sorts; track s.value) {
+                    <hlm-select-item [value]="s.label">{{ s.label }}</hlm-select-item>
+                  }
+                </hlm-select-content>
+              </ng-template>
             </hlm-select>
           </div>
         }

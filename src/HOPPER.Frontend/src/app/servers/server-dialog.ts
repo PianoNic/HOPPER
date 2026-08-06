@@ -102,11 +102,13 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
             <hlm-select-trigger class="w-full">
               <hlm-select-value placeholder="Not set" />
             </hlm-select-trigger>
-            <hlm-select-content>
-              @for (v of gameVersions(); track v.version) {
-                <hlm-select-item [value]="v.version">{{ v.version }}</hlm-select-item>
-              }
-            </hlm-select-content>
+            <ng-template hlmSelectPortal>
+              <hlm-select-content>
+                @for (v of gameVersions(); track v.version) {
+                  <hlm-select-item [value]="v.version">{{ v.version }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </ng-template>
           </hlm-select>
         </div>
 
@@ -116,11 +118,13 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
             <hlm-select-trigger class="w-full">
               <hlm-select-value placeholder="Not set" />
             </hlm-select-trigger>
-            <hlm-select-content>
-              @for (l of loaders; track l.value) {
-                <hlm-select-item [value]="l.label">{{ l.label }}</hlm-select-item>
-              }
-            </hlm-select-content>
+            <ng-template hlmSelectPortal>
+              <hlm-select-content>
+                @for (l of loaders; track l.value) {
+                  <hlm-select-item [value]="l.label">{{ l.label }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </ng-template>
           </hlm-select>
         </div>
       </div>
