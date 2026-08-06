@@ -12,8 +12,6 @@ namespace HOPPER.Application.Queries.Mods
     {
         public async ValueTask<IReadOnlyList<ModDto>> Handle(ListModsQuery query, CancellationToken cancellationToken)
         {
-            // Same filter and same order as the manifest, so the admin list and what that server's
-            // clients actually receive read as the same list.
             var rows = await db.Mods.AsNoTracking()
                 .Where(m => m.ServerId == query.ServerId)
                 .OrderBy(m => m.FileName)

@@ -18,14 +18,6 @@ import { packFormatLabel } from './import-labels';
 import { groupPendingByImport } from './pending-groups';
 import { PendingMods } from './pending-mods';
 
-/**
- * The server's open "fetch by hand" list, as a page rather than a moment.
- *
- * A pending row outlives the import dialog that produced it by design - it is a jar only a human
- * can go and get, which can take days and a browser restart. Without an address of its own the
- * checklist would exist only while that dialog was open, and closing it would strand every row on
- * the server with no way back to them.
- */
 @Component({
   selector: 'app-server-pending',
   imports: [ContentHeader, DatePipe, NgIcon, HlmButtonImports, PendingMods],
@@ -147,11 +139,6 @@ export class ServerPending {
     if (id !== '') this.load(id);
   }
 
-  /**
-   * A dismissal is the one change that needs no round trip: the row is gone and nothing else moved,
-   * so dropping it locally keeps a long checklist from jumping under the cursor while it is worked
-   * through. A supplied jar reloads instead, because it also changed the server's mod list.
-   */
   protected drop(entry: PendingModDto): void {
     this.pending.update((list) => list.filter((p) => p.id !== entry.id));
   }
@@ -159,8 +146,6 @@ export class ServerPending {
   private load(id: string): void {
     this.loading.set(true);
 
-    // The imports are fetched only to name the groups: an entry carries an importId and nothing
-    // else about where it came from.
     forkJoin({
       server: this.serversApi.apiServersIdGet(id),
       pending: this.importsApi.apiServersIdPendingGet(id),

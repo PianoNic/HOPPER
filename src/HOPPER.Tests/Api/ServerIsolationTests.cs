@@ -11,15 +11,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HOPPER.Tests.Api
 {
-    /// <summary>
-    /// The tenant boundary, asserted from both sides. A suite with one server cannot tell "scoped
-    /// correctly" apart from "not scoped at all", so every check here runs against two.
-    ///
-    /// The other half of the story is that blobs are deliberately NOT scoped: the same jar on two
-    /// servers is the same bytes and is stored once. That makes the delete path the dangerous one -
-    /// an orphan check narrowed to one server would delete a file the other server's clients are
-    /// still being told to download - so it is pinned here too.
-    /// </summary>
     public class ServerIsolationTests
     {
         private static string BlobRoot =>
@@ -29,9 +20,6 @@ namespace HOPPER.Tests.Api
 
         private static string ShaOf(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
-        /// <summary>Seeds through the command handler rather than the HTTP endpoint: the admin surface
-        /// is OIDC-gated and this suite has no IdP, but the handler writes to the running host's own
-        /// database and blob store - which is what the client endpoints under test then read.</summary>
         private static async Task SeedAsync(Guid serverId, string fileName, byte[] bytes)
         {
             await using var scope = HopperApi.Services.CreateAsyncScope();
@@ -80,8 +68,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task Blob_ThatBelongsToAnotherServer_Is404NotAForbidden()
         {
-            // 404 rather than 403 on purpose: a client has no business learning that some other
-            // server's mod set happens to contain that hash.
             var fileName = "isolation-blob-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
             var bytes = JarFor(fileName);
             await SeedAsync(HopperApi.ServerAId, fileName, bytes);
@@ -99,8 +85,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task SameJarOnTwoServers_IsTwoRowsAndOneFileOnDisk()
         {
-            // This is the whole point of keeping the blob store global: five servers running the same
-            // modpack cost one copy of it.
             var fileName = "isolation-shared-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
             var bytes = JarFor(fileName);
             var sha = ShaOf(bytes);
@@ -123,9 +107,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task DeletingASharedJarFromOneServer_LeavesTheOthersDownloadWorking()
         {
-            // The orphan check in DeleteModCommand is global across Mod rows. Narrowing it to the
-            // server being edited is the single change that would empty another server's mod set,
-            // and nothing else in the system would notice until a player's game failed to launch.
             var fileName = "isolation-refcount-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
             var bytes = JarFor(fileName);
             var sha = ShaOf(bytes);
@@ -176,8 +157,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task DeletingAModIdThatBelongsToAnotherServer_IsANoOp()
         {
-            // The delete matches on server AND id, so a mod id leaked from elsewhere cannot be used to
-            // remove a jar from a server the caller is not working on.
             var fileName = "isolation-crossdelete-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
             await SeedAsync(HopperApi.ServerBId, fileName, JarFor(fileName));
 
@@ -194,8 +173,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task SameFileNameOnTwoServers_IsAllowed()
         {
-            // The unique index is (ServerId, FileName), not FileName. Two servers running the same
-            // modpack both have to be able to carry jei.jar - they are different manifests.
             var fileName = "isolation-samename-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
 
             await SeedAsync(HopperApi.ServerAId, fileName, JarFor("a-variant"));
@@ -207,15 +184,13 @@ namespace HOPPER.Tests.Api
             var rows = await db.Mods.Where(m => m.FileName == fileName).ToListAsync();
 
             await Assert.That(rows).Count().IsEqualTo(2);
-            // Different bytes under the same name on two servers: two distinct blobs, no collision.
+
             await Assert.That(rows.Select(r => r.Sha256).Distinct().Count()).IsEqualTo(2);
         }
 
         [Test]
         public async Task ClientReport_LandsOnTheServerItsTokenResolvesTo()
         {
-            // ServerId comes from the bearer token, never from the body: a client must not be able to
-            // name the server it belongs to.
             var clientId = "isolation-report-" + Guid.NewGuid().ToString("N");
             using var b = HopperApi.AsGameClientB();
 

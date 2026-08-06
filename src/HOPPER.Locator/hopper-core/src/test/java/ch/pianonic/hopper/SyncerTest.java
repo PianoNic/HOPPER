@@ -27,18 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Covers the four things that must not silently break: the filename trust
- * boundary, the hash the whole sync decision rests on, the report URL derived
- * from the one URL anyone configures, and the report body itself, which is a
- * fixed contract with a server that already has clients in the wild.
- *
- * <p>Compiled at {@code --release 8}, like the core it tests. That is the
- * guarantee: a test that can only see the Java 8 API cannot accidentally
- * exercise a Java 9+ leak in the core.
- */
 class SyncerTest {
-
     @Test
     void rejectsFilenamesThatEscapeTheManagedDirectory() {
         assertThrows(SecurityException.class, () -> Syncer.sanitize("../../autostart/evil.jar"));
@@ -58,32 +47,22 @@ class SyncerTest {
     void hashesTheSameWayTheServerDoes(@TempDir Path dir) throws Exception {
         Path f = dir.resolve("a.jar");
         Files.write(f, "hopper".getBytes(StandardCharsets.UTF_8));
-        // python -c "import hashlib;print(hashlib.sha256(b'hopper').hexdigest())"
+
         assertEquals("392a5bcbd71a7db2cfb9796c633326f7fba6730bdb0c801d3b0fd30886821000",
                 Syncer.sha256(f));
     }
 
-    /**
-     * Only manifestUrl is configured, so a wrong derivation here would send every
-     * client's report to a 404 that nothing in the game would ever surface.
-     */
     @Test
     void derivesTheReportEndpointFromTheManifestUrl() {
         assertEquals(URI.create("https://hopper.example.com/api/clients/report"),
                 Syncer.reportUrl("https://hopper.example.com/api/manifest"));
         assertEquals(URI.create("http://localhost:5080/api/clients/report"),
                 Syncer.reportUrl("http://localhost:5080/api/manifest"));
-        // A host serving HOPPER under a prefix keeps the prefix.
+
         assertEquals(URI.create("https://home.example.com/hoppermods/api/clients/report"),
                 Syncer.reportUrl("https://home.example.com/hoppermods/api/manifest"));
     }
 
-    /**
-     * Going per-server did not change this body by one byte, and neither did
-     * dropping Gson for a hand-written writer. The server reads the tenant off the
-     * bearer token, so there is no serverId field to add - and adding one would let
-     * a client file a report against a server that is not its own.
-     */
     @Test
     void reportBodyCarriesNoServerId() {
         assertEquals(
@@ -93,20 +72,11 @@ class SyncerTest {
                         Collections.singletonList(new Syncer.Mod("jei.jar", "abc"))));
     }
 
-    /**
-     * A dedicated server has no player, and RecordClientReportCommand requires the
-     * property to be present. This used to be the assertion that kept Gson's
-     * serializeNulls() from being tidied away; now that the body is written by
-     * hand it is the assertion that keeps the literal {@code ,"username":null}
-     * from being tidied away instead. Same job, same bytes.
-     */
     @Test
     void reportSendsAnAbsentUsernameAsAnExplicitNull() {
         assertEquals("{\"clientId\":\"c-1\",\"username\":null,\"mods\":[]}",
                 Syncer.reportBody("c-1", null, Collections.<Syncer.Mod>emptyList()));
     }
-
-    // ---- the manifest's additive modIds field ----
 
     @Test
     void parsesModIdsFromTheManifest() {
@@ -119,12 +89,6 @@ class SyncerTest {
         assertEquals(Arrays.asList("jei", "jeitweaker"), mods.get(0).modIds);
     }
 
-    /**
-     * The backwards-compatibility arm, in both directions. A server too old to
-     * send {@code modIds} leaves every entry with an empty list, which makes the
-     * migration a silent no-op and the four original fields are read exactly as
-     * they always were.
-     */
     @Test
     void aManifestWithoutModIdsParsesToEmptyIdLists() {
         List<Syncer.Entry> mods = Syncer.parseManifest(
@@ -155,15 +119,6 @@ class SyncerTest {
         assertTrue(mods.get(0).modIds.isEmpty());
     }
 
-    // ---- sync(), end to end against a real server, over a real filesystem ----
-
-    /**
-     * Case (a) of the migration, all the way through: the player already has the
-     * required build under their own filename, so the jar is moved into
-     * {@code hoppermods/} and <strong>the download never happens</strong>. The
-     * blob endpoint counts its hits, so "no bandwidth" is an assertion rather
-     * than a claim.
-     */
     @Test
     void aMigratedModIsNotDownloadedAtAll(@TempDir Path game) throws Exception {
         Path mods = Files.createDirectories(game.resolve("mods"));
@@ -190,28 +145,16 @@ class SyncerTest {
         }
     }
 
-    /**
-     * Case (c), which is the one that has to be right when everything else goes
-     * wrong. The player's jar cannot be moved, so it loads from {@code mods/} -
-     * therefore HOPPER must not download its own copy, must leave the filename
-     * out of {@code wanted} so no adapter hands one to the loader, and the stale
-     * sweep must delete the copy an earlier launch already downloaded.
-     *
-     * <p>Exactly one loadable copy, achieved by doing less rather than more.
-     */
     @Test
     void aDeferredModIsNotDownloadedNotWantedAndItsOldCopyIsSwept(@TempDir Path game)
             throws Exception {
         Path mods = Files.createDirectories(game.resolve("mods"));
         Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
 
-        // An older build of the same mod, under a different name, with a different hash.
         Path mine = jar(mods, "jei-1.20.1-15.2.0.27.jar", "an older build", "jei");
 
-        // Parking it is going to fail: a regular file is sitting on the replaced/ name.
         Files.write(dir.resolve(Migrator.REPLACED), "not a directory".getBytes(StandardCharsets.UTF_8));
 
-        // And a copy an earlier, successful launch downloaded.
         Path stale = dir.resolve("jei-1.20.1-15.3.0.4.jar");
         Files.write(stale, "the required build".getBytes(StandardCharsets.UTF_8));
 
@@ -259,8 +202,6 @@ class SyncerTest {
         }
     }
 
-    // ---- fixtures ----
-
     private static final Consumer<String> NO_PROGRESS = new Consumer<String>() {
         @Override
         public void accept(String message) {
@@ -277,7 +218,6 @@ class SyncerTest {
         }
     }
 
-    /** A real jar declaring {@code ids}, with a payload that makes its hash unique. */
     private static Path jar(Path dir, String name, String payload, String... ids) throws Exception {
         StringBuilder toml = new StringBuilder();
         for (String id : ids) {
@@ -302,14 +242,7 @@ class SyncerTest {
         return f;
     }
 
-    /**
-     * The smallest possible HOPPER server: one manifest, one blob, and a counter
-     * on the blob so "this cost no bandwidth" can be asserted rather than
-     * assumed. {@code com.sun.net.httpserver} is JDK 8 API, so it is visible at
-     * {@code --release 8} like everything else here.
-     */
     private static final class Stub {
-
         private final HttpServer server;
         private byte[] manifest = new byte[0];
         byte[] blob = new byte[0];

@@ -13,18 +13,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Modrinth
 {
-    /// <summary>
-    /// Install is the only part of this feature that writes anything, so the cases that matter are the
-    /// ones where a wrong write is hard to undo: a jar stored under a hash that does not describe it,
-    /// a blob left behind after a failed verification, a second row for bytes that are already here,
-    /// or an incompatible set landing because the plan the admin confirmed had gone stale.
-    ///
-    /// It also pins the shape of the two-phase design: install resolves NOTHING. Handing it one
-    /// version id installs one mod, even when that mod declares required dependencies - because those
-    /// dependencies were listed in the plan and arrive as their own items.
-    ///
-    /// Everything is driven by FakeModrinthClient. Nothing here touches the live API.
-    /// </summary>
     public class InstallModrinthModsTests
     {
         private sealed class TempDir : IDisposable
@@ -84,7 +72,6 @@ namespace HOPPER.Tests.Modrinth
             }
         }
 
-        /// <summary>Thin alias so the assertions below read as prose rather than as a long generic.</summary>
         private sealed record Dtos(ModrinthInstallResultDto Result)
         {
             public int Installed => Result.Installed.Count;
@@ -98,14 +85,9 @@ namespace HOPPER.Tests.Modrinth
 
         private static string Sha256Of(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
-        // ---- the happy path ----------------------------------------------------------------
-
         [Test]
         public async Task Install_GoodJar_WritesARowWithEveryProvenanceFieldAndAComputedSha256()
         {
-            // Modrinth never publishes sha256, so the blob address here is one HOPPER computed from
-            // the bytes it actually received. That is the whole reason the download happens
-            // server-side.
             using var fixture = new Fixture();
             var bytes = Jar("jei");
             fixture.Client.AddDownloadableMod("u6dRKJwZ", "mcC2LhSG", "Just Enough Items", "jei.jar", bytes);
@@ -127,7 +109,6 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(row.Sha512).IsEqualTo(Convert.ToHexStringLower(SHA512.HashData(bytes)));
             await Assert.That(row.UploadedBy).IsEqualTo("alex");
 
-            // And the row passes the check the exporters actually make.
             await Assert.That(row.HasModrinthProvenance()).IsTrue();
             await Assert.That(fixture.Blobs.Exists(row.Sha256)).IsTrue();
         }
@@ -135,8 +116,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Install_ResolvesNothing_EvenWhenTheModDeclaresRequiredDependencies()
         {
-            // The guarantee behind the two-phase design. A dependency reaches the database only by
-            // having been in the plan and arriving as its own item.
             using var fixture = new Fixture();
             fixture.Client.AddDownloadableMod("PA", "v-a", "A", "a.jar", Jar("a"),
                 dependencies: FakeModrinthClient.Required("PB"));
@@ -165,13 +144,9 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(fixture.Client.Calls.Count(c => c.StartsWith("versions:"))).IsEqualTo(1);
         }
 
-        // ---- verification ------------------------------------------------------------------
-
         [Test]
         public async Task Install_HashMismatch_FailsThatItemAndLeavesNoRowAndNoBlob()
         {
-            // The bytes are not what Modrinth said they would be. Storing them anyway would mean every
-            // client on this server downloading a jar nobody vouched for.
             using var fixture = new Fixture();
             var bytes = Jar("tampered");
 
@@ -187,22 +162,19 @@ namespace HOPPER.Tests.Modrinth
 
             await Assert.That(await fixture.Db.Mods.AnyAsync()).IsFalse();
 
-            // Orphan-collected: the blob was written before it could be checked, so it has to go back.
             await Assert.That(fixture.Blobs.Exists(Sha256Of(bytes))).IsFalse();
         }
 
         [Test]
         public async Task Install_HashMismatch_DoesNotCollectABlobAnotherModStillUses()
         {
-            // The orphan check is global and runs before Delete. A shared blob must survive a failed
-            // verification of a different mod that happened to produce the same bytes.
             using var fixture = new Fixture();
             var bytes = Jar("shared");
             var (sha256, size) = await fixture.Blobs.SaveAsync(new MemoryStream(bytes));
 
             fixture.Db.Mods.Add(new Mod
             {
-                ServerId = Guid.NewGuid(), // another server entirely
+                ServerId = Guid.NewGuid(),
                 FileName = "elsewhere.jar",
                 Sha256 = sha256,
                 Size = size,
@@ -286,8 +258,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Install_NonJarFileName_IsRefused()
         {
-            // The same rule the client's own sanitiser enforces. A manifest entry the client would
-            // reject is a silent partial sync, which is far harder to diagnose than a failure here.
             using var fixture = new Fixture();
             fixture.Client.AddDownloadableMod("PA", "v-a", "A", "../evil.zip", Jar("a"));
 
@@ -296,8 +266,6 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(result.Failed).IsEqualTo(1);
             await Assert.That(await fixture.Db.Mods.AnyAsync()).IsFalse();
         }
-
-        // ---- against what is already installed ----------------------------------------------
 
         [Test]
         public async Task Install_ExactVersionAlreadyThere_IsSkipped()
@@ -316,8 +284,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Install_OtherVersionOfTheSameProject_IsSkippedUnlessReplaceIsTicked()
         {
-            // Defaults to skip. An upgrade is a deliberate act, and (ServerId, FileName) is unique so a
-            // blind insert would conflict anyway.
             using var fixture = new Fixture();
             fixture.Client.AddDownloadableMod("PA", "v-old", "A", "a-old.jar", Jar("old"));
             fixture.Client.AddDownloadableMod("PA", "v-new", "A", "a-new.jar", Jar("new"));
@@ -347,7 +313,6 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(row.VersionId).IsEqualTo("v-new");
             await Assert.That(row.FileName).IsEqualTo("a-new.jar");
 
-            // Nothing references the old bytes any more, so they are gone.
             await Assert.That(fixture.Blobs.Exists(Sha256Of(oldBytes))).IsFalse();
         }
 
@@ -375,14 +340,9 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That((await fixture.Db.Mods.SingleAsync()).Source).IsEqualTo(ModSource.Manual);
         }
 
-        // ---- the same bytes under another name ----------------------------------------------
-
         [Test]
         public async Task Install_SameBytesAsAHandUploadedJar_AdoptsTheRowInsteadOfDuplicatingIt()
         {
-            // Modrinth never publishes sha256, so the plan could not possibly have known - this is only
-            // detectable after the download. A second row would make the client write the identical jar
-            // twice under two names, which Forge may refuse outright.
             using var fixture = new Fixture();
             var bytes = Jar("identical");
             var (sha256, size) = await fixture.Blobs.SaveAsync(new MemoryStream(bytes));
@@ -407,10 +367,8 @@ namespace HOPPER.Tests.Modrinth
 
             var row = await fixture.Db.Mods.SingleAsync();
 
-            // The filename is KEPT: it is what the clients already hold on disk.
             await Assert.That(row.FileName).IsEqualTo("jei-renamed-by-hand.jar");
 
-            // And it now exports with a real CDN URL rather than as an override.
             await Assert.That(row.Source).IsEqualTo(ModSource.Modrinth);
             await Assert.That(row.ProjectId).IsEqualTo("u6dRKJwZ");
             await Assert.That(row.HasModrinthProvenance()).IsTrue();
@@ -433,13 +391,9 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(await fixture.Db.Mods.CountAsync()).IsEqualTo(1);
         }
 
-        // ---- refusal -------------------------------------------------------------------------
-
         [Test]
         public async Task Install_SetIncompatibleWithSomethingOnTheServer_ThrowsAndWritesNothing()
         {
-            // Re-checked here rather than trusted from the plan: the dialog may be minutes old. And it
-            // throws before a single byte is downloaded, so the refusal is total.
             using var fixture = new Fixture();
 
             fixture.Db.Mods.Add(new Mod
@@ -492,8 +446,6 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(result.Installed).IsEqualTo(1);
         }
 
-        // ---- input --------------------------------------------------------------------------
-
         [Test]
         public async Task Install_NothingSelected_IsRefused()
         {
@@ -532,8 +484,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Install_TwoServers_ShareTheBlobAndKeepTheirOwnRows()
         {
-            // Content addressing makes this free, and it is the reason the orphan check has to be
-            // global everywhere else.
             using var fixture = new Fixture();
             var otherServer = Guid.NewGuid();
 

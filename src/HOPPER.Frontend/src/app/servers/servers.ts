@@ -197,8 +197,6 @@ export class Servers {
   protected readonly loading = signal(false);
   protected readonly filter = signal('');
 
-  // Keyed by server id rather than a single flag: the row actions are per row, and one server's
-  // jar being built must not grey out every other row's buttons.
   protected readonly busy = signal<Record<string, boolean>>({});
 
   protected readonly filteredServers = computed(() => {
@@ -250,8 +248,7 @@ export class Servers {
     const created = await this.serverDialog.open({ mode: 'create' });
     if (!created) return;
     this.reload();
-    // Straight into the new server: an empty server is not a destination, it is a prompt to add
-    // mods, and its own pages are where that happens.
+
     this.router.navigate(['/server', created.id]);
   }
 
@@ -265,8 +262,6 @@ export class Servers {
     event.stopPropagation();
     this.setBusy(server.id, true);
 
-    // Fetched on the click, never on page load: the list endpoint deliberately omits the token so
-    // that a credential opening a whole mod set is not sitting in every dashboard response.
     this.api.apiServersIdTokenGet(server.id).subscribe({
       next: async (result) => {
         this.setBusy(server.id, false);
@@ -274,8 +269,6 @@ export class Servers {
           await navigator.clipboard.writeText(result.token);
           toast.success(`Client token for ${server.name} copied.`);
         } catch {
-          // The clipboard API is unavailable over plain http on some browsers, and a token the
-          // admin cannot see anywhere is worse than one shown in a toast they dismissed.
           toast.error(`Could not reach the clipboard. The token is ${result.token}`);
         }
       },
@@ -290,9 +283,6 @@ export class Servers {
     event.stopPropagation();
     this.setBusy(server.id, true);
 
-    // FileResult is what the generator infers from the action's declared return type, but the
-    // request runs with responseType 'blob' because application/java-archive is neither text nor
-    // JSON - so the value on the wire is a Blob and the declared type is the fiction here.
     this.api.apiServersIdJarGet(server.id).subscribe({
       next: (jar) => {
         downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);

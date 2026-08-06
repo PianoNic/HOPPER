@@ -4,9 +4,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Imports
 {
-    /// <summary>One resolved CurseForge file. <see cref="DownloadUrl"/> is null exactly when the
-    /// author set allowModDistribution=false - the genuine "blocked mod" - which is the case that
-    /// stays pending even with a key.</summary>
     public sealed record CurseForgeFile(
         int ProjectId,
         int FileId,
@@ -18,23 +15,16 @@ namespace HOPPER.Application.Imports
 
     public interface ICurseForgeClient
     {
-        /// <summary>False when no CurseForge:ApiKey is configured, which is the shipped default.
-        /// HOPPER neither hardcodes nor bundles a key, so a stock install resolves nothing and every
-        /// manifest entry becomes a pending row for the admin to satisfy by hand.</summary>
         bool IsConfigured { get; }
 
         Task<IReadOnlyDictionary<int, CurseForgeFile>> ResolveAsync(
             IReadOnlyList<int> fileIds, CancellationToken cancellationToken);
 
-        /// <summary>Prism's fallback for a blocked file: the same jar is often published on Modrinth,
-        /// and Modrinth's lookup-by-hash endpoint needs no auth. It still needs the CurseForge key
-        /// first, because the sha1 it queries by only comes from the CurseForge API.</summary>
         Task<Uri?> FindOnModrinthBySha1Async(string sha1, CancellationToken cancellationToken);
     }
 
     public class CurseForgeClient(IHttpClientFactory factory, IConfiguration configuration) : ICurseForgeClient
     {
-        /// <summary>CurseForge caps a batch at this many ids per request.</summary>
         private const int BatchSize = 100;
 
         private string? ApiKey => configuration["CurseForge:ApiKey"] is { Length: > 0 } key ? key : null;
@@ -62,8 +52,6 @@ namespace HOPPER.Application.Imports
                 using var response = await http.SendAsync(request, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
-                    // A bad key or a rate limit is not a reason to fail the import: every unresolved
-                    // entry simply stays pending, which is exactly the keyless behaviour.
                     continue;
                 }
 
@@ -83,8 +71,6 @@ namespace HOPPER.Application.Imports
                         ? m.GetInt32()
                         : 0;
 
-                    // Null, absent, or empty all mean the same thing here: the author disabled
-                    // third-party distribution and there is nothing to fetch.
                     var rawUrl = file.TryGetProperty("downloadUrl", out var u) && u.ValueKind == JsonValueKind.String
                         ? u.GetString()
                         : null;
@@ -124,7 +110,6 @@ namespace HOPPER.Application.Imports
                 await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
-                // The response is keyed by the hash that was asked for.
                 foreach (var version in document.RootElement.EnumerateObject())
                 {
                     if (!version.Value.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Array)
@@ -142,8 +127,6 @@ namespace HOPPER.Application.Imports
             }
             catch (HttpRequestException)
             {
-                // A best-effort recovery. Failing it just leaves the entry pending, which is where it
-                // already was.
             }
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -152,8 +135,6 @@ namespace HOPPER.Application.Imports
             return null;
         }
 
-        /// <summary>hashes[] is [{value, algo}] with algo 1 = SHA1 and 2 = MD5. Note there is no
-        /// SHA-256 anywhere in this API, which is why the blob address is always computed locally.</summary>
         private static string? Sha1Of(JsonElement file)
         {
             if (!file.TryGetProperty("hashes", out var hashes) || hashes.ValueKind != JsonValueKind.Array)
@@ -175,8 +156,6 @@ namespace HOPPER.Application.Imports
 
     public static class ImportHttpClients
     {
-        /// <summary>Named client for everything the importer fetches: pack archives, mod jars, and the
-        /// two APIs. One long timeout and one User-Agent, configured once in Program.cs.</summary>
         public const string Packs = "packs";
     }
 }

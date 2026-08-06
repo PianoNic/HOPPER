@@ -31,9 +31,6 @@ describe('linksToModrinth', () => {
     expect(linksToModrinth(modrinthMod)).toBe(true);
   });
 
-  // The exporters test provenance rather than Source, because a row whose URL is missing would
-  // otherwise become a manifest entry pointing at nothing. The dialog has to predict the same way
-  // or its count is wrong exactly when the pack is at its most surprising.
   it('rejects a Modrinth row with a field missing', () => {
     expect(linksToModrinth({ ...modrinthMod, downloadUrl: null })).toBe(false);
     expect(linksToModrinth({ ...modrinthMod, versionId: '' })).toBe(false);
@@ -54,8 +51,6 @@ describe('linksToCurseForge', () => {
     ).toBe(true);
   });
 
-  // The guard that matters: base62 project ids can never parse as CurseForge integers, so a
-  // Modrinth mod cannot slip into a manifest that would then address the wrong file entirely.
   it('never accepts a Modrinth row', () => {
     expect(linksToCurseForge(modrinthMod)).toBe(false);
     expect(linksToCurseForge({ ...modrinthMod, source: MOD_SOURCE.curseForge })).toBe(false);
@@ -77,8 +72,6 @@ describe('packSplit', () => {
     });
   });
 
-  // The point of quoting a size per format: the same three mods are a 4 MB download as a mrpack and
-  // a 6 MB one as a CurseForge zip, and nothing in the format's name says so.
   it('bundles everything in a CurseForge pack while nothing records CurseForge ids', () => {
     expect(packSplit(mods, PACK_FORMAT.curseForge)).toEqual({
       manifestEntries: 0,

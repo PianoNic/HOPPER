@@ -28,12 +28,9 @@ import { formatBytes, messageFrom } from '../shared/utils/format';
 
 export type UploadModsDialogContext = { serverId: string };
 
-/** Where one file in the batch has got to. Rows are rendered off this and nothing else. */
 type UploadState = 'queued' | 'uploading' | 'stored' | 'partial' | 'failed';
 
 interface UploadItem {
-  /** A counter rather than the filename: the same jar can legitimately be added twice, and a
-   *  key that collides makes @for reuse the wrong row's progress. */
   readonly id: number;
   readonly file: File;
   readonly state: UploadState;
@@ -42,8 +39,6 @@ interface UploadItem {
   readonly errors: ReadonlyArray<string>;
 }
 
-// How many of a zip's rejected jars are spelled out on the row before it stops listing them. The
-// full set is still in the returned result and in the toast count; this only bounds the row height.
 const MAX_ROW_ERRORS = 3;
 
 @Component({
@@ -196,7 +191,6 @@ export class UploadModsDialog {
   protected readonly dragging = signal(false);
   protected readonly running = signal(false);
 
-  /** Everything stored so far, across every run of the dialog, in the shape the page expects. */
   private readonly uploaded = signal<ReadonlyArray<ModDto>>([]);
   private readonly failed = signal<ReadonlyArray<FailedUploadDto>>([]);
 
@@ -223,11 +217,6 @@ export class UploadModsDialog {
     return queued === 1 ? 'Upload' : `Upload ${queued} files`;
   });
 
-  /**
-   * Bytes sent over bytes to send, counting a finished file as fully sent. Files rather than
-   * percent-of-percent, so one 200 MB pack zip does not read as "half done" next to nine 40 KB
-   * jars that are actually the fast part.
-   */
   protected readonly overallProgress = computed(() => {
     const list = this.items();
     const total = list.reduce((sum, i) => sum + i.file.size, 0);
@@ -273,7 +262,6 @@ export class UploadModsDialog {
     }
   }
 
-  /** Same badge vocabulary the Clients page uses, so a red pill means the same thing everywhere. */
   protected badgeVariant(item: UploadItem): 'default' | 'secondary' | 'destructive' | 'outline' {
     switch (item.state) {
       case 'uploading':
@@ -290,8 +278,7 @@ export class UploadModsDialog {
   protected onPick(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.addFiles(input.files);
-    // Clearing the input means picking the same file twice in a row still fires a change event,
-    // which is how a file removed from the batch by mistake gets added back.
+
     input.value = '';
   }
 
@@ -336,8 +323,6 @@ export class UploadModsDialog {
       }
     }
 
-    // The server rejects these too, but catching them here saves uploading tens of megabytes per
-    // file just to be told no - and a folder drop routinely carries a stray config or README.
     if (rejected.length > 0) {
       toast.error('Only .jar files and .zip archives of jars can be uploaded.');
     }
@@ -345,14 +330,6 @@ export class UploadModsDialog {
     if (accepted.length > 0) this.items.update((current) => [...current, ...accepted]);
   }
 
-  /**
-   * Uploads the queued files one request at a time.
-   *
-   * The endpoint takes a whole batch in one call, but a batch is a single progress number and a
-   * single failure: a 500 halfway through leaves the admin with no idea which jars made it. One
-   * request per file costs a handful of round trips and buys a row per file that says exactly what
-   * happened to it - and it is still the same server-side path, since a batch of one is a batch.
-   */
   protected start(): void {
     if (this.running() || this.queuedCount() === 0) return;
     this.running.set(true);
@@ -369,12 +346,6 @@ export class UploadModsDialog {
 
     this.patch(item.id, { state: 'uploading', progress: 0, detail: '', errors: [] });
 
-    // 'events' + reportProgress is the only way to get an upload percentage out of the generated
-    // client; the body arrives on the final Response event.
-    //
-    // The File is passed through as a File, never widened to a Blob by a cast: FormData sends a
-    // bare Blob under the name "blob", the server's filename validator rejects that, and the
-    // failure is invisible from the call site. Blob[] accepts it because File extends Blob.
     this.api.apiServersIdModsPost(this.ctx.serverId, [item.file], 'events', true).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
@@ -389,14 +360,12 @@ export class UploadModsDialog {
         this.patch(item.id, { state: 'failed', progress: 0, detail: message });
         this.failed.update((list) => [...list, { fileName: item.file.name, error: message }]);
         toast.error(`${item.file.name}: ${message}`);
-        // Deliberately continues: one jar the server refused says nothing about the next one, and
-        // stopping the batch would make the admin re-drop everything after it.
+
         this.next();
       },
     });
   }
 
-  /** Turns one file's server result into that row's outcome and folds it into the aggregate. */
   private settle(item: UploadItem, result: ModUploadResultDto): void {
     const stored = result.uploaded;
     const rejected = result.failed;
@@ -409,8 +378,6 @@ export class UploadModsDialog {
     if (more > 0) errors.push(`…and ${more} more`);
 
     if (stored.length === 0) {
-      // A zip whose jars were all duplicates lands here too, which is why the detail comes from the
-      // server's own wording rather than a generic "failed".
       const detail = rejected.length === 1 ? rejected[0].error : 'Nothing in this file was stored.';
       this.patch(item.id, { state: 'failed', progress: 100, detail, errors });
       toast.error(`${item.file.name}: ${detail}`);
@@ -438,10 +405,6 @@ export class UploadModsDialog {
     this.items.update((list) => list.map((i) => (i.id === id ? { ...i, ...changes } : i)));
   }
 
-  /**
-   * Closes with everything this dialog stored, or null when nothing was attempted. The page reloads
-   * on any non-null result: even a batch that partly failed changed the list.
-   */
   protected close(): void {
     if (this.uploaded().length === 0 && this.failed().length === 0) {
       this.ref.close(null);

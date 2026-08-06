@@ -23,11 +23,6 @@ import { ModrinthVersionDto } from '../api/model/modrinthVersionDto';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
 import { modrinthProjectUrl, versionTypeLabel } from './mod-labels';
 
-/**
- * Which project to pick a version of, and the two filters to narrow it by. The loader and game
- * version are passed in rather than read again here: they come from the server the admin is adding
- * to, and re-deriving them in a second place is how the picker and the browser drift apart.
- */
 export type ModrinthVersionDialogContext = {
   serverId: string;
   projectId: string;
@@ -37,7 +32,6 @@ export type ModrinthVersionDialogContext = {
   gameVersion: string;
 };
 
-/** The one version the admin picked. The plan dialog resolves everything else from it. */
 export type ModrinthVersionPick = { projectId: string; versionId: string; title: string };
 
 @Component({
@@ -145,8 +139,6 @@ export class ModrinthVersionDialog {
   protected readonly projectUrl = computed(() => modrinthProjectUrl(this.ctx.slug));
 
   constructor() {
-    // serverId rides along so the API can mark the version this server already carries. It is the
-    // cheapest way to stop an admin picking the version they are already running.
     this.api
       .apiModrinthProjectsIdOrSlugVersionsGet(
         this.ctx.projectId,
@@ -166,10 +158,6 @@ export class ModrinthVersionDialog {
       });
   }
 
-  /**
-   * A version with no primary jar is still listed - it is less confusing than a version that is
-   * mysteriously absent - but it cannot be picked, because there is nothing to download.
-   */
   protected installable(version: ModrinthVersionDto): boolean {
     return (version.fileName ?? '') !== '';
   }
@@ -182,7 +170,6 @@ export class ModrinthVersionDialog {
     return versionTypeLabel(version.versionType);
   }
 
-  /** A beta or alpha is called out rather than styled the same as a release. */
   protected channelVariant(version: ModrinthVersionDto): 'secondary' | 'outline' {
     return (version.versionType ?? '').toLowerCase() === 'release' ? 'secondary' : 'outline';
   }

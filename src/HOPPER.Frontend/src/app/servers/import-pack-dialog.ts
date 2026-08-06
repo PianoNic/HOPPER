@@ -21,8 +21,7 @@ import {
   lucideLink,
   lucideUpload,
 } from '@ng-icons/lucide';
-// Real brand marks for the two platforms that have one. Simple Icons ships no Prism Launcher
-// glyph, so that button keeps a Lucide icon rather than an approximation of someone's logo.
+
 import { simpleCurseforge, simpleModrinth } from '@ng-icons/simple-icons';
 import { hopperPrism } from '../shared/icons/prism-icon';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
@@ -51,14 +50,8 @@ import { PendingMods } from './pending-mods';
 
 export type ImportPackDialogContext = { serverId: string };
 
-/**
- * What the dialog hands back. `openPending` is the checklist's exit: an admin who is not going to
- * chase four blocked CurseForge jars right now wants the page that keeps the list, not a closed
- * dialog and no way back to it.
- */
 export type ImportPackResult = { import: ModImportDto; openPending: boolean };
 
-/** Which set of instructions to show. The server detects the real format from the bytes. */
 type PackSource = 'modrinth' | 'curseforge' | 'prism';
 
 const POLL_MS = 2000;
@@ -301,10 +294,9 @@ export class ImportPackDialog {
   private readonly api = inject(ServerImportsService);
   private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
-  // Read by the template as well, to hand the pending list the server it belongs to.
+
   protected readonly ctx = injectBrnDialogContext<ImportPackDialogContext>();
 
-  // The generated client is the right thing to use everywhere except one call; see submitUrl().
   private readonly basePath = inject(BASE_PATH, { optional: true }) ?? '';
 
   protected readonly source = signal<PackSource>('modrinth');
@@ -390,11 +382,6 @@ export class ImportPackDialog {
     }
   });
 
-  /**
-   * The one thing the two formats genuinely differ on, stated up front rather than discovered at
-   * the end: a Modrinth pack carries direct download URLs and hashes for every file, so it imports
-   * itself; a CurseForge pack carries two integers per mod and nothing else.
-   */
   protected readonly sourceHint = computed(() => {
     switch (this.source()) {
       case 'modrinth':
@@ -411,17 +398,11 @@ export class ImportPackDialog {
     return picked === null ? '' : formatBytes(picked.size);
   });
 
-  /**
-   * A jar was handed back and stored. Re-reads the list rather than dropping the row locally: the
-   * counters on the import row moved too, and the entry that just closed is not necessarily the
-   * only one the server considers settled.
-   */
   protected settled(): void {
     const row = this.job();
     if (row !== null) this.loadPending(row);
   }
 
-  /** Dismissed entries need no round trip - the row is gone and nothing else changed. */
   protected drop(entry: PendingModDto): void {
     this.pending.update((list) => list.filter((p) => p.id !== entry.id));
   }
@@ -454,8 +435,7 @@ export class ImportPackDialog {
 
   protected onUrl(event: Event): void {
     this.url.set((event.target as HTMLInputElement).value);
-    // A URL and a file are the same choice made twice; the last one wins rather than the request
-    // silently preferring one of them.
+
     if (this.url().trim() !== '') this.file.set(null);
   }
 
@@ -505,17 +485,6 @@ export class ImportPackDialog {
     });
   }
 
-  /**
-   * The URL half of POST /api/servers/{id}/imports, sent with HttpClient rather than through the
-   * generated client.
-   *
-   * The endpoint declares `[Consumes("multipart/form-data", "application/json")]` and dispatches on
-   * content type, but the generator emits a single multipart signature whose only parameter is the
-   * file - there is no `url` argument to pass, and calling it with no file sends an empty multipart
-   * body that the server answers with 400. This is the one call in the dashboard the generated
-   * client cannot express, so it is written out here rather than hidden behind a wrapper service.
-   * The auth interceptor still attaches the bearer, because the URL is under the same base path.
-   */
   private submitUrl(url: string): void {
     this.submitting.set(true);
 
@@ -533,7 +502,6 @@ export class ImportPackDialog {
       });
   }
 
-  /** 202: the row exists and a worker owns it. Everything after this is polling. */
   private accepted(row: ModImportDto): void {
     this.job.set(row);
     if (!isImportPending(row.status)) {
@@ -561,8 +529,6 @@ export class ImportPackDialog {
           this.loadPending(row);
         },
         error: (err) => {
-          // Stops rather than retrying: a poll that keeps failing would raise a toast every two
-          // seconds, and the import itself is unaffected by the dashboard losing sight of it.
           toast.error(messageFrom(err, 'Lost track of the import'));
           this.poll?.unsubscribe();
           this.poll = null;
@@ -576,8 +542,6 @@ export class ImportPackDialog {
       return;
     }
 
-    // The endpoint is per server, not per import, so filter: an older import's unresolved entries
-    // are still open work but they are not what this dialog just produced.
     this.api.apiServersIdPendingGet(this.ctx.serverId).subscribe({
       next: (entries) => this.pending.set(entries.filter((p) => p.importId === row.id)),
       error: (err) => toast.error(messageFrom(err, 'Failed to load the pending list')),

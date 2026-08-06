@@ -12,10 +12,6 @@ import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ClientDto } from '../api/model/clientDto';
 import { ModDto } from '../api/model/modDto';
 
-/**
- * What the row-click dialog needs. `missing` is computed by the Clients page rather than here,
- * because the page already holds the required mod set and there is no reason to fetch it twice.
- */
 export type ClientModsDialogContext = {
   client: ClientDto;
   missing: ReadonlyArray<ModDto>;

@@ -33,27 +33,18 @@ import { PACK_FORMAT } from './import-labels';
 import { MOD_LOADER, modLoaderLabel } from './mod-labels';
 import { PackSplit, packSplit } from './pack-split';
 
-/**
- * The server being exported and the mods the page has already loaded.
- *
- * The list is passed in rather than fetched again: the mods page is holding it, it is the same
- * array the table on screen is rendering, and re-reading it here would let the dialog quote a
- * different set of jars than the one the admin is looking at.
- */
 export type ExportPackDialogContext = {
   server: ServerDto;
   mods: ReadonlyArray<ModDto>;
 };
 
-/** What was downloaded, for the caller's toast. Null out of the dialog means cancelled. */
 export type ExportPackResult = { format: number; fileName: string; bytes: number };
 
-/** One row of the picker. `split` is recomputed per format because each format splits differently. */
 type ExportOption = {
   format: number;
   label: string;
   icon: string;
-  /** Why this format splits the way it does. The part nobody can infer from the name. */
+
   hint: string;
   split: PackSplit;
 };
@@ -172,7 +163,6 @@ export class ExportPackDialog {
   private readonly router = inject(Router);
   protected readonly ctx = injectBrnDialogContext<ExportPackDialogContext>();
 
-  /** Modrinth first: it is the only format that can link anything, so it is the small download. */
   protected readonly format = signal<number>(PACK_FORMAT.modrinth);
   protected readonly busy = signal(false);
 
@@ -199,7 +189,7 @@ export class ExportPackDialog {
         format: PACK_FORMAT.curseForge,
         label: 'CurseForge pack (.zip)',
         icon: 'simpleCurseforge',
-        // Worth stating rather than leaving as a surprise when the download is ten times the mrpack.
+
         hint: 'A CurseForge manifest entry is a CurseForge project and file id, which a Modrinth or hand-uploaded jar does not have, so those ship inside overrides/mods/.',
         split: packSplit(mods, PACK_FORMAT.curseForge),
       },
@@ -217,7 +207,6 @@ export class ExportPackDialog {
     () => this.options().find((o) => o.format === this.format()) ?? this.options()[0],
   );
 
-  /** The size goes in the button too, so nobody confirms without having read the number. */
   protected readonly downloadLabel = computed(() => `Download ${this.sizeLabel(this.selected())}`);
 
   protected bundledLabel(option: ExportOption): string {
@@ -241,9 +230,6 @@ export class ExportPackDialog {
     const option = this.selected();
     this.busy.set(true);
 
-    // observe 'response' rather than the body: the server names the file and reports what it had to
-    // leave out, and both arrive as headers. Declared FileResult, delivered Blob - the generated
-    // method runs with responseType 'blob' because the route declares application/octet-stream.
     this.api.apiServersIdExportGet(this.ctx.server.id, option.format, 'response').subscribe({
       next: async (response) => {
         const blob = response.body as unknown as Blob | null;
@@ -259,9 +245,6 @@ export class ExportPackDialog {
         );
         downloadBlob(blob, fileName);
 
-        // Not an error and not swallowed either. A mod whose stored file has gone missing is left
-        // out of the pack, and the admin has to hear that from the download that just succeeded
-        // rather than discover it when a launcher comes up a jar short.
         const warnings = response.headers.get('X-Hopper-Export-Warnings');
         if (warnings) toast.warning(warnings);
 
@@ -270,8 +253,7 @@ export class ExportPackDialog {
       },
       error: async (err: unknown) => {
         this.busy.set(false);
-        // The body of a failed blob request is itself a Blob, so HOPPER's `{ "error": ... }` has to
-        // be read out of it - the 400 naming the missing platform fields is the whole message.
+
         toast.error(await messageFromBlobError(err, 'Failed to export this server'));
       },
     });
@@ -281,7 +263,6 @@ export class ExportPackDialog {
     this.ref.close(null);
   }
 
-  /** The exit for an unconfigured server: the page that can fix it, not a dead end. */
   protected async goToServers(): Promise<void> {
     this.ref.close(null);
     await this.router.navigateByUrl('/servers');

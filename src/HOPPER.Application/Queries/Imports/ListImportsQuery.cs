@@ -11,8 +11,6 @@ namespace HOPPER.Application.Queries.Imports
     public class ListImportsQueryHandler(HopperDbContext db)
         : IQueryHandler<ListImportsQuery, IReadOnlyList<ModImportDto>>
     {
-        /// <summary>The history is a diagnostic, not an archive. The page polls this every few seconds
-        /// while anything is running, so it is capped rather than growing without bound.</summary>
         private const int MaxRows = 25;
 
         public async ValueTask<IReadOnlyList<ModImportDto>> Handle(ListImportsQuery query, CancellationToken cancellationToken)

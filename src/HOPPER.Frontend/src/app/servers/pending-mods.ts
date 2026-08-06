@@ -15,21 +15,6 @@ import {
   pendingReasonLabel,
 } from './import-labels';
 
-/**
- * The checklist of files an import could not fetch, with the two things that actually clear a row:
- * hand the jar over, or drop the entry.
- *
- * This is the whole point of a pending row - it is a to-do the server is holding, not a note. Each
- * jar goes to POST /api/servers/{id}/pending/{pendingId}, which is where the SHA-1 the pack
- * declared is checked before the bytes are stored, and where the pack's own filename wins over
- * whatever the browser called the file. Uploading the same jars through the ordinary mod upload
- * would store them under the browser's names, unverified, and leave every row open.
- *
- * Presentational plus its own two calls, deliberately: the dialog that produces the list and the
- * page that outlives it show the same rows and must behave identically, and the alternative is the
- * same fifty lines twice. The parent owns the array - this emits what changed and reloads nothing
- * itself, so the page can refresh its counts and the dialog can just drop the row.
- */
 @Component({
   selector: 'app-pending-mods',
   imports: [NgIcon, HlmBadgeImports, HlmButtonImports],
@@ -107,9 +92,8 @@ export class PendingMods {
   readonly serverId = input.required<string>();
   readonly entries = input.required<ReadonlyArray<PendingModDto>>();
 
-  /** A jar was supplied and stored: the entry is gone and the server has one more mod. */
   readonly resolved = output<ModDto>();
-  /** The admin dropped the entry without supplying anything. */
+
   readonly dismissed = output<PendingModDto>();
 
   protected readonly busy = signal<Record<string, boolean>>({});
@@ -122,7 +106,6 @@ export class PendingMods {
     return pendingReasonLabel(entry.reason);
   }
 
-  /** The importer's own sentence when it wrote one, otherwise the generic reason. */
   protected why(entry: PendingModDto): string {
     return entry.detail && entry.detail.length > 0
       ? entry.detail
@@ -135,8 +118,7 @@ export class PendingMods {
 
   protected supply(entry: PendingModDto, picker: HTMLInputElement): void {
     const file = picker.files?.[0] ?? null;
-    // Cleared straight away so picking the same file again after a rejection still fires a change
-    // event, and so a failed attempt does not leave the chooser showing a filename it did not take.
+
     picker.value = '';
     if (file === null || this.busy()[entry.id] === true) return;
 
@@ -146,8 +128,7 @@ export class PendingMods {
     }
 
     this.mark(entry.id, true);
-    // Passed as a File, never widened to a Blob: FormData sends a bare Blob under the name "blob"
-    // and the server's filename validator would reject it.
+
     this.api.apiServersIdPendingPendingIdPost(this.serverId(), entry.id, file).subscribe({
       next: (mod: ModDto) => {
         this.mark(entry.id, false);
@@ -156,8 +137,7 @@ export class PendingMods {
       },
       error: (err) => {
         this.mark(entry.id, false);
-        // The server's own wording carries the useful half here: a SHA-1 mismatch means the admin
-        // fetched the wrong file, and "upload failed" would hide that.
+
         toast.error(messageFrom(err, `Failed to store ${file.name}`));
       },
     });

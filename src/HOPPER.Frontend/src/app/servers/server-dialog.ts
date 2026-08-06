@@ -18,19 +18,8 @@ import { ServerDto } from '../api/model/serverDto';
 import { messageFrom } from '../shared/utils/format';
 import { MOD_LOADER, modLoaderLabel } from './mod-labels';
 
-/**
- * Create and rename are the same two fields over the same two rules, so they are one component with
- * a mode rather than two that drift apart. The only real difference is that create may leave the
- * slug blank and let the server derive one, while a rename has to state the slug it is keeping -
- * PUT replaces both fields.
- */
 export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server: ServerDto };
 
-/**
- * The four loaders HOPPER records, in the order they are worth offering. Not set is a real choice
- * and stays first: a server that predates the browser has to be able to keep saying nothing rather
- * than being forced into a loader it does not run.
- */
 const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
   MOD_LOADER.unknown,
   MOD_LOADER.forge,
@@ -193,18 +182,12 @@ export class ServerDialog {
   protected readonly loaderLabel = computed(() => modLoaderLabel(this.loader()));
 
   constructor() {
-    // Modrinth's release list rather than a hand-kept array: Mojang ship a version and this
-    // dropdown has it without a release of HOPPER. A failure here is silent on purpose - the two
-    // platform fields are optional, and a toast about a filter dropdown while someone is trying to
-    // rename a server is noise.
     this.modrinth.apiModrinthTagsGet().subscribe({
       next: (tags) => this.gameVersions.set(tags.gameVersions),
       error: () => this.gameVersions.set([]),
     });
   }
 
-  // Mirrors the server's own derivation so the placeholder shows what leaving the field empty will
-  // actually produce. It is a preview only - the server derives it again and resolves collisions.
   protected readonly slugPlaceholder = computed(() => {
     const derived = this.name()
       .toLowerCase()
@@ -213,8 +196,6 @@ export class ServerDialog {
     return derived === '' ? 'survival-1-20-1' : derived;
   });
 
-  // A rename must send a slug, so an emptied field is not a valid rename the way it is a valid
-  // create. Everything else the server validates and reports back through a toast.
   protected readonly canSave = computed(
     () => this.name().trim() !== '' && (this.creating || this.slug().trim() !== ''),
   );
@@ -246,8 +227,7 @@ export class ServerDialog {
 
     const name = this.name().trim();
     const slug = this.slug().trim();
-    // An emptied field means "unset", which is null on the wire rather than an empty string: the
-    // browser and the exporters both test for a missing platform, and "" would read as configured.
+
     const minecraftVersion = this.minecraftVersion().trim() || null;
     const loaderVersion = this.loaderVersion().trim() || null;
     const loader = this.loader();
@@ -272,8 +252,6 @@ export class ServerDialog {
     request$.subscribe({
       next: (server) => this.ref.close(server),
       error: (err) => {
-        // 409 on a taken slug and 400 on a malformed one both arrive as { error: "..." }, so the
-        // server's own wording is what the admin reads.
         toast.error(messageFrom(err, 'Failed to save the server'));
         this.saving.set(false);
       },

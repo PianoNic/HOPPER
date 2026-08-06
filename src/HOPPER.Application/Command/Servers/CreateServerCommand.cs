@@ -8,13 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Command.Servers
 {
-    /// <summary>Slug is optional: the dashboard's create dialog asks for a name and lets the slug be
-    /// derived, because an admin naming "Friday Night SMP" should not also have to invent
-    /// "friday-night-smp". Supplying one explicitly is still allowed, and then it is taken literally.
-    ///
-    /// The platform fields are optional at creation for the same reason they are nullable on the
-    /// entity: an admin creating a server has not necessarily decided which Forge build it runs, and
-    /// making them mandatory here would break the one-field create dialog that already exists.</summary>
     public record CreateServerCommand(
         string Name,
         string? Slug,
@@ -33,8 +26,6 @@ namespace HOPPER.Application.Command.Servers
             string slug;
             if (!string.IsNullOrWhiteSpace(command.Slug))
             {
-                // Explicit: the admin typed it, so a collision is a mistake they should see rather
-                // than something we silently rename behind their back.
                 slug = ServerSlugValidator.Validate(command.Slug);
                 if (await db.Servers.AnyAsync(s => s.Slug == slug, cancellationToken))
                     throw new DuplicateServerSlugException(slug);
@@ -53,9 +44,7 @@ namespace HOPPER.Application.Command.Servers
             {
                 Name = name,
                 Slug = slug,
-                // Minted here rather than accepted from the caller: a token the admin chooses is a
-                // token as strong as an admin's imagination, and this one is what stands between the
-                // internet and the mod set.
+
                 Token = ServerTokenGenerator.New(),
                 MinecraftVersion = ServerPlatform.NormaliseVersion(command.MinecraftVersion, "Minecraft version"),
                 Loader = command.Loader,
@@ -68,9 +57,6 @@ namespace HOPPER.Application.Command.Servers
             return server.ToDto(modCount: 0, clientCount: 0);
         }
 
-        /// <summary>Appends -2, -3, … to a derived slug until one is free. Only ever applied to a
-        /// derived slug: silently renaming what the admin typed would leave them looking for a server
-        /// under a name that does not exist.</summary>
         private async Task<string> UniqueAsync(string candidate, CancellationToken cancellationToken)
         {
             var taken = await db.Servers
@@ -85,8 +71,7 @@ namespace HOPPER.Application.Command.Servers
             for (var n = 2; n <= 99; n++)
             {
                 var suffix = $"-{n}";
-                // Truncate the stem, not the suffix: "…-2" that overflows the length limit would
-                // otherwise silently become the same slug as "…" and collide again.
+
                 var stem = candidate.Length + suffix.Length > ServerSlugValidator.MaxLength
                     ? candidate[..(ServerSlugValidator.MaxLength - suffix.Length)].TrimEnd('-')
                     : candidate;

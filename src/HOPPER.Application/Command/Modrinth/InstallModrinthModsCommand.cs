@@ -12,17 +12,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Command.Modrinth
 {
-    /// <summary>One row of an install request. Replace is ticked per row in the plan dialog and
-    /// defaults to false, because replacing an installed version is a deliberate act.</summary>
     public sealed record ModrinthInstallItem(string VersionId, bool Replace);
 
-    /// <summary>The commit half of the two-phase add.
-    ///
-    /// It installs EXACTLY the version ids it was handed and resolves nothing further. That is the
-    /// whole point of splitting plan from install: the set the admin saw named in the dialog is the
-    /// set that is written, and there is no path on which a dependency appears here that was not on
-    /// the screen. Its only re-resolution is the incompatibility re-check below, which is a safety net
-    /// against a stale dialog rather than a second walk of the graph.</summary>
     public record InstallModrinthModsCommand(Guid ServerId, IReadOnlyList<ModrinthInstallItem> Items)
         : ICommand<ModrinthInstallResultDto>;
 
@@ -32,8 +23,6 @@ namespace HOPPER.Application.Command.Modrinth
         IModrinthClient modrinth,
         ICurrentUserService currentUser) : ICommandHandler<InstallModrinthModsCommand, ModrinthInstallResultDto>
     {
-        /// <summary>The resolver caps a plan at 100 nodes, so a request larger than that did not come
-        /// from a plan this API produced.</summary>
         private const int MaxItems = 100;
 
         public async ValueTask<ModrinthInstallResultDto> Handle(
@@ -46,8 +35,7 @@ namespace HOPPER.Application.Command.Modrinth
             var items = command.Items
                 .Where(i => !string.IsNullOrWhiteSpace(i.VersionId))
                 .GroupBy(i => i.VersionId.Trim(), StringComparer.Ordinal)
-                // Same version twice in one request: the tick wins, so a row the admin marked for
-                // replacement is not quietly downgraded to a skip by a duplicate entry.
+
                 .Select(g => new ModrinthInstallItem(g.Key, g.Any(i => i.Replace)))
                 .ToList();
 
@@ -63,9 +51,6 @@ namespace HOPPER.Application.Command.Modrinth
             var skipped = new List<ModrinthSkippedDto>();
             var failed = new List<ModrinthFailedDto>();
 
-            // One call for the whole batch rather than one per mod. Unknown ids are dropped silently
-            // by the bulk endpoint rather than 404ing, so the join is on id and what is missing is
-            // whatever did not come back.
             var versions = await modrinth.GetVersionsAsync(items.Select(i => i.VersionId).ToList(), cancellationToken);
             var byId = versions.ToDictionary(v => v.Id, StringComparer.Ordinal);
 
@@ -80,7 +65,6 @@ namespace HOPPER.Application.Command.Modrinth
 
             await RefuseIfIncompatibleAsync(command.ServerId, versions, cancellationToken);
 
-            // Titles for the provenance's ProjectName, in one call for the whole batch.
             var projects = await ProjectTitlesAsync(versions, cancellationToken);
 
             foreach (var item in items)
@@ -97,9 +81,6 @@ namespace HOPPER.Application.Command.Modrinth
                 }
                 catch (Exception ex) when (ex is ArgumentException or DuplicateModFileNameException or ModrinthApiException or HttpRequestException or IOException)
                 {
-                    // Per-item failure does not abort the batch, the same rule the upload path
-                    // follows: a batch where one jar's hash did not match is a partial success, and
-                    // discarding the nineteen that worked would be the worse outcome.
                     failed.Add(new ModrinthFailedDto
                     {
                         Name = version.PrimaryFile()?.FileName ?? version.Name ?? version.Id,
@@ -143,8 +124,6 @@ namespace HOPPER.Application.Command.Modrinth
                     $"Modrinth published no sha1/sha512 for {fileName}, so the download cannot be verified.");
             }
 
-            // Re-read the current rows rather than trusting the plan: the dialog may be minutes old,
-            // and another admin may have added the same mod in the meantime.
             var current = await db.Mods
                 .Where(m => m.ServerId == server.Id)
                 .ToListAsync(cancellationToken);
@@ -176,8 +155,6 @@ namespace HOPPER.Application.Command.Modrinth
 
             var (sha256, size, sha1, sha512) = await DownloadAsync(new Uri(file.Url), cancellationToken);
 
-            // Hash check before anything is written to the database. Size is not separately checked:
-            // two matching cryptographic digests make a size mismatch impossible.
             if (!string.Equals(sha512, file.Sha512, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(sha1, file.Sha1, StringComparison.OrdinalIgnoreCase))
             {
@@ -187,8 +164,6 @@ namespace HOPPER.Application.Command.Modrinth
 
             var title = projectTitles.GetValueOrDefault(version.ProjectId);
 
-            // Same bytes already here under another name. Modrinth never publishes sha256, so the plan
-            // could not possibly have known - this is only ever detectable after the download.
             var sameBytes = current.FirstOrDefault(m => string.Equals(m.Sha256, sha256, StringComparison.Ordinal));
             if (sameBytes is not null && sameBytes != displaced)
             {
@@ -202,14 +177,6 @@ namespace HOPPER.Application.Command.Modrinth
                     return;
                 }
 
-                // Adopt rather than insert. A second row would make the client write the identical jar
-                // twice under two names, which Forge may refuse outright - and the admin gains a mod
-                // that now exports with a real CDN URL instead of as an override. The existing
-                // filename is kept: it is what the clients already hold.
-                //
-                // ??=, so a row that predates mod-id extraction gets backfilled here while one that
-                // was already read is left exactly as it is. Not folded into ApplyProvenance, which
-                // is static and has no blob store.
                 sameBytes.ModIds ??= ModIdReader.FromBlob(blobs, sameBytes.Sha256);
                 ApplyProvenance(sameBytes, version, file, title, sha1, sha512);
                 await db.SaveChangesAsync(cancellationToken);
@@ -230,8 +197,6 @@ namespace HOPPER.Application.Command.Modrinth
                 Size = size,
                 UploadedBy = currentUser.Name,
 
-                // Modrinth's body is a network stream that cannot be re-read, so the ids come out of
-                // the blob that was just written. See ModIdReader.FromBlob.
                 ModIds = ModIdReader.FromBlob(blobs, sha256),
             };
 
@@ -247,14 +212,6 @@ namespace HOPPER.Application.Command.Modrinth
 
             db.Mods.Add(entry);
 
-            // One save per mod, matching the importer: a batch that dies halfway leaves what it got
-            // through actually installed rather than rolling the whole drop back.
-            //
-            // The removal and the insert go in the SAME save on purpose. A replacement where the new
-            // jar happens to carry the old one's filename would violate the unique (ServerId,
-            // FileName) index if the insert ran first; EF Core orders commands that collide on a
-            // unique index so the delete precedes the insert, which two separate saves would give up
-            // in exchange for a window where the server has no copy of that mod at all.
             await db.SaveChangesAsync(cancellationToken);
 
             if (orphanCandidate is not null)
@@ -272,21 +229,13 @@ namespace HOPPER.Application.Command.Modrinth
             mod.ProjectName = title;
             mod.DownloadUrl = file.Url;
 
-            // Stored lowercase, as the whole codebase represents hex, and taken from what we computed
-            // rather than from what upstream sent - they are equal by the check above, and ours is the
-            // one that provably describes the bytes on disk.
             mod.Sha1 = sha1;
             mod.Sha512 = sha512;
         }
 
-        /// <summary>Streams the jar into the blob store while hashing it a second and third time. One
-        /// pass over the bytes yields sha256 from the store plus sha1 and sha512 from the wrapper.</summary>
         private async Task<(string Sha256, long Size, string Sha1, string Sha512)> DownloadAsync(
             Uri url, CancellationToken cancellationToken)
         {
-            // The host allow-list is enforced inside the client, before the socket opens: a version's
-            // url is upstream-controlled text and following it anywhere would make HOPPER a request
-            // proxy for whoever published it.
             await using var download = await modrinth.OpenDownloadAsync(url, cancellationToken);
             await using var hashing = new HashingStream(download);
 
@@ -294,9 +243,6 @@ namespace HOPPER.Application.Command.Modrinth
             return (sha256, size, hashing.Sha1Hex, hashing.Sha512Hex);
         }
 
-        /// <summary>Drops a blob nothing references any more. The check is GLOBAL and has no server
-        /// filter, exactly as the delete paths do it: narrowing it would delete a file another
-        /// server's clients are still being told to download.</summary>
         private async Task DiscardAsync(string sha256, CancellationToken cancellationToken)
         {
             var stillReferenced = await db.Mods.AnyAsync(m => m.Sha256 == sha256, cancellationToken);
@@ -304,9 +250,6 @@ namespace HOPPER.Application.Command.Modrinth
                 blobs.Delete(sha256);
         }
 
-        /// <summary>The refusal half of the brief. Re-checked here rather than trusted from the plan,
-        /// because the dialog may be minutes old and the server's mod set may have moved under it.
-        /// Throws before a single byte is downloaded, so an incompatible request writes nothing.</summary>
         private async Task RefuseIfIncompatibleAsync(
             Guid serverId, IReadOnlyList<ModrinthVersion> versions, CancellationToken cancellationToken)
         {
@@ -325,16 +268,12 @@ namespace HOPPER.Application.Command.Modrinth
                 .Select(m => new { ProjectId = m.ProjectId!, m.ProjectName, m.FileName })
                 .ToListAsync(cancellationToken);
 
-            // Project id to the friendliest name available for it, so the 409 names two mods rather
-            // than two base62 ids the admin has never seen.
             var names = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var row in onServer)
                 names[row.ProjectId] = row.ProjectName ?? row.FileName;
 
             var present = onServer.Select(m => m.ProjectId).ToHashSet(StringComparer.Ordinal);
 
-            // A project in this same batch counts as present: installing two mods that declare each
-            // other incompatible is the same broken set as installing one against an existing mod.
             foreach (var version in versions)
             {
                 present.Add(version.ProjectId);
@@ -373,8 +312,6 @@ namespace HOPPER.Application.Command.Modrinth
             }
             catch (ModrinthApiException)
             {
-                // A cached display name is not worth failing an install over. ProjectName is nullable
-                // precisely so this can degrade rather than throw.
                 return new Dictionary<string, string>(StringComparer.Ordinal);
             }
         }

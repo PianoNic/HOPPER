@@ -16,9 +16,6 @@ namespace HOPPER.Application.Queries.Servers
                 .OrderBy(s => s.Name)
                 .ToListAsync(cancellationToken);
 
-            // Two grouped counts rather than a count per server: the list page is the landing page, so
-            // it runs on every visit, and N+1 there is N+1 on the hottest path in the dashboard.
-            // Grouping happens in the database - these are counts, not rows, so nothing large moves.
             var modCounts = await db.Mods.AsNoTracking()
                 .GroupBy(m => m.ServerId)
                 .Select(g => new { ServerId = g.Key, Count = g.Count() })

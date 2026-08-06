@@ -5,9 +5,6 @@ using Mediator;
 
 namespace HOPPER.Application.Queries.Modrinth
 {
-    /// <summary>The loader and Minecraft version lists behind the browser's two filter dropdowns.
-    /// Both are cached upstream in the client for six hours - they change when Mojang or a loader
-    /// ships, which is not something a dashboard needs to learn within the minute.</summary>
     public record GetModrinthTagsQuery : IQuery<ModrinthTagsDto>;
 
     public class GetModrinthTagsQueryHandler(IModrinthClient modrinth) : IQueryHandler<GetModrinthTagsQuery, ModrinthTagsDto>

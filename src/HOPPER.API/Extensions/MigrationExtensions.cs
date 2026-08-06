@@ -5,13 +5,6 @@ namespace HOPPER.API.Extensions
 {
     public static class MigrationExtensions
     {
-        /// <summary>Brings the database up to the current model at boot, so deployment is just
-        /// "start the new binary" and there is no separate `dotnet ef database update` step.
-        ///
-        /// <para>Retries, unlike the SQLite version this replaced: Postgres is a separate container
-        /// and `depends_on` only waits for the process, not for it to accept connections. Without
-        /// this, HOPPER crash-loops on a cold `docker compose up` until Postgres finishes its own
-        /// first-run initialisation.</para></summary>
         public static void ApplyMigrations(this IApplicationBuilder app)
         {
             using var scope = app.ApplicationServices.CreateScope();

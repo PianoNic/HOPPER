@@ -5,36 +5,15 @@ namespace HOPPER.Application.Modrinth
         Task<ResolveResult> ResolveAsync(ResolveRequest request, CancellationToken cancellationToken);
     }
 
-    /// <summary>Turns a handful of picked version ids into the complete list of what would actually be
-    /// added, before anything is added.
-    ///
-    /// It is a pure planner. It never touches the database - what the server already carries arrives
-    /// as <see cref="ResolveRequest.Installed"/> - and it never writes anything anywhere. Its only
-    /// collaborator is <see cref="IModrinthClient"/>, which is what lets the whole of it be driven
-    /// from fixtures in a unit test with no socket in sight.
-    ///
-    /// The walk is breadth-first and batched: one /versions call for a level's pinned dependencies,
-    /// one /projects call for its unpinned ones, then one version list per newly discovered project.
-    /// A forty-mod transitive tree costs single-digit-to-low-double-digit requests rather than forty,
-    /// which is the difference between browsing comfortably and being rate-limited.
-    ///
-    /// The visited set is keyed on PROJECT id, not version id. That is what terminates a cycle:
-    /// A requires B requires A revisits A, finds it already chosen, and stops.</summary>
     public class ModrinthDependencyResolver(IModrinthClient client) : IModrinthDependencyResolver
     {
-        /// <summary>Hard caps. A pathological or hostile dependency graph must not be able to make
-        /// HOPPER loop against Modrinth on an admin's behalf.</summary>
         private const int MaxApiCalls = 60;
 
         private const int MaxNodes = 100;
         private const int MaxDepth = 12;
 
-        /// <summary>Optionals are resolved for display only, so their budget is separate and small.</summary>
         private const int MaxOptionalResolutions = 25;
 
-        /// <summary>RequiredBy is a LIST, not a single name. Two mods on the same level requiring the
-        /// same library is the normal case, not an edge case, and keeping only the first parent would
-        /// make the dialog's "required by" caption quietly wrong.</summary>
         private sealed record Frontier(
             ModrinthVersion Version,
             PlanNodeKind Kind,
@@ -81,8 +60,6 @@ namespace HOPPER.Application.Modrinth
                 foreach (var project in fetched)
                     projects[project.Id] = project;
 
-                // Unknown ids are dropped silently by the bulk endpoint rather than 404ing, so the
-                // only way to notice a dependency that no longer exists is to compare the counts.
                 if (fetched.Count < missing.Count)
                     warnings.Add($"{missing.Count - fetched.Count} referenced projects could not be found on Modrinth.");
 
@@ -94,9 +71,6 @@ namespace HOPPER.Application.Modrinth
                 Spend();
                 var versions = await client.ListVersionsAsync(projectId, loader, gameVersion, includeChangelog: false, cancellationToken);
 
-                // Newest first, so the first release is the newest release. Falling back to the newest
-                // of anything is deliberate - a mod whose only 1.20.1 Forge build is a beta is still
-                // the build that exists - and the node carries Prerelease so the dialog can say so.
                 return versions.FirstOrDefault(v => v.IsRelease()) ?? versions.FirstOrDefault();
             }
 
@@ -159,8 +133,6 @@ namespace HOPPER.Application.Modrinth
 
                     if (chosen.TryGetValue(projectId, out var existing))
                     {
-                        // The cycle guard, and the dedupe. Keyed on the project, so the same mod
-                        // reached twice by different paths is one node with two parents.
                         if (!string.Equals(existing.VersionId, item.Version.Id, StringComparison.Ordinal))
                         {
                             warnings.Add(
@@ -210,12 +182,10 @@ namespace HOPPER.Application.Modrinth
                     }
                 }
 
-                // One call per level for every title, slug and icon this level needs.
                 await ProjectsAsync(added.Select(a => a.Node.ProjectId).ToList());
                 foreach (var (node, _) in added)
                     Decorate(node);
 
-                // Keyed on the dependency, valued with every mod on this level that asked for it.
                 var pinnedNext = new Dictionary<string, List<string>>(StringComparer.Ordinal);
                 var unpinnedNext = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
@@ -235,9 +205,7 @@ namespace HOPPER.Application.Modrinth
                         switch (dependency.DependencyType?.Trim().ToLowerInvariant())
                         {
                             case "embedded":
-                                // The jar is already inside the parent. Adding it ships the same
-                                // classes twice and Forge may refuse the duplicate outright, so it is
-                                // shown and never enqueued.
+
                                 embedded.Add(new EmbeddedNote(
                                     dependency.ProjectId ?? string.Empty,
                                     dependency.FileName,
@@ -257,8 +225,6 @@ namespace HOPPER.Application.Modrinth
                             case "required":
                                 if (!string.IsNullOrWhiteSpace(dependency.VersionId))
                                 {
-                                    // Pinned. Use that exact version and do not re-resolve it: the
-                                    // author named a build, not a project.
                                     Want(pinnedNext, dependency.VersionId, node.DisplayName);
                                 }
                                 else if (!string.IsNullOrWhiteSpace(dependency.ProjectId))
@@ -268,8 +234,6 @@ namespace HOPPER.Application.Modrinth
                                 }
                                 else
                                 {
-                                    // Both ids null. Not resolvable through the API at all - surfaced
-                                    // to the admin rather than swallowed, and it does not fail the plan.
                                     unresolvable.Add(new UnresolvableNote(
                                         dependency.FileName ?? "an unnamed dependency",
                                         "Modrinth does not identify this dependency, so it cannot be added automatically",
@@ -279,10 +243,7 @@ namespace HOPPER.Application.Modrinth
                                 break;
 
                             default:
-                                // Modrinth may add a dependency type at any time. Ignoring an unknown
-                                // one is the only safe reading: guessing could install something the
-                                // admin never saw, which is the one thing this whole flow exists to
-                                // prevent.
+
                                 break;
                         }
                     }
@@ -350,8 +311,6 @@ namespace HOPPER.Application.Modrinth
 
             return new ResolveResult
             {
-                // Roots first, then by depth, so the dialog reads top-down as "what you picked, then
-                // what that drags in".
                 Nodes = chosen.Values.OrderBy(n => n.Depth).ThenBy(n => n.DisplayName, StringComparer.OrdinalIgnoreCase).ToList(),
                 Optional = optional,
                 Embedded = embedded,
@@ -362,11 +321,8 @@ namespace HOPPER.Application.Modrinth
                 ApiCalls = calls,
             };
 
-            // ---- tail passes ---------------------------------------------------------------
-
             async Task<List<PlanNode>> ResolveOptionalsAsync()
             {
-                // Anything that turned out to be required as well is no longer optional.
                 var wanted = optionalCandidates.Keys.Where(id => !chosen.ContainsKey(id)).ToList();
                 if (wanted.Count == 0)
                     return [];
@@ -433,8 +389,6 @@ namespace HOPPER.Application.Modrinth
                 var notes = new List<IncompatibleNote>();
                 foreach (var (projectId, declaredBy) in incompatibleClaims.DistinctBy(c => (c.ProjectId, c.DeclaredBy)))
                 {
-                    // A declared incompatibility only matters when the other mod is actually here -
-                    // either already on the server or about to be added by this same plan.
                     var applies = chosen.ContainsKey(projectId)
                         || request.Installed.Any(m => string.Equals(m.ProjectId, projectId, StringComparison.Ordinal));
 
@@ -449,8 +403,6 @@ namespace HOPPER.Application.Modrinth
             }
         }
 
-        /// <summary>Merges parents into a node without duplicating one that is already there. A mod
-        /// reached by two paths is one node with two "required by" captions, not two nodes.</summary>
         private static void AddParents(PlanNode node, IReadOnlyList<string> parents)
         {
             foreach (var parent in parents)
@@ -460,9 +412,6 @@ namespace HOPPER.Application.Modrinth
             }
         }
 
-        /// <summary>Where a node stands against the server's current rows. OtherVersionInstalled and
-        /// FileNameTaken both default to skip; replacing is an explicit tick in the dialog, because a
-        /// silent upgrade is a mod set changing under the admin without being asked.</summary>
         public static PlanNodeStatus StatusOf(PlanNode node, IReadOnlyList<InstalledMod> installed)
         {
             var sameProject = installed.FirstOrDefault(

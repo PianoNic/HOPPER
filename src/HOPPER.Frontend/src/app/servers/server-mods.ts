@@ -262,8 +262,6 @@ export class ServerMods {
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
 
-  // Matching the full hash as well as the filename means a hash pasted from a client's report or
-  // from a blob URL finds its row.
   protected readonly filteredMods = computed(() => {
     const q = this.filter().trim().toLowerCase();
     if (q === '') return this.mods();
@@ -321,8 +319,7 @@ export class ServerMods {
 
   private load(id: string): void {
     this.loading.set(true);
-    // The pending list rides along with the mods: it is the other half of what this server owes its
-    // clients, and the two are read together or the badge lags a jar behind.
+
     forkJoin({
       server: this.serversApi.apiServersIdGet(id),
       mods: this.api.apiServersIdModsGet(id),
@@ -344,8 +341,7 @@ export class ServerMods {
   protected async upload(): Promise<void> {
     const id = this.serverId();
     if (id === '') return;
-    // The dialog raises its own toasts for the per-file outcome, so the page only has to refresh:
-    // even a batch that partly failed changed the list.
+
     const result = await this.uploadDialog.open({ serverId: id });
     if (result) this.reload();
   }
@@ -358,16 +354,9 @@ export class ServerMods {
     if (!result) return;
     this.reload();
 
-    // The pending list is the import's unfinished half, and it is work for later: the admin has to
-    // go and download jars a machine is not allowed to. The dialog's exit hands them the page that
-    // keeps the list rather than closing over it.
     if (result.openPending) await this.router.navigate(this.pendingLink() as string[]);
   }
 
-  /**
-   * Hands the dialog the server and the very list on screen, so the size it quotes per format is
-   * the size of what the admin is looking at. Nothing is reloaded afterwards - an export reads.
-   */
   protected async exportPack(): Promise<void> {
     const server = this.server();
     if (!server) return;

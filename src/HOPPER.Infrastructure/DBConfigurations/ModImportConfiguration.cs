@@ -8,7 +8,6 @@ namespace HOPPER.Infrastructure.DBConfigurations
     {
         public void Configure(EntityTypeBuilder<ModImport> builder)
         {
-            // The history table reads one server's imports, newest first.
             builder.HasIndex(i => i.ServerId);
         }
     }

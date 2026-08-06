@@ -1,9 +1,5 @@
 namespace HOPPER.Application.Dtos.Modrinth
 {
-    /// <summary>One project's detail panel. Note the field names against
-    /// <see cref="ModrinthSearchHitDto"/>: a project's Loaders are a real, separate field and its
-    /// GameVersions are Minecraft versions, where a hit folds loaders into categories and calls its
-    /// Minecraft versions "versions". They are kept apart deliberately.</summary>
     public record ModrinthProjectDto
     {
         public required string Id { get; init; }

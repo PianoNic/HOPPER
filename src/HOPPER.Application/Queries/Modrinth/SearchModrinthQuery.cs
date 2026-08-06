@@ -7,12 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Modrinth
 {
-    /// <summary>One page of the browser's result grid.
-    ///
-    /// ServerId is optional and is not a tenant scope here - Modrinth's catalogue is the same for
-    /// everyone and scoping search under a server would mean refetching identical results per server.
-    /// It is passed only so each hit can be marked as already installed, which is otherwise a second
-    /// round trip per page.</summary>
     public record SearchModrinthQuery(
         Guid? ServerId,
         string? Query,
@@ -46,8 +40,6 @@ namespace HOPPER.Application.Queries.Modrinth
             if (serverId is not { } id)
                 return [];
 
-            // Covered by IX_Mods_ServerId_ProjectId. Nulls are filtered in the query rather than in
-            // memory so a server of hand-uploaded mods costs nothing to check.
             var ids = await db.Mods.AsNoTracking()
                 .Where(m => m.ServerId == id && m.ProjectId != null)
                 .Select(m => m.ProjectId!)

@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HOPPER.API.Controllers
 {
-    /// <summary>Admin surface for one server's known clients. Kept apart from ClientsController so
-    /// that the client-facing report route keeps its own path and its own auth scheme.</summary>
     [ApiController]
     [Route("api/servers/{id:guid}/clients")]
     public class ServerClientsController(IMediator mediator) : ControllerBase

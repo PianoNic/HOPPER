@@ -5,59 +5,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Just enough JSON, so the core can drop its Gson dependency and stay embeddable
- * in every adapter jar - see hopper-core/build.gradle for why that dependency had
- * to go.
- *
- * <p>Reading produces only JDK types: {@link LinkedHashMap}, {@link ArrayList},
- * {@link String}, {@link Long}, {@link Double}, {@link Boolean} and null. Writing
- * is a single string-escaping helper, because the one document HOPPER writes -
- * the client report - is assembled by hand in {@link Syncer#reportBody} so a test
- * can pin its exact bytes.
- */
 final class Json {
-
-    /**
-     * How deep {@code {} } and {@code []} may nest before the document is refused.
-     *
-     * <p>This is not a tidiness limit, it is the thing that keeps a malformed
-     * manifest from killing the launch. {@link #value()}, {@link #object()} and
-     * {@link #array()} are mutually recursive, so nesting depth is stack depth,
-     * and 4000 opening braces in an 8 KB response was measured to throw
-     * {@link StackOverflowError} - an {@link Error}, which sails straight through
-     * every {@code catch (Exception)} on the way out. Gson, which this class
-     * replaced, enforced its own nesting limit for exactly this reason; dropping
-     * Gson without replacing the limit dropped the protection with it.
-     *
-     * <p>64 rather than Gson's 255: HOPPER's manifest is
-     * {@code {"mods":[{...}]}}, which is three levels, so 64 is already twenty
-     * times more room than the format can use, and it holds even on a small
-     * thread stack rather than only on the default one.
-     *
-     * <p>Exceeding it is an ordinary {@link IllegalArgumentException} - the same
-     * "this manifest is malformed" path as a missing brace, which
-     * {@link Syncer#fetchManifest} already turns into a failed sync and
-     * {@link Hopper#run} already turns into a launch with the cached mods.
-     */
     private static final int MAX_DEPTH = 64;
 
     private final String src;
     private int pos;
 
-    /** Open containers at the current parse position. See {@link #MAX_DEPTH}. */
     private int depth;
 
     private Json(String src) {
         this.src = src;
     }
 
-    /**
-     * @return a Map, List, String, Long, Double, Boolean or null
-     * @throws IllegalArgumentException on anything malformed, including trailing
-     *         content - a manifest that half-parses is a manifest we refuse - and
-     *         including nesting deeper than {@link #MAX_DEPTH}
-     */
     static Object parse(String text) {
         if (text == null) {
             throw new IllegalArgumentException("no JSON to parse");
@@ -72,11 +31,9 @@ final class Json {
         return root;
     }
 
-    // ---- reading ----
-
     private Object value() {
         char c = peek();
-        // A switch STATEMENT. Switch expressions are Java 14 and this file compiles at 8.
+
         switch (c) {
             case '{':
                 return object();
@@ -109,7 +66,7 @@ final class Json {
 
     private Map<String, Object> objectBody() {
         Map<String, Object> map = new LinkedHashMap<String, Object>();
-        pos++; // {
+        pos++;
         skipWhitespace();
         if (peek() == '}') {
             pos++;
@@ -148,7 +105,7 @@ final class Json {
 
     private List<Object> arrayBody() {
         List<Object> list = new ArrayList<Object>();
-        pos++; // [
+        pos++;
         skipWhitespace();
         if (peek() == ']') {
             pos++;
@@ -166,12 +123,6 @@ final class Json {
         }
     }
 
-    /**
-     * Counts one container in, and refuses the document before the recursion that
-     * would follow can reach the stack limit. Paired with a {@code finally} that
-     * counts back out, so a sibling of a deeply nested value is judged on its own
-     * depth rather than on the running total.
-     */
     private void enter() {
         if (depth + 1 > MAX_DEPTH) {
             throw error("nested more than " + MAX_DEPTH + " levels deep");
@@ -180,7 +131,7 @@ final class Json {
     }
 
     private String string() {
-        pos++; // opening quote
+        pos++;
         StringBuilder sb = new StringBuilder();
         for (;;) {
             if (pos >= src.length()) {
@@ -245,14 +196,11 @@ final class Json {
         if (text.isEmpty() || "-".equals(text)) {
             throw error("expected a value");
         }
-        // Integer-looking numbers stay Long. Entry.size is a byte count, and a double starts
-        // silently rounding it above 2^53 - which is the wrong place to discover a rounding bug.
+
         if (!floating) {
             try {
                 return Long.valueOf(text);
             } catch (NumberFormatException ignored) {
-                // Longer than a long. Fall through and keep it as an approximate double rather
-                // than failing the whole manifest over one oversized field.
             }
         }
         try {
@@ -291,8 +239,6 @@ final class Json {
         return new IllegalArgumentException("malformed JSON at offset " + pos + ": " + message);
     }
 
-    // ---- typed lookups, so callers never cast ----
-
     static Map<?, ?> asObject(Object value) {
         return value instanceof Map ? (Map<?, ?>) value : null;
     }
@@ -316,17 +262,6 @@ final class Json {
         return v instanceof Number ? ((Number) v).longValue() : 0L;
     }
 
-    // ---- writing ----
-
-    /**
-     * Appends {@code value} as a JSON string, or the bare token {@code null}.
-     *
-     * <p>Escapes exactly what JSON requires and nothing more. Gson additionally
-     * HTML-escapes {@code < > & = '} by default; not doing so is a deliberate
-     * divergence and it is safe here - the only strings HOPPER writes are a UUID,
-     * a username, and filenames that have already been through
-     * {@link Syncer#sanitize}, and the receiver parses JSON rather than HTML.
-     */
     static void write(StringBuilder out, String value) {
         if (value == null) {
             out.append("null");

@@ -6,9 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Imports
 {
-    /// <summary>Every jar this server is still waiting for a human to supply. Per server rather than
-    /// per import on purpose: a pending entry outlives the import that produced it, and the admin
-    /// works through the whole backlog, not one job at a time.</summary>
     public record ListPendingModsQuery(Guid ServerId) : IQuery<IReadOnlyList<PendingModDto>>;
 
     public class ListPendingModsQueryHandler(HopperDbContext db)

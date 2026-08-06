@@ -3,15 +3,6 @@ using HOPPER.Application.Modrinth;
 
 namespace HOPPER.Tests.Modrinth
 {
-    /// <summary>
-    /// Parsing has to survive a response nobody anticipated, which is precisely what a live call will
-    /// never show you: Modrinth add fields without notice, mark almost everything optional, and ship
-    /// values that are not in their own published schema (a real pack in the wild carries env values
-    /// of "unknown", which the spec does not define). A browser that throws on any of that breaks on
-    /// their release schedule rather than ours.
-    ///
-    /// The fixtures below are trimmed from real responses. Nothing here touches the network.
-    /// </summary>
     public class ModrinthParsingTests
     {
         private static T Parse<T>(string json) => JsonSerializer.Deserialize<T>(json, ModrinthJson.Options)!;
@@ -19,7 +10,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Version_RealResponse_ParsesEveryFieldTheInstallerNeeds()
         {
-            // Trimmed from GET /v2/project/jei/version?loaders=["forge"]&game_versions=["1.20.1"].
             const string json = """
             {
               "game_versions": ["1.20.1"],
@@ -74,9 +64,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task VersionFile_NeverCarriesASha256()
         {
-            // The single most consequential fact about this API. Modrinth publish sha1 and sha512 and
-            // nothing else, while Mod.Sha256 is the blob address AND the pinned client wire format's
-            // hash - which is why adding a mod has to download it and hash it a third time.
             const string json = """
             { "hashes": { "sha1": "aa", "sha512": "bb" }, "url": "https://cdn.modrinth.com/x.jar",
               "filename": "x.jar", "primary": true, "size": 1 }
@@ -91,9 +78,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Version_UnknownFieldsAndAnUnknownVersionType_DoNotThrow()
         {
-            // A field they added last week and a version_type outside release|beta|alpha. Neither may
-            // take the browser down; version_type is a string for exactly this reason, and the only
-            // decision made on it is "is this a release".
             const string json = """
             {
               "id": "v1", "project_id": "p1", "version_type": "something-new",
@@ -111,8 +95,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Version_MissingOptionalCollections_ComeBackEmptyRatherThanNull()
         {
-            // Every consumer iterates these. A null here would be a NullReferenceException in the
-            // resolver rather than a mod that happens to declare nothing.
             var version = Parse<ModrinthVersion>("""{ "id": "v1", "project_id": "p1" }""");
 
             await Assert.That(version.Files).IsNotNull().And.IsEmpty();
@@ -144,9 +126,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Dependency_AllFourShapesFoundLive_Parse()
         {
-            // Only dependency_type is required in the published schema, and all three of the other
-            // fields turn up null in practice. Every consumer has to handle pinned, "any version of
-            // this project", and "not identifiable at all".
             const string json = """
             [
               {"version_id": null, "project_id": "nmoqTijg", "file_name": null, "dependency_type": "required"},
@@ -170,8 +149,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task PrimaryFile_NoFileIsMarkedPrimary_TakesTheFirst()
         {
-            // The published rule verbatim: at most one file has primary=true, and if none does, the
-            // first file is the primary one.
             const string json = """
             { "id": "v1", "project_id": "p1", "files": [
                 { "url": "https://x/a.jar", "filename": "a.jar", "primary": false, "size": 1, "hashes": {} },
@@ -187,8 +164,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task PrimaryFile_SkipsFilesWithAFileType()
         {
-            // A non-null file_type marks an extra - a resource pack shipped alongside a datapack - and
-            // is never the mod jar. Handing one to the installer would put a non-jar in mods/.
             const string json = """
             { "id": "v1", "project_id": "p1", "files": [
                 { "url": "https://x/rp.zip", "filename": "rp.zip", "primary": true, "size": 1,
@@ -218,9 +193,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task SearchHit_AndProject_KeepTheirColLidingFieldNamesApart()
         {
-            // The easiest bug in this feature. A HIT says project_id and its "versions" are GAME
-            // versions; a PROJECT says id, its "game_versions" are game versions and its "versions"
-            // are VERSION IDS. Modelling them as one type would silently swap the two lists.
             var hit = Parse<ModrinthHit>("""
             { "project_id": "u6dRKJwZ", "slug": "jei", "title": "JEI",
               "versions": ["1.20.1", "1.21"], "categories": ["forge", "utility"], "follows": 10528 }
@@ -260,8 +232,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task Numbers_ArrivingAsStrings_StillParse()
         {
-            // Cheap insurance. A proxy or a schema change that quotes a size would otherwise take the
-            // whole browser down rather than one field.
             var file = Parse<ModrinthVersionFile>(
                 """{ "url": "https://x/y.jar", "filename": "y.jar", "size": "12432", "hashes": {} }""");
 
@@ -271,9 +241,6 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task LoaderTag_DropsTheInlineSvgIcon()
         {
-            // The tag endpoint returns a full inline SVG per entry, tens of kilobytes of markup across
-            // 29 loaders. It is not modelled, so it is discarded at the parse boundary and never
-            // reaches the dashboard.
             var tag = Parse<ModrinthLoaderTag>("""
             { "icon": "<svg viewBox=\"0 0 24 24\">…very long…</svg>", "name": "forge",
               "supported_project_types": ["mod", "modpack"] }

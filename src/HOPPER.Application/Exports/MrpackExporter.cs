@@ -8,17 +8,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Exports
 {
-    /// <summary>Writes a Modrinth .mrpack.
-    ///
-    /// This is the mirror image of ModrinthPlanner, which reads the same file, and the split it makes
-    /// is the reason provenance exists at all: a mod HOPPER knows the Modrinth origin of becomes a
-    /// files[] entry pointing at the real CDN URL with the hashes Modrinth published, and everything
-    /// else - hand-uploaded, or imported from a pack before provenance was recorded - is written into
-    /// overrides/mods/ as bytes.
-    ///
-    /// The test is HasModrinthProvenance() and NOT Source == Modrinth. A row that says Modrinth but is
-    /// missing its download URL or a hash would otherwise produce a manifest entry with a null URL,
-    /// which is an unusable pack; degrading it to an override is a correct pack either way.</summary>
     public class MrpackExporter(HopperDbContext db, IBlobStorage blobs, IConfiguration configuration)
         : PackExporterBase(db, blobs, configuration), IPackExporter
     {
@@ -43,11 +32,6 @@ namespace HOPPER.Application.Exports
                         WriteBlobEntry(archive, "overrides/mods", mod, warnings);
                 }
 
-                // Deliberately no warning about the bundled pile. A mod without Modrinth provenance
-                // shipping as bytes is the format working as intended, not a problem, and the
-                // dashboard already states the split per format before the download starts. Putting
-                // it in the warnings header too would make every ordinary export raise an alarm and
-                // teach admins to ignore the one message that matters - a blob that has gone missing.
                 return Finish(scratch, FileNameFor(context, "mrpack"), "application/x-modrinth-modpack+zip", warnings);
             }
             catch
@@ -65,9 +49,6 @@ namespace HOPPER.Application.Exports
             Name = context.Server.Name,
             Summary = "Exported from HOPPER",
 
-            // minecraft plus exactly one loader key. Nothing else is ever emitted: an unrecognised key
-            // is a hard failure in the consumers, and the format's authors reserve the right to add
-            // ids, which is a reason to be liberal on import and strict here.
             Dependencies = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["minecraft"] = context.MinecraftVersion,
@@ -76,12 +57,8 @@ namespace HOPPER.Application.Exports
 
             Files = linked.Select(m => new MrpackFile
             {
-                // Always flat. Real packs contain deeper paths and the importer handles them, but
-                // there is no reason to produce one.
                 Path = $"mods/{ModFileNameValidator.Validate(m.FileName)}",
 
-                // The hashes Modrinth published, verbatim, and nothing else. HOPPER's sha256 is not an
-                // algorithm this format knows - it is the blob address and it stays there.
                 Hashes = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["sha1"] = m.Sha1!,

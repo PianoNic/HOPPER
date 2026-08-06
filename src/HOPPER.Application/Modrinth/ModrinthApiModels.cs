@@ -3,14 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace HOPPER.Application.Modrinth
 {
-    /// <summary>How a Modrinth response is read. Lives next to the models rather than inside the
-    /// client so the parsing rules can be asserted directly - the point of them is what happens on a
-    /// response nobody anticipated, which is exactly what a live call will not show you.
-    ///
-    /// Resilient by construction: unknown members are ignored (System.Text.Json's default), a number
-    /// that arrives as a string still parses, and every model supplies a default for what is absent.
-    /// Modrinth add fields without notice and mark most of them optional; a browser that throws on an
-    /// unexpected shape breaks on their schedule rather than ours.</summary>
     public static class ModrinthJson
     {
         public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
@@ -19,19 +11,6 @@ namespace HOPPER.Application.Modrinth
         };
     }
 
-    /// <summary>The raw shapes of the Modrinth v2 API, named after the API rather than after HOPPER.
-    ///
-    /// Every member carries an explicit [JsonPropertyName] because the API is snake_case and these
-    /// names are an external contract, not ours to tidy. Every member also has a default, and every
-    /// collection normalises null to empty on the way in: Modrinth add fields without warning, mark
-    /// most of them optional, and a browser that throws on an unexpected shape would break the moment
-    /// they ship one. Unknown members are ignored by System.Text.Json by default, which is the other
-    /// half of the same rule.
-    ///
-    /// The single easiest bug in this feature is confusing a search hit with a project. A hit says
-    /// project_id and its "versions" are GAME versions; a project says id, its "game_versions" are
-    /// game versions and its "versions" are VERSION IDS. They are modelled separately for that reason
-    /// and are never interchanged.</summary>
     public sealed record ModrinthSearchResponse
     {
         private readonly IReadOnlyList<ModrinthHit> _hits = [];
@@ -69,12 +48,9 @@ namespace HOPPER.Application.Modrinth
         [JsonPropertyName("author")]
         public string? Author { get; init; }
 
-        /// <summary>Loaders are folded in here by the search endpoint - "forge" is a category on a
-        /// hit, not a separate field. Only /project/{id} splits them out.</summary>
         [JsonPropertyName("categories")]
         public IReadOnlyList<string> Categories { get => _categories; init => _categories = value ?? []; }
 
-        /// <summary>Minecraft versions, despite the name. A project's "versions" are version ids.</summary>
         [JsonPropertyName("versions")]
         public IReadOnlyList<string> Versions { get => _versions; init => _versions = value ?? []; }
 
@@ -128,14 +104,12 @@ namespace HOPPER.Application.Modrinth
         [JsonPropertyName("categories")]
         public IReadOnlyList<string> Categories { get => _categories; init => _categories = value ?? []; }
 
-        /// <summary>On a project these are a real, separate field. On a search hit they are not.</summary>
         [JsonPropertyName("loaders")]
         public IReadOnlyList<string> Loaders { get => _loaders; init => _loaders = value ?? []; }
 
         [JsonPropertyName("game_versions")]
         public IReadOnlyList<string> GameVersions { get => _gameVersions; init => _gameVersions = value ?? []; }
 
-        /// <summary>Version IDS, not Minecraft versions.</summary>
         [JsonPropertyName("versions")]
         public IReadOnlyList<string> Versions { get => _versions; init => _versions = value ?? []; }
 
@@ -183,8 +157,6 @@ namespace HOPPER.Application.Modrinth
         [JsonPropertyName("version_number")]
         public string? VersionNumber { get; init; }
 
-        /// <summary>release | beta | alpha. Kept as a string rather than an enum: an unknown value
-        /// must not fail deserialisation, and the only decision made on it is "is this a release".</summary>
         [JsonPropertyName("version_type")]
         public string? VersionType { get; init; }
 
@@ -212,8 +184,6 @@ namespace HOPPER.Application.Modrinth
         [JsonPropertyName("dependencies")]
         public IReadOnlyList<ModrinthDependency> Dependencies { get => _dependencies; init => _dependencies = value ?? []; }
 
-        /// <summary>Only ever populated by the single-version endpoint. The list endpoint is always
-        /// asked with include_changelog=false, which is a 35% smaller response on a narrow query.</summary>
         [JsonPropertyName("changelog")]
         public string? Changelog { get; init; }
     }
@@ -222,9 +192,6 @@ namespace HOPPER.Application.Modrinth
     {
         private readonly IReadOnlyDictionary<string, string> _hashes = new Dictionary<string, string>();
 
-        /// <summary>Modrinth publish exactly sha1 and sha512, and NEVER sha256. That single fact is
-        /// why a mod added from the browser has to be downloaded and hashed server-side: sha256 is the
-        /// blob address and the pinned wire format's hash, and no upstream will ever hand it over.</summary>
         [JsonPropertyName("hashes")]
         public IReadOnlyDictionary<string, string> Hashes
         {
@@ -244,8 +211,6 @@ namespace HOPPER.Application.Modrinth
         [JsonPropertyName("size")]
         public long Size { get; init; }
 
-        /// <summary>Non-null marks an extra - a resource pack shipped alongside a datapack, say - and
-        /// never the mod jar itself.</summary>
         [JsonPropertyName("file_type")]
         public string? FileType { get; init; }
 
@@ -254,9 +219,6 @@ namespace HOPPER.Application.Modrinth
         public string? Sha512 => Hashes.TryGetValue("sha512", out var value) ? value : null;
     }
 
-    /// <summary>The only REQUIRED member is dependency_type. version_id, project_id and file_name are
-    /// all nullable in the published schema and all three shapes turn up live, so every consumer has
-    /// to handle "pinned", "any version of this project" and "not identifiable at all".</summary>
     public sealed record ModrinthDependency
     {
         [JsonPropertyName("version_id")]
@@ -272,7 +234,6 @@ namespace HOPPER.Application.Modrinth
         public string? DependencyType { get; init; }
     }
 
-    /// <summary>One entry of GET /tag/game_version.</summary>
     public sealed record ModrinthGameVersionTag
     {
         [JsonPropertyName("version")]
@@ -285,9 +246,6 @@ namespace HOPPER.Application.Modrinth
         public bool Major { get; init; }
     }
 
-    /// <summary>One entry of GET /tag/loader. The API also returns an "icon" holding a full inline
-    /// SVG per entry; it is deliberately not modelled, so it is dropped at the parse boundary and
-    /// never reaches the dashboard.</summary>
     public sealed record ModrinthLoaderTag
     {
         private readonly IReadOnlyList<string> _supportedProjectTypes = [];
@@ -303,17 +261,12 @@ namespace HOPPER.Application.Modrinth
         }
     }
 
-    /// <summary>Both tag lists in one object, because the browser needs both to populate its filters
-    /// and they are effectively static.</summary>
     public sealed record ModrinthTags(
         IReadOnlyList<ModrinthLoaderTag> Loaders,
         IReadOnlyList<ModrinthGameVersionTag> GameVersions);
 
     public static class ModrinthVersionExtensions
     {
-        /// <summary>The jar. The published rule is that at most one file carries primary=true and that
-        /// when none does, the first file is the primary one. Files with a non-null file_type are
-        /// extras and are never the mod jar, so they are excluded before that rule is applied.</summary>
         public static ModrinthVersionFile? PrimaryFile(this ModrinthVersion version)
         {
             var candidates = version.Files.Where(f => f.FileType is null).ToList();

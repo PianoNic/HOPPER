@@ -170,8 +170,6 @@ export class ServerOverview {
   private load(id: string): void {
     this.loading.set(true);
 
-    // One moment for all three: a mod uploaded between two calls would otherwise show up as
-    // missing on every client for as long as the page is open.
     forkJoin({
       server: this.serversApi.apiServersIdGet(id),
       mods: this.modsApi.apiServersIdModsGet(id),
@@ -195,8 +193,7 @@ export class ServerOverview {
     if (!server) return;
 
     this.building.set(true);
-    // Declared FileResult, delivered Blob: the generated method runs with responseType 'blob'
-    // because application/java-archive is neither a text nor a JSON mime.
+
     this.serversApi.apiServersIdJarGet(server.id).subscribe({
       next: (jar) => {
         downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);

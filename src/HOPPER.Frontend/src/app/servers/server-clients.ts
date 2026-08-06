@@ -193,8 +193,6 @@ export class ServerClients {
   protected readonly loading = signal(false);
   protected readonly filter = signal('');
 
-  // The clock the relative "last seen" labels read. Ticked with the poll so the labels age
-  // visibly under OnPush instead of freezing at whatever they said on first render.
   private readonly now = signal(Date.now());
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
@@ -226,9 +224,6 @@ export class ServerClients {
   });
 
   constructor() {
-    // The name only changes on a rename, so it is fetched when the route's server changes rather
-    // than on every poll - three requests every ten seconds to redraw one unchanged heading is
-    // load nobody asked for.
     effect(() => {
       const id = this.serverId();
       if (id === '') return;
@@ -239,8 +234,6 @@ export class ServerClients {
       this.load(id, false);
     });
 
-    // Reports arrive whenever someone launches the game, so poll on a light cadence. Silent
-    // reloads keep the Refresh button from flickering under the user.
     interval(POLL_MS)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -269,8 +262,6 @@ export class ServerClients {
   private load(id: string, silent: boolean): void {
     if (!silent) this.loading.set(true);
 
-    // Both halves of the diff have to come from the same moment, otherwise a mod uploaded between
-    // the two calls shows up as "missing" on every client for one poll.
     forkJoin({
       clients: this.clientsApi.apiServersIdClientsGet(id),
       mods: this.modsApi.apiServersIdModsGet(id),

@@ -1,20 +1,6 @@
-# Dev infrastructure only - the API and the dashboard run on the host in this setup
-# (`dotnet run --project src/HOPPER.API` on :5170, `bun start` on :4200).
-#
-# Starts the two things HOPPER cannot run as plain files: Postgres and an IdP. Blobs stay a
-# directory on the host.
-#
-# The matching Oidc:* / Cors:AllowedOrigins values are checked into
-# src/HOPPER.API/appsettings.Development.json, so `docker compose -f compose.dev.yml up -d`
-# plus `dotnet run` plus `bun start` is the whole setup.
-#
-# Its own project name: without one, Compose derives it from the directory and both files land in
-# the same project, so bringing the bundled stack up or down would silently take the dev IdP with it.
 name: hopper-dev
 
 services:
-  # Port 5433, not 5432, so this never collides with a Postgres already running on the host.
-  # DatabaseExtensions' built-in default points here, so `dotnet run` needs no configuration.
   db:
     image: postgres:18.3
     container_name: hopper-postgres-dev
@@ -26,10 +12,6 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      # /var/lib/postgresql, not /var/lib/postgresql/data. The 18+ images store the cluster in a
-      # major-version-specific subdirectory and refuse to start when the old path is mounted
-      # directly - they exit with "there appears to be PostgreSQL data in /var/lib/postgresql/data
-      # (unused mount/volume)" and the container restart-loops with nothing listening on 5433.
       - hopper-db-dev:/var/lib/postgresql
 
   idp:

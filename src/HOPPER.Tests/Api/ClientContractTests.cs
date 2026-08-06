@@ -12,20 +12,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HOPPER.Tests.Api
 {
-    /// <summary>
-    /// The three endpoints the shipped Forge locator talks to, exercised over HTTP through the real
-    /// pipeline: model binding, the serializer options the app actually runs with, and the exception
-    /// middleware. The unit tests in Wire/ pin the DTOs; these pin what comes out of the socket.
-    /// </summary>
     public class ClientContractTests
     {
         private static readonly byte[] JarBytes = Encoding.UTF8.GetBytes("PK pretend forge jar payload");
         private static readonly string JarSha = Convert.ToHexStringLower(SHA256.HashData(JarBytes));
 
-        /// <summary>Puts a jar in the mod set. The admin HTTP endpoint is OIDC-gated and this suite
-        /// has no IdP, so the seed goes through the same command handler that endpoint calls, against
-        /// the running host's own services - the blob store and database the client endpoints then
-        /// read from are the ones under test.</summary>
         private static async Task SeedJarAsync(string fileName)
         {
             var serverId = HopperApi.ServerAId;
@@ -75,9 +66,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task Manifest_OverHttp_CarriesModIdsForARealJar()
         {
-            // The other half of the contract: the entry above carries four fields because its
-            // payload is not a zip, and this one carries five because it is a real jar with a real
-            // META-INF/mods.toml. The four originals are unchanged in both.
             var jar = ForgeJarBytes("contractmod");
             await SeedBytesAsync("contract-modid.jar", jar);
             using var http = HopperApi.AsGameClient();
@@ -135,8 +123,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task Manifest_Url_IsAbsoluteAndFollowsForwardedHeaders()
         {
-            // Clients dial this URL from another machine, so a relative or internal one is useless.
-            // UseForwardedHeaders runs first precisely so a reverse proxy's scheme and host win.
             await SeedJarAsync("forwarded-check.jar");
             using var http = HopperApi.AsGameClient();
 
@@ -162,8 +148,7 @@ namespace HOPPER.Tests.Api
 
             await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
             await Assert.That(bytes).IsEquivalentTo(JarBytes);
-            // The client re-hashes what it downloaded and discards a mismatch, so this round trip is
-            // what decides whether a sync can ever converge.
+
             await Assert.That(Convert.ToHexStringLower(SHA256.HashData(bytes))).IsEqualTo(JarSha);
         }
 
@@ -192,8 +177,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task Report_WithNullUsername_Is204AndTheClientIsRecorded()
         {
-            // The exact body Syncer.report() sends on a dedicated server. This used to be a 400 from
-            // model binding, which Syncer swallowed - the client never appeared and nothing said so.
             using var http = HopperApi.AsGameClient();
             var clientId = "e2e-null-" + Guid.NewGuid().ToString("N");
 
@@ -228,7 +211,6 @@ namespace HOPPER.Tests.Api
         [Test]
         public async Task Report_WithoutTheUsernameProperty_Is400()
         {
-            // Nullable but still required: the shipped client always sends the property.
             using var http = HopperApi.AsGameClient();
 
             var response = await http.PostAsync("/api/clients/report", new StringContent(

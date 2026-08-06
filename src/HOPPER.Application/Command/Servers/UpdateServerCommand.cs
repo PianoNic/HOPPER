@@ -7,13 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Command.Servers
 {
-    /// <summary>Renaming is free; re-slugging changes the filename of every jar downloaded from here
-    /// afterwards, but not the ones already on disk - the slug is a label, never an identifier
-    /// anything resolves by. The token is untouched, so existing clients keep working.
-    ///
-    /// The platform fields are all optional and all nullable. Leaving them unset keeps the server
-    /// exactly as it behaved before the browser existed - it simply cannot browse or export until
-    /// they are filled in, and both of those say so.</summary>
     public record UpdateServerCommand(
         Guid Id,
         string Name,
@@ -47,9 +40,6 @@ namespace HOPPER.Application.Command.Servers
             server.Name = name;
             server.Slug = slug;
 
-            // Normalised, never rejected for being absent. A server with no platform set is the
-            // pre-browser default and stays perfectly usable - it simply cannot browse or export,
-            // and both of those say which field is missing.
             server.MinecraftVersion = ServerPlatform.NormaliseVersion(command.MinecraftVersion, "Minecraft version");
             server.Loader = command.Loader;
             server.LoaderVersion = ServerPlatform.NormaliseVersion(command.LoaderVersion, "Loader version");

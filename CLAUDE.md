@@ -119,6 +119,24 @@ The API migrates at boot, so `dotnet ef database update` is never needed.
   loader means a module, an entry in that task, and an arm in `LocatorTemplates.For` - nothing else.
 - **Gradle 8.14.3 will not run on JDK 25.** It fails with "Unsupported class file major version 69".
   Build the locator on JDK 21 or 24; the Dockerfile pins `eclipse-temurin:21-jdk` for this reason.
+- **`LocatorJarBuilder` rewrites the jar; it must never use `ZipArchiveMode.Update`.** The JDK's
+  `jar` tool writes entries with general-purpose bit 3 set, putting sizes in trailing data
+  descriptors. .NET's updater drops those but does not subtract them from the central directory, so
+  every entry after the first compressed one is recorded 16 bytes off. .NET still reads it;
+  `java.util.zip` answers "invalid LOC header" and Forge silently skips the jar.
+  `LocatorJarBuilderTests` pins the byte-level invariant.
+- **`MapInboundClaims = false` in `AuthExtensions` is load-bearing.** The default map rewrites
+  `roles` to the WS-* role URI before `RoleClaimType` is matched, so with it on, a token carrying
+  `hopper-admin` fails the policy and every admin request 403s with the claim visible in the token.
+- **Compose interpolation, not literals, in `compose.yml`.** An inline `environment:` value outranks
+  `env_file`, so a literal silently beats the operator's `.env`. Every value is `${VAR:-default}`.
+  Unset variables arrive as empty strings, not absent keys, so config reads treat blank as unset.
+- **Postgres 18+ mounts at `/var/lib/postgresql`,** not `/var/lib/postgresql/data`. The wrong path
+  restart-loops with nothing ever listening.
+- **`.gitattributes` pins `gradlew` to LF.** Under `core.autocrlf` a CRLF shebang makes the Docker
+  locator stage fail with `./gradlew: not found`.
+- **Comments:** keep them to an absolute minimum in every language. Prefer naming and structure. The
+  bullets above exist so the code does not have to carry them.
 
 ## Before you claim it works
 

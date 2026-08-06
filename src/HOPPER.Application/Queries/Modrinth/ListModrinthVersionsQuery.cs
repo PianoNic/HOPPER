@@ -7,12 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Modrinth
 {
-    /// <summary>The version picker's list, newest first.
-    ///
-    /// Loader and game version go to the API as the separate loaders= and game_versions= parameters,
-    /// NOT as search facets - two endpoints, two vocabularies. Both are JSON-array encoded inside the
-    /// client, because a bare string there is silently ignored and the whole list comes back
-    /// unfiltered rather than as an error.</summary>
     public record ListModrinthVersionsQuery(
         Guid? ServerId,
         string IdOrSlug,
@@ -25,8 +19,6 @@ namespace HOPPER.Application.Queries.Modrinth
         public async ValueTask<IReadOnlyList<ModrinthVersionDto>> Handle(
             ListModrinthVersionsQuery query, CancellationToken cancellationToken)
         {
-            // include_changelog: false always. The list is 35% smaller without them on a narrow query
-            // and the changelog is only ever read for the one version being inspected.
             var versions = await modrinth.ListVersionsAsync(
                 query.IdOrSlug, query.Loader, query.GameVersion, includeChangelog: false, cancellationToken);
 
