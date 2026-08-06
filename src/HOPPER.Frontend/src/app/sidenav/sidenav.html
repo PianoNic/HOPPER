@@ -95,14 +95,10 @@
                     <span>{{ item.label }}</span>
                   </a>
                 } @else {
-                  <span
-                    hlmSidebarMenuButton
-                    aria-disabled="true"
-                    class="!w-56 mx-auto cursor-not-allowed opacity-50"
-                  >
+                  <button hlmSidebarMenuButton disabled type="button" class="!w-56 mx-auto">
                     <ng-icon [name]="item.icon" />
                     <span>{{ item.label }}</span>
-                  </span>
+                  </button>
                 }
               </li>
             }

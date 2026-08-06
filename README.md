@@ -1,140 +1,56 @@
-# <p align="center">HOPPER</p>
 <p align="center">
-  <img src="./assets/hopper-icon.svg" width="200" alt="HOPPER Logo">
+  <img src="assets/hopper-icon.svg" width="180" alt="HOPPER Logo" />
 </p>
 <p align="center">
-  <strong>One list on the server. Every client in sync, before the game starts.</strong>
+  <strong>HOPPER</strong><br/>
+  One list on the server. Every client in sync, before the game starts.
 </p>
 <p align="center">
-  <a href="https://github.com/PianoNic/HOPPER"><img src="https://badgetrack.pianonic.ch/badge?tag=hopper&label=visits&color=0b1220&style=flat" alt="visits"/></a>
-  <a href="https://github.com/PianoNic/HOPPER/releases"><img src="https://img.shields.io/github/v/release/PianoNic/HOPPER?include_prereleases&color=0b1220&label=Latest%20Release"/></a>
-  <a href="#-docker--container-registry-usage"><img src="https://img.shields.io/badge/Selfhost-Instructions-0b1220.svg"/></a>
-  <a href="./docs/how-it-works.md"><img src="https://img.shields.io/badge/Documentation-Docs-0b1220.svg"/></a>
+  <a href="https://github.com/PianoNic/HOPPER"><img src="https://badgetrack.pianonic.ch/badge?tag=hopper&label=visits&color=0b1220&style=flat" alt="visits" /></a>
+  <a href="docs/self-host.md"><img src="https://img.shields.io/badge/Self--Host-Instructions-0b1220.svg" alt="Self-hosting" /></a>
+  <img src="https://img.shields.io/badge/Forge-1.20.1-0b1220.svg" alt="Forge 1.20.1" />
+  <img src="https://img.shields.io/badge/.NET-10-0b1220.svg" alt=".NET 10" />
+  <img src="https://img.shields.io/badge/Angular-21-0b1220.svg" alt="Angular 21" />
 </p>
 
-> [!WARNING]
-> HOPPER is in early development. Expect rough edges and breaking changes between versions.
+---
 
-> [!IMPORTANT]
-> This project is **NOT** affiliated with, endorsed by, or connected to Mojang, Microsoft, CurseForge or Modrinth in any way.
+> **Heads up:** HOPPER is in early development. Expect rough edges and breaking changes between versions.
 
-## ⚙️ About The Project
-HOPPER keeps every player's mods in sync with one list you control on the server. Your friends install a single jar once, and from then on adding a mod is an upload. No zip files in Discord, no "did you update yet?", and no restart: the mods land in the same launch they were downloaded in.
+## What is HOPPER?
 
-It works under Prism, CurseForge and the vanilla launcher alike, because the one thing every launcher has in common is that it loads `mods/`.
+HOPPER keeps every player's mods in sync with one list you control on the server. Add a mod in the dashboard, and it is on every client the next time they launch - no zip files in Discord, no "did you update yet?", and no restart. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
 
-## ✨ Features
-- **No restart**: mods are downloaded before Forge scans for them, so they load in the same launch.
+## Features
+
+- **No restart**: mods are downloaded before Forge scans for them, so they load in the same launch. See [how it works](docs/how-it-works.md).
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.
-- **Multiple servers**: each with its own mod list, token and jar. A client only sees its own.
+- **Multiple servers**: each with its own mod list, token and jar; a client only ever sees its own.
 - **Pack import**: Modrinth `.mrpack`, CurseForge and Prism exports, by file or by URL.
 - **Verified downloads**: every jar is checked against its SHA-256 before it is installed.
 - **Never blocks the launch**: offline or server down, the game starts on the last good set.
+- **OIDC auth**: bring your own provider or use the bundled Keycloak-compatible mock.
 
-## 🛠️ Compatibility
-Tested on:
-- Forge 1.20.1
+## Get started
 
-Other Forge generations need their own locator build. See [docs/how-it-works.md](./docs/how-it-works.md).
+- 📦 **[Self-hosting guide](docs/self-host.md)** - run the image with `docker compose`.
+- 🛠️ **[Developer setup](docs/dev-setup.md)** - local dev with `dotnet run` + Bun, migrations, tests.
+- 🧩 **[How it works](docs/how-it-works.md)** - the locator, the generated jar, and version coverage.
 
-## 🐳 Docker & Container Registry Usage
+<details>
+<summary><strong>Tech stack</strong></summary>
 
-### Option 1: Run with Docker Compose (Recommended)
-**1. Create a `compose.yml` file:**
-```yaml
-services:
-  db:
-    image: postgres:18.3
-    environment:
-      POSTGRES_DB: hopper
-      POSTGRES_USER: hopper
-      POSTGRES_PASSWORD: hopper
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hopper -d hopper"]
-      interval: 5s
-      retries: 10
-    volumes:
-      - hopper-db:/var/lib/postgresql
-    restart: unless-stopped
+- **.NET 10** ASP.NET Core API (Mediator, EF Core, Clean Architecture).
+- **Angular 21** + Signals + Spartan UI.
+- **PostgreSQL** via Npgsql; **Testcontainers** so tests run on the engine that ships.
+- **Java 17** Forge mod locator, built with Gradle and patched per server as a plain zip.
+- **TUnit** + **vitest** for tests; **OpenAPI** client via `bun run apigen`.
 
-  hopper:
-    image: ghcr.io/pianonic/hopper:latest
-    ports:
-      - "58722:8080"
-    environment:
-      ConnectionStrings__HopperDatabase: "Host=db;Port=5432;Database=hopper;Username=hopper;Password=hopper"
-      Hopper__BootstrapClientToken: "change-me"
-      Oidc__Authority: "https://id.example.com/realms/hopper"
-      Oidc__ClientId: hopper
-    env_file:
-      - path: .env
-        required: false
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - hopper-data:/data
-    restart: unless-stopped
+</details>
 
-volumes:
-  hopper-data:
-  hopper-db:
-```
+## License
 
-**2. Start it:**
-```bash
-docker compose up -d
-```
-
-The dashboard is live at [http://localhost:58722](http://localhost:58722).
-
-### Option 2: Clone and build
-The repo ships a `compose.yml` with a throwaway IdP included, so a fresh checkout logs in without standing up Keycloak first:
-```bash
-git clone https://github.com/PianoNic/HOPPER.git
-cd HOPPER
-docker compose up -d --build
-```
-
-## 📦 Install a client
-1. Open a server in the dashboard and hit **Download client jar**.
-2. Drop `<slug>-hopper.jar` into the player's `mods/` folder.
-3. Launch.
-
-There is no step 4. The jar carries its server's id, manifest URL and token, so the player configures nothing.
-
-## ⚙️ Configuration
-| Variable | Default | Description |
-| --- | --- | --- |
-| `ConnectionStrings__HopperDatabase` | compose `db` service | Postgres connection string. HOPPER is Postgres-only. |
-| `Blobs__Directory` | `/data/blobs` | Content-addressed jar store, shared across servers. |
-| `Hopper__PublicBaseUrl` | derived from the request | Host written into every manifest URL. Leave unset behind a proxy sending `X-Forwarded-*`. |
-| `Hopper__BootstrapClientToken` | `change-me` | Token of the `Default` server created on an empty database. |
-| `Oidc__Authority` | bundled mock IdP | OIDC issuer for admin access. |
-| `CurseForge__ApiKey` | *(unset)* | Optional. Without it, CurseForge imports list unresolvable mods for manual upload. |
-
-`.env.example` documents every setting.
-
-## 🚀 Development
-```bash
-docker compose -f compose.dev.yml up -d             # Postgres + IdP
-dotnet run --project src/HOPPER.API                 # API on :5170
-cd src/HOPPER.Frontend && bun install && bun start  # dashboard on :4200
-```
-
-```bash
-dotnet test                                      # needs Docker (Testcontainers)
-cd src/HOPPER.Frontend && bun run test
-```
-
-## 🧰 Tech Stack
-- .NET 10 + ASP.NET Core (Mediator, EF Core, Clean Architecture)
-- Angular 21 + Signals + Spartan UI
-- PostgreSQL via Npgsql, Testcontainers for tests
-- Java 17 Forge mod locator, built with Gradle
-
-## 📄 License
 TBD.
 
 ---
