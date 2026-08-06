@@ -43,7 +43,7 @@ public final class HopperNeoLocator implements IModFileCandidateLocator {
 
     @Override
     public void findCandidates(ILaunchContext context, IDiscoveryPipeline pipeline) {
-        Hopper.Result result = Hopper.run(gameDir(), username(), LOG, null);
+        Hopper.Result result = Hopper.run(gameDir(), LaunchArgs.username(), LOG, null);
 
         warnAboutSurvivors(result);
 
@@ -83,15 +83,6 @@ public final class HopperNeoLocator implements IModFileCandidateLocator {
         return Paths.get(".");
     }
 
-    private static String username() {
-        String[] launch = System.getProperty("sun.java.command", "").split(" ");
-        for (int i = 0; i + 1 < launch.length; i++) {
-            if ("--username".equals(launch[i]) && !launch[i + 1].trim().isEmpty()) {
-                return launch[i + 1];
-            }
-        }
-        return null;
-    }
 
     @Override
     public String toString() {

@@ -102,13 +102,7 @@ public final class HopperLocator1182 implements IModLocator {
         if (arguments != null && arguments.get("username") instanceof String s && !s.isBlank()) {
             return s;
         }
-        String[] launch = System.getProperty("sun.java.command", "").split(" ");
-        for (int i = 0; i + 1 < launch.length; i++) {
-            if ("--username".equals(launch[i]) && !launch[i + 1].isBlank()) {
-                return launch[i + 1];
-            }
-        }
-        return null;
+        return LaunchArgs.username();
     }
 
     private static <T> Optional<T> env(Supplier<TypesafeMap.Key<T>> key) {
