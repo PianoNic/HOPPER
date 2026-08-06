@@ -28,7 +28,11 @@ namespace HOPPER.Application.Queries.Jar
             return new LocatorJarDto
             {
                 FileName = $"{server.Slug}-hopper.jar",
-                Content = builder.Build(server.Id, manifestUrl, server.Token),
+
+                // The loader and Minecraft version pick which adapter is copied. A loader resolves one
+                // jar out of mods/ and ignores every other, so this is the difference between a client
+                // that syncs and a file that sits there.
+                Content = builder.Build(server.Id, manifestUrl, server.Token, server.Loader, server.MinecraftVersion),
             };
         }
     }

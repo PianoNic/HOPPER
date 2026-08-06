@@ -11,6 +11,7 @@ using HOPPER.Application.Queries.Imports;
 using HOPPER.Application.Command.Imports;
 using HOPPER.Infrastructure.Extensions;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
@@ -231,6 +232,14 @@ app.Use(async (context, next) =>
     catch (LocatorTemplateMissingException ex) when (!context.Response.HasStarted)
     {
         context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    // 400, not 503: a server with no loader set is a row the admin has not finished, and no
+    // deployment change would produce a jar for it. Same reasoning as
+    // ServerPlatformNotConfiguredException above, which covers the browse and export paths.
+    catch (LocatorLoaderNotConfiguredException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
         await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
     catch (ArgumentException ex) when (!context.Response.HasStarted)

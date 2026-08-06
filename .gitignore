@@ -24,8 +24,13 @@ dist/
 *.tsbuildinfo
 
 # ---- locator (Gradle) ----
+# Both, and both are needed. The root project compiles nothing, so the per-module line is the one
+# that matters for class files and jars - a root-only ignore matched nothing, which is how eight
+# modules' worth of build output came to be tracked. The root line still earns its place because the
+# `templates` task collects the shipped adapters into build/templates.
 src/HOPPER.Locator/.gradle/
 src/HOPPER.Locator/build/
+src/HOPPER.Locator/*/build/
 
 # ---- editors / OS ----
 .idea/

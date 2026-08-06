@@ -1,28 +1,31 @@
 using System.IO.Compression;
 using System.Text;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure.Interfaces;
 using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Infrastructure.Services
 {
     /// <summary>Copies the template jar and writes one entry into the copy. That entry is what makes a
-    /// downloaded jar work with zero configuration: HopperLocator reads /hopper-server.properties out
+    /// downloaded jar work with zero configuration: the adapter reads /hopper-server.properties out
     /// of its own classpath before it looks at config/hopper.properties, so the URL and token travel
-    /// inside the file the player drops in mods/.</summary>
+    /// inside the file the player drops in mods/.
+    ///
+    /// Which template is copied is decided by LocatorTemplates from the server's loader and Minecraft
+    /// version. Everything below is loader-agnostic: the only loader-specific value here is the marker
+    /// entry that comes back from that table.</summary>
     public class LocatorJarBuilder(IConfiguration configuration) : ILocatorJarBuilder
     {
         /// <summary>Archive-root entry name, no leading slash. The Java side reads it as
         /// getResourceAsStream("/hopper-server.properties"), which resolves to exactly this.</summary>
         public const string ConfigEntry = "hopper-server.properties";
 
-        /// <summary>A jar without this entry does not register the locator with Forge, so it would
-        /// install cleanly and then do nothing at all. Cheapest possible check that the configured
-        /// path really is a HOPPER locator and not some other jar that happens to be lying there.</summary>
-        private const string ServiceEntry = "META-INF/services/net.minecraftforge.forgespi.locating.IModLocator";
-
-        public byte[] Build(Guid serverId, string manifestUrl, string token)
+        public byte[] Build(Guid serverId, string manifestUrl, string token, ModLoader loader, string? minecraftVersion)
         {
-            var template = ResolveTemplatePath();
+            // Throws LocatorLoaderNotConfiguredException on Unknown, before anything touches the disk:
+            // a server the admin has not finished describing is a 400, not a deployment problem.
+            var selected = LocatorTemplates.For(loader, minecraftVersion);
+            var template = Path.Combine(ResolveTemplateDirectory(), selected.FileName);
 
             if (!File.Exists(template))
                 throw new LocatorTemplateMissingException(template);
@@ -36,8 +39,12 @@ namespace HOPPER.Infrastructure.Services
             {
                 using var source = ZipFile.OpenRead(template);
 
-                if (source.GetEntry(ServiceEntry) is null)
-                    throw new LocatorTemplateMissingException(template, "is not a HOPPER locator jar");
+                // A jar without this entry does not register with the loader, so it would install
+                // cleanly and then do nothing at all. Cheapest possible check that the file really is
+                // the HOPPER adapter for THIS loader and not another adapter, or some other jar that
+                // happens to be lying in the directory.
+                if (source.GetEntry(selected.MarkerEntry) is null)
+                    throw new LocatorTemplateMissingException(template, $"is not the HOPPER {loader} locator jar");
 
                 // REWRITTEN, not updated in place, and this is not a style choice.
                 //
@@ -110,15 +117,15 @@ namespace HOPPER.Infrastructure.Services
             return buffer.ToArray();
         }
 
-        private string ResolveTemplatePath()
+        private string ResolveTemplateDirectory()
         {
-            var configured = configuration["Hopper:LocatorTemplatePath"];
+            var configured = configuration["Hopper:LocatorTemplateDirectory"];
 
             // Relative to the process, not to the caller's working directory: the same configured
             // value has to resolve identically whether HOPPER was started by `dotnet run`, by systemd
             // or by Docker's entrypoint.
             return string.IsNullOrWhiteSpace(configured)
-                ? Path.Combine(AppContext.BaseDirectory, "locator", "hopper.jar")
+                ? Path.Combine(AppContext.BaseDirectory, "locator")
                 : Path.GetFullPath(configured, AppContext.BaseDirectory);
         }
     }
