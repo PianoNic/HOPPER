@@ -1,5 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="14" fill="#0B1220" />
-  <path d="M10 14H54L37 32V42H27V32L10 14Z" fill="#E5E7EB" />
-  <circle cx="32" cy="51" r="5" fill="#38BDF8" />
+  <rect width="64" height="64" rx="14" fill="#0B1220"/>
+  <!-- Isometric hopper: boxes and proportions taken from block/hopper.json,
+       projected at 30deg. Three flat face shades, no gradient. -->
+  <polygon points="32.00,40.30 37.75,43.62 32.00,46.94 26.25,43.62" fill="#EDF1F6"/>
+  <polygon points="37.75,50.26 37.75,43.62 32.00,46.94 32.00,53.58" fill="#7C8798"/>
+  <polygon points="26.25,50.26 26.25,43.62 32.00,46.94 32.00,53.58" fill="#AEB8C7"/>
+  <polygon points="32.00,27.02 43.50,33.66 32.00,40.30 20.50,33.66" fill="#EDF1F6"/>
+  <polygon points="43.50,43.62 43.50,33.66 32.00,40.30 32.00,50.26" fill="#7C8798"/>
+  <polygon points="20.50,43.62 20.50,33.66 32.00,40.30 32.00,50.26" fill="#AEB8C7"/>
+  <polygon points="32.00,10.42 55.00,23.70 32.00,36.98 9.00,23.70" fill="#EDF1F6"/>
+  <polygon points="55.00,33.66 55.00,23.70 32.00,36.98 32.00,46.94" fill="#7C8798"/>
+  <polygon points="9.00,33.66 9.00,23.70 32.00,36.98 32.00,46.94" fill="#AEB8C7"/>
+  <polygon points="32.00,13.74 49.25,23.70 32.00,33.66 14.75,23.70" fill="#0B1220"/>
 </svg>

@@ -6,7 +6,7 @@ namespace HOPPER.Tests.Wire
     /// <summary>
     /// The manifest is a fixed, already-shipped contract: a jar sitting in players' mods folders
     /// parses it with Gson, keyed on the literal strings "mods", "file", "url", "sha256" and "size".
-    /// Those clients cannot be redeployed, so a rename here is not a compile error anywhere — it is
+    /// Those clients cannot be redeployed, so a rename here is not a compile error anywhere - it is
     /// a silent, permanent break in the field. These tests assert on raw JSON text rather than on a
     /// round-trip, because a round-trip through the same DTO would agree with itself no matter what
     /// the names became.

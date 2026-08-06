@@ -34,6 +34,24 @@ COPY src .
 COPY application.properties /src/application.properties
 RUN dotnet publish "HOPPER.API/HOPPER.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
+# ---------- Stage 3b: the Forge locator template jar ----------
+# GET /api/servers/{id}/jar serves per-server copies of this jar, so a deployed HOPPER cannot hand
+# out a client without it. Built here rather than committed as a binary, so the jar always matches
+# the locator sources in this repo.
+#
+# BUILDPLATFORM again: the output is Java bytecode built with --release 17, identical on every arch.
+# The Gradle wrapper pins its own version and checksum, so this stage needs only a JDK.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS locator-build
+WORKDIR /src/locator
+COPY locator/gradle ./gradle
+COPY locator/gradlew locator/settings.gradle locator/build.gradle ./
+# Warm the wrapper and dependency cache in its own layer, so editing a .java file does not re-download
+# Gradle itself on every build.
+RUN chmod +x ./gradlew && ./gradlew --no-daemon --version
+COPY locator/src ./src
+RUN ./gradlew --no-daemon build \
+    && cp build/libs/hopper-*.jar /artifacts-locator.jar
+
 # ---------- Stage 4: runtime ----------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.8-azurelinux3.0 AS final
 WORKDIR /app
@@ -45,7 +63,12 @@ ENV ASPNETCORE_URLS=http://+:8080 ASPNETCORE_ENVIRONMENT=Production
 # at a dev host, which is not something a container should quietly reach for. compose.yml sets it.
 ENV Blobs__Directory=/data/blobs
 
+# The template the jar endpoint patches per server. Baked in rather than mounted, so the jar handed
+# to players always matches the API serving it.
+ENV Hopper__LocatorTemplatePath=/app/locator/hopper-template.jar
+
 COPY --from=backend-build /app/publish .
+COPY --from=locator-build /artifacts-locator.jar ./locator/hopper-template.jar
 
 # This is what makes environment.prod.ts's `apiBaseUrl: window.location.origin` true: the built SPA
 # is served by the API itself out of wwwroot (Program.cs: UseSpaStaticFiles + MapFallbackToFile),

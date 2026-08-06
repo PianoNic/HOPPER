@@ -8,6 +8,13 @@
 
   <ItemGroup>
     <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+    <!-- The pack importer lives here rather than in Infrastructure because it is the layer that
+         already owns "how a jar becomes a Mod row" - ModFileNameValidator and the duplicate rule are
+         both here, and duplicating them across the boundary is how the two would drift. These three
+         are what a background worker needs: a typed HTTP client, BackgroundService, and a logger. -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>

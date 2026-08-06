@@ -7,13 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ProblemDetailsStatus } from './problemDetailsStatus';
+import { PendingModDtoProjectId } from './pendingModDtoProjectId';
 
 
 export interface ProblemDetails { 
     type?: string | null;
     title?: string | null;
-    status?: ProblemDetailsStatus | null;
+    status?: PendingModDtoProjectId | null;
     detail?: string | null;
     instance?: string | null;
 }

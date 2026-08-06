@@ -30,7 +30,7 @@ import java.util.function.Consumer;
  * missing or wrong, delete what is no longer listed.
  *
  * <p>Runs before FML has opened a single mod jar, so files here can be replaced
- * and deleted freely — including on Windows.
+ * and deleted freely - including on Windows.
  */
 final class Syncer {
 
@@ -114,7 +114,7 @@ final class Syncer {
      */
     void report(String username) {
         try {
-            String body = GSON.toJson(new Report(clientId(), username, List.copyOf(installed)));
+            String body = reportBody(clientId(), username, List.copyOf(installed));
 
             HttpRequest req = request(reportUrl(manifestUrl))
                     .timeout(Duration.ofSeconds(10))
@@ -134,6 +134,19 @@ final class Syncer {
         } catch (Exception e) {
             LOG.warn("[HOPPER] could not report to the server", e);
         }
+    }
+
+    /**
+     * The exact bytes of the report body, split out so a test can pin them.
+     *
+     * <p>No {@code serverId} here, deliberately. HOPPER is per-server now, but the
+     * server it belongs to is decided by the bearer token this request carries and
+     * is never taken from the body - a client that could name its own server would
+     * be able to file a report against someone else's. The shape is unchanged from
+     * the single-server client, so an already-installed jar keeps working.
+     */
+    static String reportBody(String clientId, String username, List<Mod> mods) {
+        return GSON.toJson(new Report(clientId, username, mods));
     }
 
     /**

@@ -7,9 +7,12 @@ namespace HOPPER.Infrastructure
 {
     public class HopperDbContext(DbContextOptions<HopperDbContext> options) : DbContext(options)
     {
+        public DbSet<Server> Servers => Set<Server>();
         public DbSet<Mod> Mods => Set<Mod>();
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<ClientReportedMod> ClientReportedMods => Set<ClientReportedMod>();
+        public DbSet<ModImport> ModImports => Set<ModImport>();
+        public DbSet<PendingMod> PendingMods => Set<PendingMod>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

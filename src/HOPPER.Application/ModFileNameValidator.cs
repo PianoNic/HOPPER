@@ -1,7 +1,7 @@
 namespace HOPPER.Application
 {
     /// <summary>Mirrors Syncer.sanitize() in the Java client. Enforced here at upload time so a jar
-    /// the client would refuse to install can never enter the manifest in the first place — a
+    /// the client would refuse to install can never enter the manifest in the first place - a
     /// rejected entry on the client side is a silent partial sync, which is much harder to diagnose
     /// than a 400 at the moment of upload.</summary>
     public static class ModFileNameValidator

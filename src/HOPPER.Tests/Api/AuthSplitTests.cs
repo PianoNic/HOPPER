@@ -3,14 +3,21 @@ using System.Net;
 namespace HOPPER.Tests.Api
 {
     /// <summary>
-    /// Two credentials, two surfaces, no overlap. The shared client token sits in plain text in a
-    /// properties file on machines nobody controls, so it must never open the admin surface; the
-    /// admin's OIDC token is not something a jar in a mods folder can ever obtain, so it must not be
-    /// the only thing standing between the internet and the mod set either. Both directions are
-    /// asserted, because only one of them failing is exactly the kind of thing a refactor does.
+    /// Two credentials, two surfaces, no overlap. A client token sits in plain text in a properties
+    /// file (or a downloaded jar) on machines nobody controls, so it must never open the admin
+    /// surface; the admin's OIDC token is not something a jar in a mods folder can ever obtain, so it
+    /// must not be the only thing standing between the internet and the mod set either. Both
+    /// directions are asserted, because only one of them failing is exactly the kind of thing a
+    /// refactor does.
     /// </summary>
     public class AuthSplitTests
     {
+        // Built at call time rather than declared as [Arguments]: the admin surface is nested under a
+        // server id now, and a Guid is not a compile-time constant.
+        private static string ModsPath => $"/api/servers/{HopperApi.ServerAId}/mods";
+
+        private static string ClientsPath => $"/api/servers/{HopperApi.ServerAId}/clients";
+
         [Test]
         [Arguments("/api/manifest")]
         [Arguments("/api/blobs/" + "0000000000000000000000000000000000000000000000000000000000000000")]
@@ -35,35 +42,53 @@ namespace HOPPER.Tests.Api
         }
 
         [Test]
-        [Arguments("/api/mods")]
-        [Arguments("/api/clients")]
-        public async Task AdminEndpoint_NoToken_Is401(string path)
+        public async Task AdminMods_NoToken_Is401()
         {
             using var http = HopperApi.Anonymous();
 
-            var response = await http.GetAsync(path);
+            var response = await http.GetAsync(ModsPath);
 
             await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
         }
 
         [Test]
-        [Arguments("/api/mods")]
-        [Arguments("/api/clients")]
-        public async Task AdminEndpoint_ValidClientToken_Is401(string path)
+        public async Task AdminClients_NoToken_Is401()
         {
-            // The shared token is handed to every friend in the group. If it also listed and deleted
-            // mods, one leaked properties file would be enough to empty the server's mod set.
+            using var http = HopperApi.Anonymous();
+
+            var response = await http.GetAsync(ClientsPath);
+
+            await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+        }
+
+        [Test]
+        public async Task AdminMods_ValidClientToken_Is401()
+        {
+            // A client token is handed to every friend in the group. If it also listed and deleted
+            // mods, one leaked properties file would be enough to empty that server's mod set.
             using var http = HopperApi.AsGameClient();
 
-            var response = await http.GetAsync(path);
+            var response = await http.GetAsync(ModsPath);
 
             await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
         }
 
         [Test]
-        public async Task ClientEndpoint_WrongClientToken_Is401()
+        public async Task AdminClients_ValidClientToken_Is401()
         {
-            using var http = HopperApi.WithBearer("not-the-configured-token");
+            using var http = HopperApi.AsGameClient();
+
+            var response = await http.GetAsync(ClientsPath);
+
+            await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+        }
+
+        [Test]
+        public async Task ClientEndpoint_TokenMatchingNoServer_Is401()
+        {
+            // There is no allow-list any more: a token is valid exactly when it resolves to a Server
+            // row, and one that resolves to nothing is indistinguishable from one that never existed.
+            using var http = HopperApi.WithBearer("not-any-server-token");
 
             var response = await http.GetAsync("/api/manifest");
 

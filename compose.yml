@@ -36,7 +36,10 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - hopper-db:/var/lib/postgresql/data
+      # /var/lib/postgresql, not /var/lib/postgresql/data. The 18+ images store the cluster in a
+      # major-version-specific subdirectory and refuse to start when the old path is mounted
+      # directly, restart-looping with nothing ever listening.
+      - hopper-db:/var/lib/postgresql
 
   hopper:
     image: ghcr.io/pianonic/hopper:latest
@@ -59,10 +62,11 @@ services:
       Oidc__RedirectUri: "http://localhost:58722/"
       Oidc__PostLogoutRedirectUri: "http://localhost:58722/"
       Oidc__Scope: "openid profile email roles"
-      # The shared secret every Forge locator puts in its hopper.properties. An array so it can be
-      # rotated without downtime: add the new one, redistribute, then drop the old one. Change this
-      # before exposing the stack to anything but your own machine.
-      Hopper__ClientTokens__0: "hopper-local-client-token"
+      # Token of the one "Default" server HOPPER creates on an empty database, so the stack is a
+      # working demo out of the box. Tokens are per server now and minted by HOPPER; this is only a
+      # seed value, applied when the Servers table is empty and never again - rotate in the dashboard
+      # afterwards. Change it before exposing the stack to anything but your own machine.
+      Hopper__BootstrapClientToken: "hopper-local-client-token"
       # What the manifest hands clients as the download host. Derived from the request (and its
       # X-Forwarded-* headers) when unset; set it when the proxy does not forward them.
       Hopper__PublicBaseUrl: "http://localhost:58722"

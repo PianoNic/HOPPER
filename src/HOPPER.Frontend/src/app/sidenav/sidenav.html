@@ -22,12 +22,12 @@
 
     <hlm-sidebar-content>
       <ul hlmSidebarMenu>
-        @for (item of navItems; track item.route) {
+        @for (item of rootNav; track item.route) {
           <li hlmSidebarMenuItem>
             <a
               hlmSidebarMenuButton
               [routerLink]="item.route"
-              [isActive]="isRouteActive(item.route)"
+              [isActive]="isRouteActive(item.route, item.exact)"
               class="!w-56 mx-auto"
             >
               <ng-icon [name]="item.icon" />
@@ -35,7 +35,73 @@
             </a>
           </li>
         }
+
+        <!-- Server picker. Sits under Servers so switching does not mean a trip through the list
+             page; it keeps the sub-page you are on, so Mods of one server lands on Mods of the next. -->
+        <li hlmSidebarMenuItem>
+          <button
+            hlmSidebarMenuButton
+            [hlmDropdownMenuTrigger]="serverPicker"
+            [side]="menuSide()"
+            align="start"
+            class="!w-56 mx-auto"
+          >
+            <ng-icon name="lucideServer" />
+            <span class="truncate">{{ currentServerName() || 'Select a server' }}</span>
+            <ng-icon
+              name="lucideChevronsUpDown"
+              class="ml-auto group-data-[collapsible=icon]:hidden"
+            />
+          </button>
+
+          <ng-template #serverPicker>
+            <hlm-dropdown-menu class="min-w-56">
+              @if (servers().length === 0) {
+                <hlm-dropdown-menu-label>No servers yet</hlm-dropdown-menu-label>
+              } @else {
+                <hlm-dropdown-menu-group>
+                  @for (server of servers(); track server.id) {
+                    <button hlmDropdownMenuItem (click)="switchServer(server.id)">
+                      <ng-icon name="lucideServer" />
+                      <span class="truncate">{{ server.name }}</span>
+                      @if (server.id === currentServerId()) {
+                        <span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+                      }
+                    </button>
+                  }
+                </hlm-dropdown-menu-group>
+              }
+            </hlm-dropdown-menu>
+          </ng-template>
+        </li>
       </ul>
+
+      <!-- Only rendered while a server is open. The dashboard is a list of servers first and one
+           server's pages second, so these links have no meaning without an :id to point at. -->
+      @if (serverNav().length > 0) {
+        <div hlmSidebarGroup>
+          <div hlmSidebarGroupLabel class="!w-56 mx-auto truncate">
+            {{ currentServerName() || 'Server' }}
+          </div>
+          <div hlmSidebarGroupContent>
+            <ul hlmSidebarMenu>
+              @for (item of serverNav(); track item.route) {
+                <li hlmSidebarMenuItem>
+                  <a
+                    hlmSidebarMenuButton
+                    [routerLink]="item.route"
+                    [isActive]="isRouteActive(item.route, item.exact)"
+                    class="!w-56 mx-auto"
+                  >
+                    <ng-icon [name]="item.icon" />
+                    <span>{{ item.label }}</span>
+                  </a>
+                </li>
+              }
+            </ul>
+          </div>
+        </div>
+      }
     </hlm-sidebar-content>
 
     <hlm-sidebar-footer>

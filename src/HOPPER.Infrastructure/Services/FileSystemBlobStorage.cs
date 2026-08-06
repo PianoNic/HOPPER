@@ -118,7 +118,7 @@ namespace HOPPER.Infrastructure.Services
         }
 
         // The hash arrives from the URL, so it is untrusted until proven to be exactly 64 lowercase
-        // hex characters. Anything else must never reach Path.Combine — that is the whole traversal
+        // hex characters. Anything else must never reach Path.Combine - that is the whole traversal
         // defence. Uppercase is rejected rather than normalised: a case-insensitive store would give
         // the same content two addresses.
         private static string ResolvePath(string root, string sha256)

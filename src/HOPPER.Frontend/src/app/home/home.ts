@@ -1,68 +1,79 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
 import {
-  lucideHardDrive,
+  lucideArrowRight,
   lucidePackage,
   lucideRefreshCw,
-  lucideTriangleAlert,
+  lucideServer,
   lucideUsers,
 } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
-import { CopyButton } from '../shared/components/copy-button/copy-button';
-import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
-import { ClientsService } from '../api/api/clients.service';
-import { ModsService } from '../api/api/mods.service';
-import { ClientDto } from '../api/model/clientDto';
-import { ModDto } from '../api/model/modDto';
+import { messageFrom, toNumber } from '../shared/utils/format';
+import { ServersService } from '../api/api/servers.service';
+import { ServerDto } from '../api/model/serverDto';
 
-const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
-
+/**
+ * The landing page: everything across every server at a glance.
+ *
+ * Deliberately built from the one server list endpoint rather than fanning out per server. The list
+ * already carries mod and client counts, so a deployment with twenty servers still costs one
+ * request; per-server drift lives on the server's own overview, where the data to compute it is
+ * already being fetched.
+ */
 @Component({
   selector: 'app-home',
   imports: [
     ContentHeader,
-    CopyButton,
     RouterLink,
     NgIcon,
     HlmButtonImports,
     HlmCardImports,
+    HlmTableImports,
   ],
   providers: [
     provideIcons({
-      lucideHardDrive,
+      lucideArrowRight,
       lucidePackage,
       lucideRefreshCw,
-      lucideTriangleAlert,
+      lucideServer,
       lucideUsers,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-content-header />
+    <app-content-header>
+      <span slot="left" class="truncate text-sm font-medium">Home</span>
+    </app-content-header>
 
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <h2 class="text-sm font-medium">Overview</h2>
-        <button
-          hlmBtn
-          variant="outline"
-          size="sm"
-          type="button"
-          (click)="reload()"
-          [disabled]="loading()"
-        >
-          <ng-icon name="lucideRefreshCw" size="14" />
-          {{ loading() ? 'Loading…' : 'Refresh' }}
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            type="button"
+            (click)="load()"
+            [disabled]="loading()"
+          >
+            <ng-icon name="lucideRefreshCw" size="14" />
+            {{ loading() ? 'Loading…' : 'Refresh' }}
+          </button>
+          <a hlmBtn size="sm" routerLink="/servers">
+            All servers
+            <ng-icon name="lucideArrowRight" size="14" />
+          </a>
+        </div>
       </header>
 
       <div class="min-h-0 flex-1 overflow-auto p-4">
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-3 sm:grid-cols-3">
           @for (stat of stats(); track stat.label) {
             <section hlmCard>
               <div hlmCardHeader class="flex flex-row items-center justify-between gap-2 pb-2">
@@ -77,106 +88,124 @@ const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
           }
         </div>
 
-        <section hlmCard class="mt-4">
-          <div hlmCardHeader>
-            <h3 hlmCardTitle class="text-sm">Manifest endpoint</h3>
-            <p hlmCardDescription class="text-xs">
-              What every client polls on launch. Paste it into hopper.properties as
-              <code class="font-mono">manifestUrl</code> — the shared client token goes alongside it
-              and is never shown here, because the dashboard has no business holding it.
+        @if (servers().length === 0 && !loading()) {
+          <div
+            class="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm"
+          >
+            <ng-icon name="lucideServer" size="28" class="opacity-60" />
+            <p>No servers yet.</p>
+            <p class="max-w-md text-xs">
+              A server is one mod list plus one client token. Create the first one on the
+              <a routerLink="/servers" class="underline">Servers</a> page, then hand out the jar it
+              generates.
             </p>
           </div>
-          <div hlmCardContent>
-            <div class="flex items-center gap-1">
-              <code class="bg-muted flex-1 truncate rounded-md border px-3 py-2 font-mono text-xs">
-                {{ manifestUrl }}
-              </code>
-              <app-copy-button [value]="manifestUrl" />
+        } @else {
+          <section hlmCard class="mt-4">
+            <div hlmCardHeader class="pb-2">
+              <h3 hlmCardTitle class="text-sm">Servers</h3>
+              <p hlmCardDescription class="text-xs">
+                Every server in this deployment. Each one hands out its own jar, and a client only
+                ever sees the server whose token it carries.
+              </p>
             </div>
-            <div class="mt-3 flex gap-2">
-              <a hlmBtn variant="outline" size="sm" routerLink="/mods">Manage mods</a>
-              <a hlmBtn variant="outline" size="sm" routerLink="/setup">Client setup</a>
+            <div hlmCardContent>
+              <table hlmTable>
+                <thead hlmTableHeader>
+                  <tr hlmTableRow>
+                    <th hlmTableHead>Name</th>
+                    <th hlmTableHead class="text-right">Mods</th>
+                    <th hlmTableHead class="text-right">Clients</th>
+                    <th hlmTableHead class="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody hlmTableBody>
+                  @for (server of servers(); track server.id) {
+                    <tr hlmTableRow>
+                      <td hlmTableCell>
+                        <a [routerLink]="['/server', server.id]" class="hover:underline">
+                          {{ server.name }}
+                        </a>
+                        <span class="text-muted-foreground ml-2 font-mono text-xs">
+                          {{ server.slug }}
+                        </span>
+                      </td>
+                      <td hlmTableCell class="text-right tabular-nums">
+                        {{ count(server.modCount) }}
+                      </td>
+                      <td hlmTableCell class="text-right tabular-nums">
+                        {{ count(server.clientCount) }}
+                      </td>
+                      <td hlmTableCell>
+                        <a
+                          hlmBtn
+                          variant="ghost"
+                          size="icon"
+                          [routerLink]="['/server', server.id]"
+                          [attr.aria-label]="'Open ' + server.name"
+                        >
+                          <ng-icon name="lucideArrowRight" size="14" />
+                        </a>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             </div>
-          </div>
-        </section>
-
+          </section>
+        }
       </div>
     </section>
   `,
 })
 export class Home {
-  private readonly clientsApi = inject(ClientsService);
-  private readonly modsApi = inject(ModsService);
+  private readonly api = inject(ServersService);
 
-  protected readonly mods = signal<ReadonlyArray<ModDto>>([]);
-  protected readonly clients = signal<ReadonlyArray<ClientDto>>([]);
+  protected readonly servers = signal<ReadonlyArray<ServerDto>>([]);
   protected readonly loading = signal(false);
 
-  // Same-origin in production; in the split dev setup this points at the dev server, which is
-  // wrong for a player but right for a copy-paste sanity check. The server's own
-  // Hopper:PublicBaseUrl is what actually goes into the manifest.
-  protected readonly manifestUrl = `${window.location.origin}/api/manifest`;
+  constructor() {
+    this.load();
+  }
+
+  protected count(value: unknown): number {
+    return toNumber(value);
+  }
 
   protected readonly stats = computed(() => {
-    const mods = this.mods();
-    const clients = this.clients();
-    const totalBytes = mods.reduce((sum, m) => sum + toNumber(m.size), 0);
-
-    const cutoff = Date.now() - ACTIVE_WINDOW_MS;
-    const active = clients.filter((c) => Date.parse(c.lastSeenAt) >= cutoff);
-
-    const required = new Set(mods.map((m) => m.sha256));
-    const drifting = active.filter((c) => {
-      const reported = new Set(c.mods.map((m) => m.sha256));
-      const missing = mods.some((m) => !reported.has(m.sha256));
-      const unknown = c.mods.some((m) => !m.known);
-      return missing || unknown;
-    });
+    const servers = this.servers();
+    const mods = servers.reduce((sum, s) => sum + toNumber(s.modCount), 0);
+    const clients = servers.reduce((sum, s) => sum + toNumber(s.clientCount), 0);
 
     return [
       {
+        label: 'Servers',
+        value: `${servers.length}`,
+        hint: servers.length === 1 ? 'One mod list' : 'Each with its own mod list and token',
+        icon: 'lucideServer',
+      },
+      {
+        // Summed across servers, so a jar on two servers counts twice: this is how many entries are
+        // being served, not how much is stored. The blob store deduplicates by hash underneath.
         label: 'Mods served',
-        value: `${mods.length}`,
-        hint: `${required.size} distinct blob${required.size === 1 ? '' : 's'}`,
+        value: `${mods}`,
+        hint: 'Across all servers, counted per server',
         icon: 'lucidePackage',
       },
       {
-        label: 'Distributed size',
-        value: formatBytes(totalBytes),
-        hint: 'Downloaded once per client, then cached by hash',
-        icon: 'lucideHardDrive',
-      },
-      {
-        label: 'Clients (24h)',
-        value: `${active.length}`,
-        hint: `${clients.length} known in total`,
+        label: 'Known clients',
+        value: `${clients}`,
+        hint: 'Every client that has ever reported in',
         icon: 'lucideUsers',
-      },
-      {
-        label: 'Showing drift',
-        value: `${drifting.length}`,
-        hint:
-          drifting.length === 0
-            ? 'Every recent client matches the manifest'
-            : 'Missing or unrecognised jars on disk',
-        icon: 'lucideTriangleAlert',
       },
     ];
   });
 
-  constructor() {
-    this.reload();
-  }
-
-  protected reload(): void {
+  protected load(): void {
     this.loading.set(true);
-    forkJoin({
-      mods: this.modsApi.apiModsGet(),
-      clients: this.clientsApi.apiClientsGet(),
-    }).subscribe({
-      next: (result) => {
-        this.mods.set(result.mods);
-        this.clients.set(result.clients);
+    this.api.apiServersGet().subscribe({
+      next: (servers) => {
+        this.servers.set(servers);
         this.loading.set(false);
       },
       error: (err) => {

@@ -7,6 +7,10 @@ namespace HOPPER.Tests.Application
 {
     public class RecordClientReportCommandHandlerTests
     {
+        /// <summary>The server these reports arrive on, standing in for the one the bearer token
+        /// would have resolved to.</summary>
+        private static readonly Guid ServerId = Guid.NewGuid();
+
         private static HopperDbContext NewDb() =>
             new(new DbContextOptionsBuilder<HopperDbContext>()
                 .UseInMemoryDatabase($"hopper-{Guid.NewGuid():N}")
@@ -28,7 +32,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("server-1", null, ("jei.jar", "aa")), "10.0.0.1"), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("server-1", null, ("jei.jar", "aa")), "10.0.0.1"), CancellationToken.None);
 
             var client = await db.Clients.SingleAsync();
             await Assert.That(client.ClientId).IsEqualTo("server-1");
@@ -46,7 +50,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", username), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", username), null), CancellationToken.None);
 
             await Assert.That((await db.Clients.SingleAsync()).Username).IsNull();
         }
@@ -57,7 +61,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", "  Alex  "), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", "  Alex  "), null), CancellationToken.None);
 
             await Assert.That((await db.Clients.SingleAsync()).Username).IsEqualTo("Alex");
         }
@@ -68,7 +72,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", "Alex"), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", "Alex"), null), CancellationToken.None);
 
             await Assert.That((await db.Clients.SingleAsync()).Username).IsEqualTo("Alex");
         }
@@ -81,8 +85,8 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", null, ("jei.jar", "aa")), null), CancellationToken.None);
-            await handler.Handle(new RecordClientReportCommand(Report("c1", "Alex", ("jei.jar", "aa")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", null, ("jei.jar", "aa")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", "Alex", ("jei.jar", "aa")), null), CancellationToken.None);
 
             await Assert.That(await db.Clients.CountAsync()).IsEqualTo(1);
             await Assert.That((await db.Clients.SingleAsync()).Username).IsEqualTo("Alex");
@@ -96,8 +100,8 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", "Alex"), null), CancellationToken.None);
-            await handler.Handle(new RecordClientReportCommand(Report("c1", null), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", "Alex"), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", null), null), CancellationToken.None);
 
             await Assert.That((await db.Clients.SingleAsync()).Username).IsNull();
         }
@@ -108,8 +112,8 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", null, ("jei.jar", "aa"), ("rei.jar", "bb")), null), CancellationToken.None);
-            await handler.Handle(new RecordClientReportCommand(Report("c1", null, ("jei.jar", "cc")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", null, ("jei.jar", "aa"), ("rei.jar", "bb")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", null, ("jei.jar", "cc")), null), CancellationToken.None);
 
             var rows = await db.ClientReportedMods.ToListAsync();
             await Assert.That(rows).Count().IsEqualTo(1);
@@ -125,9 +129,9 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", "Alex", ("jei.jar", "aa")), null), CancellationToken.None);
-            await handler.Handle(new RecordClientReportCommand(Report("c2", null, ("rei.jar", "bb")), null), CancellationToken.None);
-            await handler.Handle(new RecordClientReportCommand(Report("c2", null, ("rei.jar", "cc")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", "Alex", ("jei.jar", "aa")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c2", null, ("rei.jar", "bb")), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c2", null, ("rei.jar", "cc")), null), CancellationToken.None);
 
             var c1 = await db.Clients.SingleAsync(c => c.ClientId == "c1");
             var c1Mods = await db.ClientReportedMods.Where(r => r.ClientId == c1.Id).ToListAsync();
@@ -146,7 +150,7 @@ namespace HOPPER.Tests.Application
             var handler = new RecordClientReportCommandHandler(db);
 
             await Assert.That(async () => await handler.Handle(
-                    new RecordClientReportCommand(Report(clientId, "Alex"), null), CancellationToken.None))
+                    new RecordClientReportCommand(ServerId, Report(clientId, "Alex"), null), CancellationToken.None))
                 .Throws<ArgumentException>();
         }
 
@@ -157,7 +161,7 @@ namespace HOPPER.Tests.Application
             var handler = new RecordClientReportCommandHandler(db);
 
             await Assert.That(async () => await handler.Handle(
-                    new RecordClientReportCommand(Report("c1", "Alex", ("jei.jar", "")), null), CancellationToken.None))
+                    new RecordClientReportCommand(ServerId, Report("c1", "Alex", ("jei.jar", "")), null), CancellationToken.None))
                 .Throws<ArgumentException>();
         }
 
@@ -169,7 +173,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db);
 
-            await handler.Handle(new RecordClientReportCommand(Report("c1", null), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", null), null), CancellationToken.None);
 
             await Assert.That(await db.Clients.CountAsync()).IsEqualTo(1);
             await Assert.That(await db.ClientReportedMods.CountAsync()).IsEqualTo(0);

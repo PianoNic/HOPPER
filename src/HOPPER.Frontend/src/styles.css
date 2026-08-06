@@ -95,9 +95,12 @@
      auto-sized host instead of main. Making the host a flex column with h-full passes the
      height the whole way down. A new route MUST be added here or its layout collapses. */
   app-home,
-  app-mods,
-  app-clients,
-  app-setup {
+  app-servers,
+  app-server-overview,
+  app-server-mods,
+  app-server-clients,
+  app-server-pending,
+  app-server-setup {
     display: flex;
     flex-direction: column;
     height: 100%;

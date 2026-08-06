@@ -26,7 +26,11 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - hopper-db-dev:/var/lib/postgresql/data
+      # /var/lib/postgresql, not /var/lib/postgresql/data. The 18+ images store the cluster in a
+      # major-version-specific subdirectory and refuse to start when the old path is mounted
+      # directly - they exit with "there appears to be PostgreSQL data in /var/lib/postgresql/data
+      # (unused mount/volume)" and the container restart-loops with nothing listening on 5433.
+      - hopper-db-dev:/var/lib/postgresql
 
   idp:
     image: ghcr.io/navikt/mock-oauth2-server:2.1.10

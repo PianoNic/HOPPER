@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Command.Clients
 {
-    public record RecordClientReportCommand(ClientReportDto Body, string? IpAddress) : ICommand;
+    /// <summary>ServerId comes from the bearer token the report was made with, not from the body:
+    /// a client must never be able to name the server it belongs to.</summary>
+    public record RecordClientReportCommand(Guid ServerId, ClientReportDto Body, string? IpAddress) : ICommand;
 
     public class RecordClientReportCommandHandler(HopperDbContext db) : ICommandHandler<RecordClientReportCommand>
     {
@@ -23,12 +25,17 @@ namespace HOPPER.Application.Command.Clients
             var username = string.IsNullOrWhiteSpace(body.Username) ? null : body.Username.Trim();
 
             // There is no registration step: a client exists exactly when it has reported once, so
-            // the first report creates the row and every later one refreshes it.
-            var client = await db.Clients.FirstOrDefaultAsync(c => c.ClientId == body.ClientId, cancellationToken);
+            // the first report creates the row and every later one refreshes it. The upsert keys on
+            // (ServerId, ClientId) because a client id is only unique within a server - the same
+            // game directory reporting to a second server is a second client, not the same one.
+            var client = await db.Clients.FirstOrDefaultAsync(
+                c => c.ServerId == command.ServerId && c.ClientId == body.ClientId, cancellationToken);
+
             if (client is null)
             {
                 client = new Client
                 {
+                    ServerId = command.ServerId,
                     ClientId = body.ClientId,
                     Username = username,
                     LastSeenAt = DateTime.UtcNow,

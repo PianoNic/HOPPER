@@ -3,6 +3,9 @@ using HOPPER.API.Auth;
 using HOPPER.API.Extensions;
 using HOPPER.API.OpenApi;
 using HOPPER.Application;
+using HOPPER.Application.Imports;
+using HOPPER.Application.Queries.Imports;
+using HOPPER.Application.Command.Imports;
 using HOPPER.Infrastructure.Extensions;
 using HOPPER.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,7 +22,7 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 // proxy the scheme and host have to come from the forwarded headers or every client would be told to
 // download over http:// from an internal hostname it cannot reach. The known-proxy lists are cleared
 // because the proxy sits at an address we cannot know ahead of time (a container network, Cloudflare,
-// a home router) — acceptable here because HOPPER is expected to run behind a proxy it owns.
+// a home router) - acceptable here because HOPPER is expected to run behind a proxy it owns.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
@@ -32,8 +35,10 @@ builder.Services.AddSpaStaticFiles(options => { options.RootPath = "wwwroot"; })
 builder.Services.AddControllers();
 
 // [RequestSizeLimit] raises Kestrel's cap but not the multipart section cap, which is enforced
-// separately while binding IFormFile and defaults to 128 MB.
-builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 512L * 1024 * 1024);
+// separately while binding IFormFile and defaults to 128 MB. 2 GB rather than the old 512 MB because
+// a modpack export is a single multipart part of that size; Hopper:MaxImportBytes is the limit that
+// actually decides what an import will accept, and it is counted as the bytes arrive.
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
@@ -45,9 +50,16 @@ builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifet
 builder.Services.AddHopperDatabase(builder.Configuration);
 builder.Services.AddBlobs();
 
+// Patches a copy of the shipped template jar per download. No JDK at runtime - the toolchain lives
+// in the Dockerfile's locator stage and never reaches the running image.
+builder.Services.AddLocatorJar();
+
+// Queue, staging directory, HTTP client and the single background worker that drains them.
+builder.Services.AddPackImports();
+
 // Defaults to no cross-origin allowlist. A deployment that serves the SPA from the API's wwwroot
-// (src/HOPPER.API/Dockerfile copies it there) is same-origin and needs none. The split dev setup —
-// `bun start` on :4200 against `dotnet run` on :5170 — is cross-origin, and sets
+// (src/HOPPER.API/Dockerfile copies it there) is same-origin and needs none. The split dev setup -
+// `bun start` on :4200 against `dotnet run` on :5170 - is cross-origin, and sets
 // http://localhost:4200 explicitly in appsettings.Development.json. .env.example documents the key
 // for a deployment that does serve the dashboard from a separate origin.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -91,8 +103,8 @@ var app = builder.Build();
 app.ApplyMigrations();
 await app.ApplySeedsAsync();
 
-// First in the pipeline: everything downstream that reads Request.Scheme or Request.Host — the
-// manifest URLs above all — has to see the client-facing values, not the proxy's.
+// First in the pipeline: everything downstream that reads Request.Scheme or Request.Host - the
+// manifest URLs above all - has to see the client-facing values, not the proxy's.
 app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
@@ -133,6 +145,39 @@ app.Use(async (context, next) =>
     catch (DuplicateModFileNameException ex) when (!context.Response.HasStarted)
     {
         context.Response.StatusCode = StatusCodes.Status409Conflict;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    catch (DuplicateServerSlugException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status409Conflict;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    catch (ServerNotFoundException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    catch (ImportNotFoundException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    catch (PendingModNotFoundException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    catch (PackImportException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    // 503, not 500: the template jar being absent is a deployment that has not finished rather than a
+    // request that went wrong, and the message names the configuration key that fixes it. This can
+    // only ever fire before the response starts, because the builder completes the archive in memory.
+    catch (LocatorTemplateMissingException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
     catch (ArgumentException ex) when (!context.Response.HasStarted)

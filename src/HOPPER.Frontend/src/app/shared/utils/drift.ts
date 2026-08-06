@@ -6,7 +6,7 @@ export type ClientDrift = {
   client: ClientDto;
   /** Required jars whose hash the client did not report. */
   missing: ReadonlyArray<ModDto>;
-  /** How many reported jars no Mod row matches — i.e. jars we never sent. */
+  /** How many reported jars no Mod row matches - i.e. jars we never sent. */
   unknown: number;
   status: 'in sync' | 'drift' | 'offline';
 };

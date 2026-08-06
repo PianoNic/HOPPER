@@ -29,7 +29,15 @@ namespace HOPPER.API.Controllers
             // Resolve through the index rather than the filesystem: a blob whose last Mod row is gone
             // must be unreachable even if the file survived a failed delete. The row also supplies the
             // filename for the download header.
-            var mod = await db.Mods.AsNoTracking().FirstOrDefaultAsync(m => m.Sha256 == sha256, cancellationToken);
+            //
+            // Scoped to the caller's server, and this is the second half of tenant isolation. The
+            // file on disk is shared across servers by design, but a token only reaches it through a
+            // row on its own server. A blob belonging solely to another server answers 404, not 403 -
+            // a client has no business learning that some other server's mod set contains that hash.
+            var serverId = User.ServerId();
+            var mod = await db.Mods.AsNoTracking()
+                .FirstOrDefaultAsync(m => m.ServerId == serverId && m.Sha256 == sha256, cancellationToken);
+
             if (mod is null)
                 return NotFound();
 

@@ -5,7 +5,17 @@ plugins {
 group = 'ch.pianonic'
 version = '1.0.0'
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+// --release rather than a toolchain: Forge 1.20.1 runs on Java 17, and --release pins both the
+// bytecode and the visible JDK API to 17 while letting the build run on whatever JDK the machine
+// already has. A toolchain would instead demand exactly one JDK be installed and fail the build
+// outright when it is not - on a contributor's box and in the Dockerfile's JDK stage alike.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+    // A locator runs before FML has loaded anything and a mistake here is a launch that silently
+    // does nothing, so warnings are not advisory.
+    options.compilerArgs << '-Xlint:all' << '-Werror'
+}
 
 repositories {
     mavenCentral()
@@ -26,10 +36,19 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // A test JVM has no SERVICE layer to provide the compileOnly set, so the two that are touched
+    // at test runtime have to be here: gson because SyncerTest asserts the exact bytes of the
+    // report body, and log4j because Syncer's LOG field is initialised the moment the class loads.
+    // forgespi and modlauncher are deliberately absent - the tests reach only Syncer and
+    // HopperLocator.Config, neither of which names a Forge type, so the suite runs in a plain JVM.
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+    testRuntimeOnly 'org.apache.logging.log4j:log4j-api:2.19.0'
 }
 
 test {
     useJUnitPlatform()
+    testLogging.events 'passed', 'failed', 'skipped'
 }
 
 jar {

@@ -6,15 +6,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Mods
 {
-    public record ListModsQuery : IQuery<IReadOnlyList<ModDto>>;
+    public record ListModsQuery(Guid ServerId) : IQuery<IReadOnlyList<ModDto>>;
 
     public class ListModsQueryHandler(HopperDbContext db) : IQueryHandler<ListModsQuery, IReadOnlyList<ModDto>>
     {
         public async ValueTask<IReadOnlyList<ModDto>> Handle(ListModsQuery query, CancellationToken cancellationToken)
         {
-            // Same order as the manifest, so the admin list and what the clients actually receive
-            // read as the same list.
-            var rows = await db.Mods.AsNoTracking().OrderBy(m => m.FileName).ToListAsync(cancellationToken);
+            // Same filter and same order as the manifest, so the admin list and what that server's
+            // clients actually receive read as the same list.
+            var rows = await db.Mods.AsNoTracking()
+                .Where(m => m.ServerId == query.ServerId)
+                .OrderBy(m => m.FileName)
+                .ToListAsync(cancellationToken);
             return rows.Select(m => m.ToDto()).ToList();
         }
     }

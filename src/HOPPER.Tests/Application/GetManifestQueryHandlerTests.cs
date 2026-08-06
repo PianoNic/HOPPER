@@ -7,13 +7,17 @@ namespace HOPPER.Tests.Application
 {
     public class GetManifestQueryHandlerTests
     {
+        /// <summary>The server every row in these tests belongs to. A manifest is per-server now, so
+        /// the query needs one; which server it is does not matter to any assertion here.</summary>
+        private static readonly Guid ServerId = Guid.NewGuid();
+
         private static HopperDbContext NewDb() =>
             new(new DbContextOptionsBuilder<HopperDbContext>()
                 .UseInMemoryDatabase($"hopper-{Guid.NewGuid():N}")
                 .Options);
 
         private static Mod Row(string file, string sha, long size = 10) =>
-            new() { FileName = file, Sha256 = sha, Size = size };
+            new() { ServerId = ServerId, FileName = file, Sha256 = sha, Size = size };
 
         [Test]
         public async Task Handle_Mod_BuildsTheBlobUrlFromTheHash()
@@ -23,7 +27,7 @@ namespace HOPPER.Tests.Application
             await db.SaveChangesAsync();
 
             var result = await new GetManifestQueryHandler(db)
-                .Handle(new GetManifestQuery("https://hopper.example.com"), CancellationToken.None);
+                .Handle(new GetManifestQuery(ServerId, "https://hopper.example.com"), CancellationToken.None);
 
             var entry = result.Mods.Single();
             await Assert.That(entry.File).IsEqualTo("jei.jar");
@@ -42,7 +46,7 @@ namespace HOPPER.Tests.Application
             await db.SaveChangesAsync();
 
             var result = await new GetManifestQueryHandler(db)
-                .Handle(new GetManifestQuery("https://hopper.example.com/"), CancellationToken.None);
+                .Handle(new GetManifestQuery(ServerId, "https://hopper.example.com/"), CancellationToken.None);
 
             await Assert.That(result.Mods.Single().Url)
                 .IsEqualTo($"https://hopper.example.com/api/blobs/{new string('b', 64)}");
@@ -58,7 +62,7 @@ namespace HOPPER.Tests.Application
             await db.SaveChangesAsync();
 
             var result = await new GetManifestQueryHandler(db)
-                .Handle(new GetManifestQuery("http://localhost:5170"), CancellationToken.None);
+                .Handle(new GetManifestQuery(ServerId, "http://localhost:5170"), CancellationToken.None);
 
             await Assert.That(result.Mods.Select(m => m.File).ToList())
                 .IsEquivalentTo(new[] { "aaa.jar", "mmm.jar", "zzz.jar" });
@@ -70,7 +74,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
 
             var result = await new GetManifestQueryHandler(db)
-                .Handle(new GetManifestQuery("http://localhost:5170"), CancellationToken.None);
+                .Handle(new GetManifestQuery(ServerId, "http://localhost:5170"), CancellationToken.None);
 
             await Assert.That(result.Mods).IsNotNull();
             await Assert.That(result.Mods).IsEmpty();

@@ -5,8 +5,8 @@ namespace HOPPER.Tests.Wire
 {
     /// <summary>
     /// The inbound half of the fixed wire format. The bodies below are exactly what
-    /// Syncer.report(String) emits — Gson with serializeNulls(), component names as JSON field
-    /// names — so if these parse, the shipped client's report parses.
+    /// Syncer.report(String) emits - Gson with serializeNulls(), component names as JSON field
+    /// names - so if these parse, the shipped client's report parses.
     /// </summary>
     public class ClientReportWireFormatTests
     {
@@ -25,7 +25,7 @@ namespace HOPPER.Tests.Wire
         public async Task Deserialize_NullUsername_IsAccepted()
         {
             // The regression this test exists for: with a non-nullable Username the request never
-            // reached a handler at all — model binding answered 400 — and because Syncer.report()
+            // reached a handler at all - model binding answered 400 - and because Syncer.report()
             // swallows every failure, the client simply never appeared on the dashboard.
             var dto = JsonSerializer.Deserialize<ClientReportDto>(ReportWithNullUsername);
 

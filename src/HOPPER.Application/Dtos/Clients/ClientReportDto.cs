@@ -10,7 +10,7 @@ namespace HOPPER.Application.Dtos.Clients
         [JsonPropertyName("clientId")] public required string ClientId { get; init; }
 
         /// <summary>Nullable on purpose, and the nullability is part of the fixed contract. A
-        /// dedicated server — or any launcher invoked without --username — has no username to send,
+        /// dedicated server - or any launcher invoked without --username - has no username to send,
         /// and the Java client sets Gson's serializeNulls() precisely so it goes out as an explicit
         /// "username": null. A non-nullable property here makes model binding answer that body with a
         /// 400 before any handler runs, and because Syncer.report() swallows every failure the client

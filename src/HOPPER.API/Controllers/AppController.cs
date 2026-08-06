@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HOPPER.API.Controllers
 {
-    /// <summary>Bootstrap configuration for the dashboard. Anonymous by necessity — the SPA calls it
+    /// <summary>Bootstrap configuration for the dashboard. Anonymous by necessity - the SPA calls it
     /// before it has a token, because this is what tells it where to get one.</summary>
     [ApiController]
     [Route("api/app")]

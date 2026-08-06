@@ -6,7 +6,7 @@ namespace HOPPER.Application.Dtos.Clients
         public required string FileName { get; init; }
         public required string Sha256 { get; init; }
 
-        /// <summary>False when no Mod row carries this hash — i.e. the player is running a jar we
+        /// <summary>False when no Mod row carries this hash - i.e. the player is running a jar we
         /// never sent. Drives the "drift" badge on the Clients page.</summary>
         public required bool Known { get; init; }
     }

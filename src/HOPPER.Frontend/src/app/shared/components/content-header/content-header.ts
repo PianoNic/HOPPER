@@ -1,10 +1,15 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { simpleBuymeacoffee, simpleGithub } from '@ng-icons/simple-icons';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmSidebarImports } from '@spartan-ng/helm/sidebar';
+import { HlmTooltipImports } from '@spartan-ng/helm/tooltip';
 
 @Component({
   selector: 'app-content-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HlmSidebarImports],
+  imports: [HlmSidebarImports, HlmButtonImports, HlmTooltipImports, NgIcon],
+  providers: [provideIcons({ simpleBuymeacoffee, simpleGithub })],
   templateUrl: './content-header.html',
 })
 export class ContentHeader {}

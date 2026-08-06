@@ -39,12 +39,12 @@ namespace HOPPER.API.OpenApi
             {
                 Type = SecuritySchemeType.Http,
                 Scheme = "bearer",
-                Description = "The shared token from Hopper:ClientTokens, as configured in the player's hopper.properties.",
+                Description = "The per-server token carried by the jar downloaded from this server, or set by hand in the player's hopper.properties.",
             };
 
             // The OAuth2 scheme needs a live authority to describe its endpoints. A dev instance
-            // running without an IdP still has to produce a usable document — the frontend's client
-            // generator reads it — so its absence degrades the document rather than failing it.
+            // running without an IdP still has to produce a usable document - the frontend's client
+            // generator reads it - so its absence degrades the document rather than failing it.
             var authority = configuration["Oidc:Authority"]?.TrimEnd('/');
             var hasOAuth2 = schemes.Any(scheme => scheme.Name == JwtBearerDefaults.AuthenticationScheme)
                 && !string.IsNullOrWhiteSpace(authority);

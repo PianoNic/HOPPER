@@ -1,7 +1,7 @@
 namespace HOPPER.Application.Dtos.Mods
 {
     /// <summary>Admin view of one distributed jar. Unlike the manifest DTOs these names are not a
-    /// fixed contract — the dashboard's TypeScript client is generated from the same OpenAPI
+    /// fixed contract - the dashboard's TypeScript client is generated from the same OpenAPI
     /// document, so whatever the serializer emits is what the client expects.</summary>
     public record ModDto
     {

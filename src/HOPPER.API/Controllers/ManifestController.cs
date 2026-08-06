@@ -8,7 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace HOPPER.API.Controllers
 {
     /// <summary>The one endpoint the Forge locator polls on every launch. Its response shape is a
-    /// fixed contract with the already-shipped Java client — see ManifestDto.</summary>
+    /// fixed contract with the already-shipped Java client - see ManifestDto.
+    ///
+    /// The path deliberately carries no server segment even though manifests are now per-server: the
+    /// shipped client derives its report URL from this one, so a segment here would silently move
+    /// POST /api/clients/report too. The server comes from the token instead.</summary>
     [ApiController]
     [Route("api/manifest")]
     [Authorize(AuthenticationSchemes = ClientTokenDefaults.AuthenticationScheme)]
@@ -28,7 +32,7 @@ namespace HOPPER.API.Controllers
                 ? configured
                 : $"{Request.Scheme}://{Request.Host}";
 
-            var result = await mediator.Send(new GetManifestQuery(baseUrl), cancellationToken);
+            var result = await mediator.Send(new GetManifestQuery(User.ServerId(), baseUrl), cancellationToken);
 
             // Ok(dto) writes the DTO as the entire body: {"mods":[...]} with no envelope.
             return Ok(result);

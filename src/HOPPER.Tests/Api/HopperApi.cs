@@ -1,4 +1,8 @@
+using HOPPER.Domain;
+using HOPPER.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 
 namespace HOPPER.Tests.Api
@@ -21,7 +25,25 @@ namespace HOPPER.Tests.Api
     /// </summary>
     public static class HopperApi
     {
+        /// <summary>Token of server A, the one almost every test works against.</summary>
         public const string ClientToken = "test-client-token";
+
+        /// <summary>Token of server B, which exists so isolation can be asserted rather than assumed:
+        /// a suite with one server cannot tell "scoped correctly" apart from "not scoped at all".</summary>
+        public const string ClientTokenB = "test-client-token-b";
+
+        private static Guid _serverAId;
+        private static Guid _serverBId;
+
+        public static Guid ServerAId
+        {
+            get { _ = Instance.Value; return _serverAId; }
+        }
+
+        public static Guid ServerBId
+        {
+            get { _ = Instance.Value; return _serverBId; }
+        }
 
         private static readonly Lazy<WebApplicationFactory<Program>> Instance = new(() =>
         {
@@ -45,14 +67,37 @@ namespace HOPPER.Tests.Api
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
             Environment.SetEnvironmentVariable("ConnectionStrings__HopperDatabase", postgres.GetConnectionString());
             Environment.SetEnvironmentVariable("Blobs__Directory", Path.Combine(state, "blobs"));
-            Environment.SetEnvironmentVariable("Hopper__ClientTokens__0", ClientToken);
+            // Client tokens live in the Servers table now, so the suite pins the seeded "Default"
+            // server's token instead of configuring an allow-list. Server B is added afterwards.
+            Environment.SetEnvironmentVariable("Hopper__BootstrapClientToken", ClientToken);
             // Deliberately no Oidc:* : with no authority configured the JWT handler builds no
             // configuration manager, so an admin request fails validation locally and answers 401
             // without reaching for a network the test host does not have.
             Environment.SetEnvironmentVariable("Oidc__Authority", null);
             Environment.SetEnvironmentVariable("Oidc__InternalAuthority", null);
 
-            return new WebApplicationFactory<Program>();
+            var factory = new WebApplicationFactory<Program>();
+
+            // Touching Services boots the host, which runs the migrator and the seeder - so by the
+            // line after this one the "Default" server exists and carries ClientToken.
+            using (var scope = factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
+
+                _serverAId = db.Servers.Single(s => s.Token == ClientToken).Id;
+
+                var serverB = db.Servers.FirstOrDefault(s => s.Token == ClientTokenB);
+                if (serverB is null)
+                {
+                    serverB = new Server { Name = "Server B", Slug = "server-b", Token = ClientTokenB };
+                    db.Servers.Add(serverB);
+                    db.SaveChanges();
+                }
+
+                _serverBId = serverB.Id;
+            }
+
+            return factory;
         });
 
         /// <summary>The running host's container, for seeding and for asserting on what a request
@@ -62,15 +107,13 @@ namespace HOPPER.Tests.Api
         /// <summary>A client with no credentials at all.</summary>
         public static HttpClient Anonymous() => Instance.Value.CreateClient();
 
-        /// <summary>A client carrying the shared token the Forge locator uses.</summary>
-        public static HttpClient AsGameClient()
-        {
-            var http = Instance.Value.CreateClient();
-            http.DefaultRequestHeaders.Add("Authorization", $"Bearer {ClientToken}");
-            return http;
-        }
+        /// <summary>A client carrying server A's token, as the Forge locator would.</summary>
+        public static HttpClient AsGameClient() => WithBearer(ClientToken);
 
-        /// <summary>A client carrying a bearer token that is not the shared client token.</summary>
+        /// <summary>A client carrying server B's token - the other side of every isolation check.</summary>
+        public static HttpClient AsGameClientB() => WithBearer(ClientTokenB);
+
+        /// <summary>A client carrying an arbitrary bearer token.</summary>
         public static HttpClient WithBearer(string token)
         {
             var http = Instance.Value.CreateClient();

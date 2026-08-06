@@ -6,7 +6,7 @@ namespace HOPPER.Application.Mappings.Clients
     public static class ClientMappings
     {
         /// <summary>The reported jars are passed in rather than read off the entity because the model
-        /// has no navigation properties — the handler does the grouping and hands the result here.</summary>
+        /// has no navigation properties - the handler does the grouping and hands the result here.</summary>
         public static ClientDto ToDto(this Client c, IReadOnlyList<ClientModDto> mods) => new()
         {
             Id = c.Id,

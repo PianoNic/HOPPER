@@ -23,21 +23,25 @@ namespace HOPPER.Tests.Api
 
         /// <summary>Puts a jar in the mod set. The admin HTTP endpoint is OIDC-gated and this suite
         /// has no IdP, so the seed goes through the same command handler that endpoint calls, against
-        /// the running host's own services — the blob store and database the client endpoints then
+        /// the running host's own services - the blob store and database the client endpoints then
         /// read from are the ones under test.</summary>
         private static async Task SeedJarAsync(string fileName)
         {
+            var serverId = HopperApi.ServerAId;
+
             await using var scope = HopperApi.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
-            if (await db.Mods.AnyAsync(m => m.FileName == fileName))
+            if (await db.Mods.AnyAsync(m => m.ServerId == serverId && m.FileName == fileName))
                 return;
 
-            var handler = new UploadModCommandHandler(
+            var handler = new UploadModsCommandHandler(
                 db,
                 scope.ServiceProvider.GetRequiredService<IBlobStorage>(),
                 scope.ServiceProvider.GetRequiredService<ICurrentUserService>());
 
-            await handler.Handle(new UploadModCommand(fileName, new MemoryStream(JarBytes)), CancellationToken.None);
+            await handler.Handle(
+                new UploadModsCommand(serverId, [new UploadFile(fileName, new MemoryStream(JarBytes))]),
+                CancellationToken.None);
         }
 
         [Test]
