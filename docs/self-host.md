@@ -27,6 +27,8 @@ services:
     restart: unless-stopped
 
   hopper:
+    # Also published to Docker Hub as docker.io/pianonic/hopper with the same tags, if you prefer
+    # that registry. Both are built from the same release and carry linux/amd64 and linux/arm64.
     image: ghcr.io/pianonic/hopper:latest
     container_name: hopper
     ports:
@@ -116,6 +118,19 @@ Rename the role with `Oidc__AdminRole`, or set it empty to accept any authentica
 ## Behind a reverse proxy
 
 Leave `Hopper__PublicBaseUrl` unset if your proxy sends `X-Forwarded-Proto` and `X-Forwarded-Host`; the manifest derives the download host from the request. Set it explicitly when the proxy does not forward them, or when clients dial a different name than the API sees. Getting this wrong means clients receive manifest URLs pointing at the wrong host.
+
+## Where the image comes from
+
+Every release is pushed to both registries, from the same build, for `linux/amd64` and `linux/arm64`:
+
+```
+ghcr.io/pianonic/hopper
+docker.io/pianonic/hopper
+```
+
+Both carry the same tags: the full version (`0.1.0`), the minor (`0.1`), the major (`0`), and `latest`. `latest` is skipped for a prerelease, so a preview never becomes the default pull.
+
+Pin the full version in production. `latest` moves under you on the next release, and an upgrade is meant to be a decision rather than a surprise.
 
 ## Upgrading
 
