@@ -1,5 +1,6 @@
 using HOPPER.Application.Dtos.Modrinth;
 using HOPPER.Application.Dtos.Mods;
+using HOPPER.Application.Imports;
 using HOPPER.Application.Mappings.Mods;
 using HOPPER.Application.ModMetadata;
 using HOPPER.Application.Modrinth;
@@ -269,6 +270,11 @@ namespace HOPPER.Application.Command.Modrinth
             // icon of its own, which is most of what the manager installs.
             mod.IconUrl = project?.IconUrl;
 
+            // Modrinth publishes client_side and server_side on the project, so the manager knows
+            // the side before the jar is stored and the admin never has to set it by hand. Absent
+            // metadata leaves it Both, which is what it would have been anyway.
+            mod.Side = project?.Side ?? ModSide.Both;
+
             mod.Sha1 = sha1;
             mod.Sha512 = sha512;
         }
@@ -328,7 +334,7 @@ namespace HOPPER.Application.Command.Modrinth
         }
 
         /// <summary>What HOPPER keeps from a project: its name, and where its icon lives.</summary>
-        private sealed record ProjectFacts(string? Title, string? IconUrl);
+        private sealed record ProjectFacts(string? Title, string? IconUrl, ModSide Side);
 
         private async Task<IReadOnlyDictionary<string, ProjectFacts>> ProjectTitlesAsync(
             IReadOnlyList<ModrinthVersion> versions, CancellationToken cancellationToken)
@@ -347,7 +353,7 @@ namespace HOPPER.Application.Command.Modrinth
                 var projects = await modrinth.GetProjectsAsync(ids, cancellationToken);
                 return projects.ToDictionary(
                     p => p.Id,
-                    p => new ProjectFacts(p.Title, p.IconUrl),
+                    p => new ProjectFacts(p.Title, p.IconUrl, PackEnv.Side(p.ClientSide, p.ServerSide)),
                     StringComparer.Ordinal);
             }
             catch (ModrinthApiException)

@@ -15,6 +15,8 @@ namespace HOPPER.Application.Imports
         public string? Sha1 { get; init; }
 
         public long? Size { get; init; }
+
+        public ModSide Side { get; init; } = ModSide.Both;
     }
 
     public sealed record PendingSpec

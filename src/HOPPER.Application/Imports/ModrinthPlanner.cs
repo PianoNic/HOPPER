@@ -64,14 +64,9 @@ namespace HOPPER.Application.Imports
                             continue;
                         }
 
-                        if (file.TryGetProperty("env", out var env)
-                            && env.ValueKind == JsonValueKind.Object
-                            && env.TryGetProperty("client", out var client)
-                            && string.Equals(client.GetString(), "unsupported", StringComparison.OrdinalIgnoreCase))
-                        {
-                            skipped++;
-                            continue;
-                        }
+                        // env is read rather than used only to discard. A jar the client cannot
+                        // load is not a jar to throw away now that a dedicated server may want it.
+                        var side = PackEnv.SideOf(file);
 
                         var downloads = new List<Uri>();
                         if (file.TryGetProperty("downloads", out var urls) && urls.ValueKind == JsonValueKind.Array)
@@ -99,16 +94,22 @@ namespace HOPPER.Application.Imports
                             Size = file.TryGetProperty("fileSize", out var size) && size.ValueKind == JsonValueKind.Number
                                 ? size.GetInt64()
                                 : null,
+                            Side = side,
                         });
                     }
                 }
 
                 var overrides = new Dictionary<string, PlannedFile>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var jar in OverrideJars(archive, prefix + "overrides/mods/"))
+                foreach (var jar in OverrideJars(archive, prefix + "overrides/mods/", ModSide.Both))
                     overrides[jar.FileName] = jar;
 
-                foreach (var jar in OverrideJars(archive, prefix + "client-overrides/mods/"))
+                foreach (var jar in OverrideJars(archive, prefix + "client-overrides/mods/", ModSide.ClientOnly))
+                    overrides[jar.FileName] = jar;
+
+                // Ingested now, as ServerOnly. It used to be skipped outright because HOPPER only
+                // fed game clients, which stopped being true.
+                foreach (var jar in OverrideJars(archive, prefix + "server-overrides/mods/", ModSide.ServerOnly))
                     overrides[jar.FileName] = jar;
 
                 files.RemoveAll(f => overrides.ContainsKey(f.FileName));
@@ -154,10 +155,10 @@ namespace HOPPER.Application.Imports
             return new PackPlatform(minecraft, loader);
         }
 
-        private static IEnumerable<PlannedFile> OverrideJars(ZipArchive archive, string folder) =>
+        private static IEnumerable<PlannedFile> OverrideJars(ZipArchive archive, string folder, ModSide side) =>
             archive.Entries
                 .Where(e => e.FullName.StartsWith(folder, StringComparison.OrdinalIgnoreCase) && PackDetector.IsJar(e))
-                .Select(e => new PlannedFile { FileName = e.Name, ZipEntry = e.FullName });
+                .Select(e => new PlannedFile { FileName = e.Name, ZipEntry = e.FullName, Side = side });
 
         private static string BaseName(string path)
         {
