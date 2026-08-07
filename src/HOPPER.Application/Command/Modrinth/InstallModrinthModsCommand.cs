@@ -106,7 +106,7 @@ namespace HOPPER.Application.Command.Modrinth
             Server server,
             ModrinthVersion version,
             bool replace,
-            IReadOnlyDictionary<string, string> projectTitles,
+            IReadOnlyDictionary<string, ProjectFacts> projectTitles,
             List<ModDto> installed,
             List<ModrinthAdoptedDto> adopted,
             List<ModDto> replaced,
@@ -166,7 +166,8 @@ namespace HOPPER.Application.Command.Modrinth
                     throw new ArgumentException($"Downloaded {fileName} does not match the hashes Modrinth published.");
                 }
 
-                var title = projectTitles.GetValueOrDefault(version.ProjectId);
+                var project = projectTitles.GetValueOrDefault(version.ProjectId);
+                var title = project?.Title;
 
                 var sameBytes = current.FirstOrDefault(m => string.Equals(m.Sha256, staged.Sha256, StringComparison.Ordinal));
                 if (sameBytes is not null && sameBytes != displaced)
@@ -182,7 +183,7 @@ namespace HOPPER.Application.Command.Modrinth
                     }
 
                     sameBytes.ModIds ??= ModIdReader.FromStaged(blobs, staged);
-                    ApplyProvenance(sameBytes, version, file, title, sha1, sha512);
+                    ApplyProvenance(sameBytes, version, file, project, sha1, sha512);
 
                     await using (var adopting = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
                     {
@@ -211,7 +212,7 @@ namespace HOPPER.Application.Command.Modrinth
                     IconSha256 = await ModIconStore.FromStagedJarAsync(blobs, staged, cancellationToken),
                 };
 
-                ApplyProvenance(entry, version, file, title, sha1, sha512);
+                ApplyProvenance(entry, version, file, project, sha1, sha512);
 
                 if (displaced is not null)
                     db.Mods.Remove(displaced);
@@ -255,13 +256,18 @@ namespace HOPPER.Application.Command.Modrinth
         }
 
         private static void ApplyProvenance(
-            Mod mod, ModrinthVersion version, ModrinthVersionFile file, string? title, string sha1, string sha512)
+            Mod mod, ModrinthVersion version, ModrinthVersionFile file, ProjectFacts? project, string sha1, string sha512)
         {
             mod.Source = ModSource.Modrinth;
             mod.ProjectId = version.ProjectId;
             mod.VersionId = version.Id;
-            mod.ProjectName = title;
+            mod.ProjectName = project?.Title;
             mod.DownloadUrl = file.Url;
+
+            // Stored beside the download URL, for the same reason: HOPPER did not make this artwork
+            // and cannot re-derive it. It is what the table falls back to when a jar carries no
+            // icon of its own, which is most of what the manager installs.
+            mod.IconUrl = project?.IconUrl;
 
             mod.Sha1 = sha1;
             mod.Sha512 = sha512;
@@ -321,7 +327,10 @@ namespace HOPPER.Application.Command.Modrinth
                 $"{declaring} declares {other} incompatible, and {other} is on this server. Nothing was installed.");
         }
 
-        private async Task<IReadOnlyDictionary<string, string>> ProjectTitlesAsync(
+        /// <summary>What HOPPER keeps from a project: its name, and where its icon lives.</summary>
+        private sealed record ProjectFacts(string? Title, string? IconUrl);
+
+        private async Task<IReadOnlyDictionary<string, ProjectFacts>> ProjectTitlesAsync(
             IReadOnlyList<ModrinthVersion> versions, CancellationToken cancellationToken)
         {
             var ids = versions
@@ -331,18 +340,21 @@ namespace HOPPER.Application.Command.Modrinth
                 .ToList();
 
             if (ids.Count == 0)
-                return new Dictionary<string, string>(StringComparer.Ordinal);
+                return new Dictionary<string, ProjectFacts>(StringComparer.Ordinal);
 
             try
             {
                 var projects = await modrinth.GetProjectsAsync(ids, cancellationToken);
-                return projects
-                    .Where(p => !string.IsNullOrWhiteSpace(p.Title))
-                    .ToDictionary(p => p.Id, p => p.Title!, StringComparer.Ordinal);
+                return projects.ToDictionary(
+                    p => p.Id,
+                    p => new ProjectFacts(p.Title, p.IconUrl),
+                    StringComparer.Ordinal);
             }
             catch (ModrinthApiException)
             {
-                return new Dictionary<string, string>(StringComparer.Ordinal);
+                // The install is worth more than its metadata: a name and an icon can be filled in
+                // later, and refusing the jar over them would be the wrong trade.
+                return new Dictionary<string, ProjectFacts>(StringComparer.Ordinal);
             }
         }
     }

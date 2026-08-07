@@ -23,5 +23,6 @@ export interface ModDto {
     projectName?: string | null;
     downloadUrl?: string | null;
     iconSha256?: string | null;
+    iconUrl?: string | null;
 }
 

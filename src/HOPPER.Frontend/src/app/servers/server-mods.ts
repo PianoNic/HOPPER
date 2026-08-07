@@ -182,9 +182,12 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                   <td hlmTableCell>
                     <!-- The placeholder keeps the column from collapsing on a server whose jars
                          carry no icon, which is every hand-built pack until the backfill runs. -->
-                    @if (m.iconSha256 && !iconFailed()[m.id]) {
+                    <!-- The jar's own icon first, because it is served by HOPPER and works with no
+                         network. The platform's URL is the fallback for what the manager installed,
+                         where the jar usually carries none. -->
+                    @if (iconOf(m); as icon) {
                       <img
-                        [src]="'/api/icons/' + m.iconSha256"
+                        [src]="icon"
                         [alt]="m.fileName"
                         loading="lazy"
                         class="size-7 rounded object-cover"
@@ -336,6 +339,13 @@ export class ServerMods {
   // A stored icon can still fail to render: the blob may have been swept, or it may be a format
   // the browser refuses. Falling back to the same placeholder beats a broken-image glyph.
   protected readonly iconFailed = signal<Record<string, boolean>>({});
+
+  protected iconOf(mod: ModDto): string | null {
+    if (this.iconFailed()[mod.id]) return null;
+    if (mod.iconSha256) return `/api/icons/${mod.iconSha256}`;
+
+    return mod.iconUrl ?? null;
+  }
 
   protected onIconError(modId: string): void {
     this.iconFailed.update((failed) => ({ ...failed, [modId]: true }));

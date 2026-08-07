@@ -1,5 +1,6 @@
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,11 @@ namespace HOPPER.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/icons")]
+    // Anonymous, because an <img src> cannot carry a bearer token and the dashboard renders these
+    // as images rather than fetching them. What is on offer is a mod's own logo, the same artwork
+    // its project page serves to anyone, and only for a sha some mod already claims as its icon -
+    // never an arbitrary blob.
+    [AllowAnonymous]
     public class IconsController(HopperDbContext db, IBlobStorage blobs) : ControllerBase
     {
         [HttpGet("{sha256}")]

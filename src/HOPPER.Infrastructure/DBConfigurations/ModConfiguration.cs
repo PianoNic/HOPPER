@@ -28,6 +28,8 @@ namespace HOPPER.Infrastructure.DBConfigurations
 
             builder.Property(m => m.DownloadUrl).HasMaxLength(2048);
 
+            builder.Property(m => m.IconUrl).HasMaxLength(2048);
+
             builder.HasIndex(m => m.Sha256);
 
             builder.HasIndex(m => new { m.ServerId, m.ProjectId });
