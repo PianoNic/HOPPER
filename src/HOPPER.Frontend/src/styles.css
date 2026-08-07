@@ -181,3 +181,82 @@
     opacity: 0.3;
   }
 }
+
+/* A third party's Markdown, so the rules are about containment rather than looks: nothing may
+   widen the pane or drown out the dashboard's own type. Unlayered, because Tailwind's preflight
+   strips heading and list styling in the base layer and this has to win over it. */
+.hopper-markdown :is(h1, h2, h3, h4) {
+  margin: 1em 0 0.4em;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hopper-markdown :is(h3, h4) {
+  font-size: 0.875rem;
+}
+
+.hopper-markdown p,
+.hopper-markdown ul,
+.hopper-markdown ol,
+.hopper-markdown blockquote {
+  margin: 0.6em 0;
+}
+
+.hopper-markdown :is(ul, ol) {
+  padding-left: 1.25em;
+  list-style: revert;
+}
+
+.hopper-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.hopper-markdown :is(img, video, iframe) {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.hopper-markdown :is(code, pre) {
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  font-size: 0.8em;
+}
+
+.hopper-markdown code {
+  padding: 0.1em 0.3em;
+}
+
+.hopper-markdown pre {
+  padding: 0.6em 0.8em;
+  overflow-x: auto;
+}
+
+.hopper-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.hopper-markdown blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 0.75em;
+  color: var(--muted-foreground);
+}
+
+.hopper-markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.hopper-markdown :is(th, td) {
+  border: 1px solid var(--border);
+  padding: 0.25em 0.5em;
+}
+
+.hopper-markdown hr {
+  margin: 1em 0;
+  border-top: 1px solid var(--border);
+}

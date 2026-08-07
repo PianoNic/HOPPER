@@ -10,6 +10,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { catchError, debounceTime, distinctUntilChanged, EMPTY, forkJoin, switchMap } from 'rxjs';
@@ -23,6 +24,8 @@ import {
   lucideSearch,
   lucideSettings,
   lucideTriangleAlert,
+  lucideUsers,
+  lucideX,
 } from '@ng-icons/lucide';
 import { simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
@@ -34,11 +37,13 @@ import { ContentHeader } from '../shared/components/content-header/content-heade
 import { ModrinthService } from '../api/api/modrinth.service';
 import { ServersService } from '../api/api/servers.service';
 import { ModrinthGameVersionDto } from '../api/model/modrinthGameVersionDto';
+import { ModrinthProjectDto } from '../api/model/modrinthProjectDto';
 import { ModrinthSearchHitDto } from '../api/model/modrinthSearchHitDto';
 import { ServerDto } from '../api/model/serverDto';
 import { ApiModrinthSearchGetLimitParameter } from '../api/model/apiModrinthSearchGetLimitParameter';
 import { ApiModrinthSearchGetOffsetParameter } from '../api/model/apiModrinthSearchGetOffsetParameter';
 import { apiNumber, messageFrom, toNumber } from '../shared/utils/format';
+import { renderProjectBody } from '../shared/utils/markdown';
 import { serverIdSignal } from './server-route';
 import {
   MOD_LOADER,
@@ -78,6 +83,7 @@ type SearchKey = {
     ContentHeader,
     NgIcon,
     RouterLink,
+    DatePipe,
     HlmBadgeImports,
     HlmButtonImports,
     ButtonLoading,
@@ -94,6 +100,8 @@ type SearchKey = {
       lucideSearch,
       lucideSettings,
       lucideTriangleAlert,
+      lucideUsers,
+      lucideX,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -169,7 +177,11 @@ type SearchKey = {
         }
       </header>
 
-      <div class="min-h-0 flex-1 overflow-auto px-4">
+      <div class="flex min-h-0 flex-1">
+      <div
+        class="min-h-0 flex-1 overflow-auto px-4"
+        [class.max-lg:hidden]="selected() !== null"
+      >
         @if (!platformReady()) {
           <!-- A state, not an error. The server has never been told what it runs, so there is no
                honest filter to apply: searching every loader at once would offer jars this server
@@ -206,7 +218,12 @@ type SearchKey = {
         } @else {
           <ul class="flex flex-col gap-2 py-3">
             @for (h of hits(); track h.projectId) {
-              <li class="hover:bg-accent/40 flex items-start gap-3 rounded-md border p-3">
+              <li
+                class="hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+                [class.border-primary]="selected()?.projectId === h.projectId"
+                [class.bg-accent/40]="selected()?.projectId === h.projectId"
+                (click)="select(h)"
+              >
                 @if (h.iconUrl) {
                   <img
                     [src]="h.iconUrl"
@@ -243,7 +260,7 @@ type SearchKey = {
                   </div>
                 </div>
 
-                <div class="flex shrink-0 items-center gap-1">
+                <div class="flex shrink-0 items-center gap-1" (click)="$event.stopPropagation()">
                   @if (projectUrl(h); as url) {
                     <a
                       hlmBtn
@@ -298,6 +315,135 @@ type SearchKey = {
           </div>
         }
       </div>
+
+      <!-- Selection is a signal, not a route: on a route the back button would close the pane
+           instead of leaving the page, and the grid would re-query on every click. Full width
+           below lg, where two columns would squeeze the grid to one card per row. -->
+      @if (selected(); as sel) {
+        <aside
+          class="bg-background flex w-full shrink-0 flex-col overflow-auto border-l lg:w-96"
+        >
+          <div class="flex items-start gap-3 border-b p-4">
+            @if (sel.iconUrl) {
+              <img
+                [src]="sel.iconUrl"
+                [alt]="sel.title"
+                class="size-12 shrink-0 rounded-md object-cover"
+              />
+            }
+            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span class="text-sm font-medium">{{ sel.title }}</span>
+              @if (sel.author) {
+                <span class="text-muted-foreground text-xs">by {{ sel.author }}</span>
+              }
+            </div>
+            <button
+              hlmBtn
+              variant="ghost"
+              size="icon-sm"
+              type="button"
+              title="Close"
+              (click)="clearSelection()"
+            >
+              <ng-icon name="lucideX" size="14" />
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 border-b p-4">
+            @if (sel.installed) {
+              <button hlmBtn variant="outline" size="sm" type="button" disabled>
+                <ng-icon name="lucideCheck" size="14" />
+                Added
+              </button>
+            } @else {
+              <button
+                hlmBtn
+                size="sm"
+                type="button"
+                [disabled]="picking() === sel.projectId"
+                [loading]="picking() === sel.projectId"
+                (click)="addLatest(sel)"
+              >
+                Add
+              </button>
+            }
+            <button hlmBtn variant="outline" size="sm" type="button" (click)="versions(sel)">
+              Versions
+            </button>
+            @if (projectUrl(sel); as url) {
+              <a
+                hlmBtn
+                variant="ghost"
+                size="sm"
+                [href]="url"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ng-icon name="lucideExternalLink" size="14" />
+                Modrinth
+              </a>
+            }
+          </div>
+
+          @if (detailLoading()) {
+            <p class="text-muted-foreground p-4 text-xs">Loading details…</p>
+          } @else if (detail(); as p) {
+            <div class="flex flex-col gap-3 p-4">
+              <div class="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
+                <span class="inline-flex items-center gap-1">
+                  <ng-icon name="lucideDownload" size="12" />
+                  {{ compact(p.downloads) }}
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <ng-icon name="lucideUsers" size="12" />
+                  {{ compact(p.followers) }}
+                </span>
+                @if (sel.dateModified) {
+                  <span>updated {{ sel.dateModified | date: 'mediumDate' }}</span>
+                }
+              </div>
+
+              <div class="flex flex-wrap gap-1">
+                @for (c of p.categories; track c) {
+                  <span hlmBadge variant="outline" class="text-xs">{{ c }}</span>
+                }
+              </div>
+
+              @if (p.issuesUrl || p.sourceUrl) {
+                <div class="flex flex-wrap gap-2 text-xs">
+                  @if (p.sourceUrl) {
+                    <a
+                      class="underline"
+                      [href]="p.sourceUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Source</a
+                    >
+                  }
+                  @if (p.issuesUrl) {
+                    <a
+                      class="underline"
+                      [href]="p.issuesUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Issues</a
+                    >
+                  }
+                </div>
+              }
+
+              @if (body(); as html) {
+                <!-- innerHTML on purpose: Angular's sanitiser runs on it, which is what makes a
+                     third party's Markdown safe to show at all. -->
+                <div class="hopper-markdown text-xs leading-relaxed" [innerHTML]="html"></div>
+              } @else if (p.description) {
+                <p class="text-muted-foreground text-xs">{{ p.description }}</p>
+              }
+            </div>
+          }
+        </aside>
+      }
+      </div>
     </section>
   `,
 })
@@ -327,6 +473,19 @@ export class ServerBrowse {
   protected readonly offset = signal(0);
 
   private readonly reloadTick = signal(0);
+
+  protected readonly selected = signal<ModrinthSearchHitDto | null>(null);
+  protected readonly detail = signal<ModrinthProjectDto | null>(null);
+  protected readonly detailLoading = signal(false);
+
+  // Modrinth allows 300 requests a minute and a browse page can burn that clicking back and forth,
+  // so a project is fetched once and kept for as long as the page lives.
+  private readonly detailCache = new Map<string, ModrinthProjectDto>();
+
+  protected readonly body = computed(() => {
+    const raw = this.detail()?.body;
+    return raw != null && raw.trim() !== '' ? renderProjectBody(raw) : null;
+  });
 
   private readonly sentinel = viewChild<ElementRef<HTMLElement>>('sentinel');
   private observer: IntersectionObserver | null = null;
@@ -384,6 +543,40 @@ export class ServerBrowse {
     });
 
     this.destroyRef.onDestroy(() => this.disconnect());
+
+    // switchMap so clicking a second card before the first answers drops the first: the pane must
+    // never fill in with the project the reader has already moved on from.
+    toObservable(this.selected)
+      .pipe(
+        switchMap((hit) => {
+          if (hit === null) {
+            this.detail.set(null);
+            return EMPTY;
+          }
+
+          const cached = this.detailCache.get(hit.projectId);
+          if (cached) {
+            this.detail.set(cached);
+            return EMPTY;
+          }
+
+          this.detail.set(null);
+          this.detailLoading.set(true);
+          return this.api.apiModrinthProjectsIdOrSlugGet(hit.slug ?? hit.projectId).pipe(
+            catchError((err: unknown) => {
+              toast.error(messageFrom(err, 'Failed to load this mod from Modrinth'));
+              this.detailLoading.set(false);
+              return EMPTY;
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((project) => {
+        this.detailCache.set(project.id, project);
+        this.detail.set(project);
+        this.detailLoading.set(false);
+      });
 
     toObservable(this.searchKey)
       .pipe(
@@ -456,6 +649,18 @@ export class ServerBrowse {
     if (!match) return;
     this.index.set(match.value);
     this.resetPaging();
+  }
+
+  protected select(hit: ModrinthSearchHitDto): void {
+    this.selected.set(this.selected()?.projectId === hit.projectId ? null : hit);
+  }
+
+  protected clearSelection(): void {
+    this.selected.set(null);
+  }
+
+  protected compact(value: unknown): string {
+    return formatCount(toNumber(value));
   }
 
   protected loadMore(): void {
