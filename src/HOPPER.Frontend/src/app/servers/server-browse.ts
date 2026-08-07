@@ -19,7 +19,6 @@ import { toast } from '@spartan-ng/brain/sonner';
 import {
   lucideBug,
   lucideDownload,
-  lucideExternalLink,
   lucidePackage,
   lucideSearch,
   lucideSettings,
@@ -112,7 +111,6 @@ type SearchKey = {
   gameVersion: string;
   index: number;
   offset: number;
-  tick: number;
 };
 
 @Component({
@@ -141,7 +139,6 @@ type SearchKey = {
       simpleSourcehut,
       lucideBug,
       lucideDownload,
-      lucideExternalLink,
       lucidePackage,
       lucideSearch,
       lucideSettings,
@@ -419,6 +416,15 @@ type SearchKey = {
 
           @if (detailLoading()) {
             <p class="text-muted-foreground p-4 text-xs">Loading details…</p>
+          } @else if (detailFailed()) {
+            <!-- A state, not a message: the failure itself was the toast, and a toast is gone in
+                 seconds while an empty pane is not. -->
+            <div class="flex flex-col items-center gap-2 p-8 text-center">
+              <ng-icon name="lucideTriangleAlert" size="24" class="text-muted-foreground opacity-60" />
+              <button hlmBtn variant="outline" size="sm" type="button" (click)="retryDetail()">
+                Try again
+              </button>
+            </div>
           } @else if (detail(); as p) {
             <div class="flex flex-col gap-3 p-4">
               <div class="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
@@ -515,11 +521,16 @@ export class ServerBrowse {
   protected readonly index = signal<number>(SEARCH_INDEX.relevance);
   protected readonly offset = signal(0);
 
-  private readonly reloadTick = signal(0);
-
   protected readonly selected = signal<ModrinthSearchHitDto | null>(null);
   protected readonly detail = signal<ModrinthProjectDto | null>(null);
   protected readonly detailLoading = signal(false);
+  protected readonly detailFailed = signal(false);
+  private readonly detailRetry = signal(0);
+
+  private readonly detailKey = computed(() => ({
+    hit: this.selected(),
+    retry: this.detailRetry(),
+  }));
 
   // Modrinth allows 300 requests a minute and a browse page can burn that clicking back and forth,
   // so a project is fetched once and kept for as long as the page lives.
@@ -564,7 +575,6 @@ export class ServerBrowse {
       gameVersion: this.gameVersion(),
       index: this.index(),
       offset: this.offset(),
-      tick: this.reloadTick(),
     };
   });
 
@@ -590,9 +600,9 @@ export class ServerBrowse {
 
     // switchMap so clicking a second card before the first answers drops the first: the pane must
     // never fill in with the project the reader has already moved on from.
-    toObservable(this.selected)
+    toObservable(this.detailKey)
       .pipe(
-        switchMap((hit) => {
+        switchMap(({ hit }) => {
           if (hit === null) {
             this.detail.set(null);
             return EMPTY;
@@ -605,11 +615,15 @@ export class ServerBrowse {
           }
 
           this.detail.set(null);
+          this.detailFailed.set(false);
           this.detailLoading.set(true);
           return this.api.apiModrinthProjectsIdOrSlugGet(hit.slug ?? hit.projectId).pipe(
+            // EMPTY keeps the outer subscription alive so the next card still fetches; failed is
+            // what stops the pane sitting empty once the toast has gone.
             catchError((err: unknown) => {
               toast.error(messageFrom(err, 'Failed to load this mod from Modrinth'));
               this.detailLoading.set(false);
+              this.detailFailed.set(true);
               return EMPTY;
             }),
           );
@@ -619,6 +633,7 @@ export class ServerBrowse {
       .subscribe((project) => {
         this.detailCache.set(project.id, project);
         this.detail.set(project);
+        this.detailFailed.set(false);
         this.detailLoading.set(false);
       });
 
@@ -707,6 +722,12 @@ export class ServerBrowse {
     this.selected.set(this.selected()?.projectId === hit.projectId ? null : hit);
   }
 
+  // A counter rather than re-setting the selection: a signal set to null and back in one tick
+  // coalesces to no change at all, so the switchMap would never see a second value.
+  protected retryDetail(): void {
+    this.detailRetry.update((tick) => tick + 1);
+  }
+
   protected clearSelection(): void {
     this.selected.set(null);
   }
@@ -757,7 +778,7 @@ export class ServerBrowse {
       gameVersion: this.gameVersion(),
     });
     if (!pick) return;
-    await this.plan(pick.versionId, pick.title);
+    await this.plan(pick.versionId, pick.title, hit.projectId);
   }
 
   protected addLatest(hit: ModrinthSearchHitDto): void {
@@ -783,7 +804,7 @@ export class ServerBrowse {
             );
             return;
           }
-          await this.plan(newest.id, hit.title);
+          await this.plan(newest.id, hit.title, hit.projectId);
         },
         error: (err) => {
           this.picking.set(null);
@@ -792,7 +813,7 @@ export class ServerBrowse {
       });
   }
 
-  private async plan(versionId: string, title: string): Promise<void> {
+  private async plan(versionId: string, title: string, projectId: string): Promise<void> {
     const result = await this.planDialog.add({
       serverId: this.serverId(),
       rootVersionIds: [versionId],
@@ -812,16 +833,23 @@ export class ServerBrowse {
       );
     }
 
-    this.refreshHits();
+    // Marked here rather than re-queried. A refresh restarts at offset 0, which the subscription
+    // treats as a replacement, so everything scrolled since would be thrown away and the reader
+    // dropped back at the top. The one thing the refresh was for is this flag.
+    this.markInstalled(projectId);
+  }
+
+  private markInstalled(projectId: string): void {
+    this.hits.update((current) =>
+      current.map((h) => (h.projectId === projectId ? { ...h, installed: true } : h)),
+    );
+    this.selected.update((sel) =>
+      sel !== null && sel.projectId === projectId ? { ...sel, installed: true } : sel,
+    );
   }
 
   private resetPaging(): void {
     this.offset.set(0);
-  }
-
-  private refreshHits(): void {
-    this.offset.set(0);
-    this.reloadTick.update((t) => t + 1);
   }
 
   private load(id: string): void {

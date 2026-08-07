@@ -14,10 +14,8 @@ import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { toast } from '@spartan-ng/brain/sonner';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
-  lucideBoxes,
   lucideClipboardList,
   lucideFileArchive,
-  lucideFlame,
   lucideLink,
   lucideUpload,
 } from '@ng-icons/lucide';
@@ -77,10 +75,8 @@ const POLL_MS = 2000;
       simpleCurseforge,
       simpleModrinth,
       hopperPrism,
-      lucideBoxes,
       lucideClipboardList,
       lucideFileArchive,
-      lucideFlame,
       lucideLink,
       lucideUpload,
     }),
