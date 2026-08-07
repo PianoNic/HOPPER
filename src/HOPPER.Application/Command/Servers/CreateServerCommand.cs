@@ -10,7 +10,6 @@ namespace HOPPER.Application.Command.Servers
 {
     public record CreateServerCommand(
         string Name,
-        string? Slug,
         string? MinecraftVersion = null,
         ModLoader Loader = ModLoader.Unknown,
         string? LoaderVersion = null) : ICommand<ServerDto>;
@@ -23,19 +22,11 @@ namespace HOPPER.Application.Command.Servers
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Server name is required.");
 
-            string slug;
-            if (!string.IsNullOrWhiteSpace(command.Slug))
-            {
-                slug = ServerSlugValidator.Validate(command.Slug);
-                if (await db.Servers.AnyAsync(s => s.Slug == slug, cancellationToken))
-                    throw new DuplicateServerSlugException(slug);
-            }
-            else
-            {
-                var derived = ServerSlugValidator.Derive(name)
-                    ?? throw new ArgumentException($"No slug can be derived from \"{name}\". Supply one explicitly.");
-                slug = await UniqueAsync(derived, cancellationToken);
-            }
+            // Derived, never supplied. The slug is a handle rather than a choice, and one an admin
+            // types is one that can disagree with the name, collide, or need correcting later.
+            var derived = ServerSlugValidator.Derive(name)
+                ?? throw new ArgumentException($"No slug can be derived from \"{name}\". Give the server a name with letters or digits in it.");
+            var slug = await UniqueAsync(derived, cancellationToken);
 
             if (!Enum.IsDefined(command.Loader))
                 throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");

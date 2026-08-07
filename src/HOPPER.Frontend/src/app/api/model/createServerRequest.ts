@@ -11,7 +11,6 @@
 
 export interface CreateServerRequest { 
     name: string;
-    slug: string | null;
     minecraftVersion?: string | null;
     loader?: number;
     loaderVersion?: string | null;
