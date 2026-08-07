@@ -54,6 +54,8 @@ namespace HOPPER.Application.Command.Imports
                     Size = staged.Size,
                     UploadedBy = currentUser.Name,
 
+                    Side = metadata.Side,
+
                     ModIds = metadata.ModIds,
                     IconSha256 = metadata.IconSha256,
                 };
