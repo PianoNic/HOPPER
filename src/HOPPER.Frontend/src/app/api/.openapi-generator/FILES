@@ -64,6 +64,8 @@ model/pendingModDtoProjectId.ts
 model/problemDetails.ts
 model/serverDto.ts
 model/serverTokenDto.ts
+model/setModSideRequest.ts
+model/setModSideResultDto.ts
 model/stringSegment.ts
 model/updateServerRequest.ts
 param.ts

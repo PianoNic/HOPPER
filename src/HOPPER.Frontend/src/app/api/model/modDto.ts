@@ -18,6 +18,7 @@ export interface ModDto {
     uploadedBy?: string | null;
     createdAt: string;
     source: number;
+    side: number;
     projectId?: string | null;
     versionId?: string | null;
     projectName?: string | null;

@@ -13,6 +13,8 @@ namespace HOPPER.Application.Dtos.Mods
 
         public required ModSource Source { get; init; }
 
+        public required ModSide Side { get; init; }
+
         public string? ProjectId { get; init; }
         public string? VersionId { get; init; }
         public string? ProjectName { get; init; }

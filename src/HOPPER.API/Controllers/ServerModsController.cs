@@ -1,6 +1,7 @@
 using HOPPER.Application.Command.Mods;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Queries.Mods;
+using HOPPER.Domain.Enums;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
@@ -49,6 +50,18 @@ namespace HOPPER.API.Controllers
             }
         }
 
+        [HttpPatch("side")]
+        [ProducesResponseType(typeof(SetModSideResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SetSide(Guid id, [FromBody] SetModSideRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null || request.ModIds is null || request.ModIds.Count == 0)
+                return BadRequest(new { error = "No mods named." });
+
+            var updated = await mediator.Send(new SetModSideCommand(id, request.ModIds, request.Side), cancellationToken);
+            return Ok(new SetModSideResultDto { Updated = updated });
+        }
+
         [HttpDelete("{modId:guid}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> Delete(Guid id, Guid modId, CancellationToken cancellationToken = default)
@@ -57,4 +70,6 @@ namespace HOPPER.API.Controllers
             return NoContent();
         }
     }
+
+    public record SetModSideRequest(IReadOnlyList<Guid> ModIds, ModSide Side);
 }
