@@ -1,4 +1,5 @@
 using HOPPER.API.Auth;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -17,15 +18,21 @@ namespace HOPPER.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Get(string sha256, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Get(string sha256, [FromQuery] string? side = null, CancellationToken cancellationToken = default)
         {
+            if (!ModSideRules.TryParse(side, out var syncSide))
+                return BadRequest(new { error = "side must be 'client' or 'server'." });
+
             if (sha256.Length != 64 || !sha256.All(char.IsAsciiHexDigitLower))
                 return BadRequest(new { error = "Not a sha256." });
 
             var serverId = User.ServerId();
             var mod = await db.Mods.AsNoTracking()
+                .Where(ModSideRules.ReachesExpression(syncSide))
                 .FirstOrDefaultAsync(m => m.ServerId == serverId && m.Sha256 == sha256, cancellationToken);
 
+            // Filtering the manifest while leaving the bytes fetchable by hash would hand a caller
+            // the very jar it was not sent, so the same rule guards both.
             if (mod is null)
                 return NotFound();
 
