@@ -17,7 +17,7 @@ import { catchError, debounceTime, distinctUntilChanged, EMPTY, forkJoin, switch
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
 import {
-  lucideCheck,
+  lucideBug,
   lucideDownload,
   lucideExternalLink,
   lucidePackage,
@@ -27,11 +27,21 @@ import {
   lucideUsers,
   lucideX,
 } from '@ng-icons/lucide';
-import { simpleModrinth } from '@ng-icons/simple-icons';
+import {
+  simpleBitbucket,
+  simpleCodeberg,
+  simpleGit,
+  simpleGitea,
+  simpleGithub,
+  simpleGitlab,
+  simpleModrinth,
+  simpleSourcehut,
+} from '@ng-icons/simple-icons';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
+import { HlmResizableImports } from '@spartan-ng/helm/resizable';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ModrinthService } from '../api/api/modrinth.service';
@@ -55,7 +65,35 @@ import {
 import { ModrinthVersionDialogService } from './modrinth-version-dialog';
 import { ModrinthPlanDialogService } from './modrinth-plan-dialog';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
+
+// How far past the end of the list the next page is fetched, in viewports. Three is enough that a
+// steady scroll never reaches the bottom, without pulling the whole catalogue for one glance.
+const LOOKAHEAD_VIEWPORTS = 3;
+
+// Matched on the host rather than anywhere in the URL, or a repository called "github-mirror" on
+// some other forge would wear the wrong mark.
+const SOURCE_HOSTS: ReadonlyArray<{ matches: (url: string) => boolean; icon: string; title: string }> =
+  (
+    [
+      ['github.com', 'simpleGithub', 'Source on GitHub'],
+      ['gitlab.com', 'simpleGitlab', 'Source on GitLab'],
+      ['codeberg.org', 'simpleCodeberg', 'Source on Codeberg'],
+      ['bitbucket.org', 'simpleBitbucket', 'Source on Bitbucket'],
+      ['git.sr.ht', 'simpleSourcehut', 'Source on SourceHut'],
+      ['gitea', 'simpleGitea', 'Source on Gitea'],
+    ] as const
+  ).map(([needle, icon, title]) => ({
+    matches: (url: string) => {
+      try {
+        return new URL(url).hostname.toLowerCase().includes(needle);
+      } catch {
+        return false;
+      }
+    },
+    icon,
+    title,
+  }));
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -88,12 +126,20 @@ type SearchKey = {
     HlmButtonImports,
     ButtonLoading,
     HlmInputImports,
+    HlmResizableImports,
     HlmSelectImports,
   ],
   providers: [
     provideIcons({
       simpleModrinth,
-      lucideCheck,
+      simpleBitbucket,
+      simpleCodeberg,
+      simpleGit,
+      simpleGitea,
+      simpleGithub,
+      simpleGitlab,
+      simpleSourcehut,
+      lucideBug,
       lucideDownload,
       lucideExternalLink,
       lucidePackage,
@@ -177,11 +223,16 @@ type SearchKey = {
         }
       </header>
 
-      <div class="flex min-h-0 flex-1">
-      <div
-        class="min-h-0 flex-1 overflow-auto px-4"
+      <hlm-resizable-group direction="horizontal" class="min-h-0 flex-1">
+      <hlm-resizable-panel
+        [defaultSize]="70"
+        [minSize]="35"
+        class="min-h-0"
         [class.max-lg:hidden]="selected() !== null"
       >
+        <!-- The scroll lives here and not on the panel: BrnResizablePanel writes overflow:hidden
+             as an inline style, which no class can outrank, and the results would just be clipped. -->
+        <div #scrollBox class="h-full overflow-auto px-4">
         @if (!platformReady()) {
           <!-- A state, not an error. The server has never been told what it runs, so there is no
                honest filter to apply: searching every loader at once would offer jars this server
@@ -241,7 +292,20 @@ type SearchKey = {
 
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="truncate text-sm font-medium">{{ h.title }}</span>
+                    <!-- The title is the link out to Modrinth here too; the rest of the card opens
+                         the pane, so the click must not do both. -->
+                    @if (projectUrl(h); as url) {
+                      <a
+                        class="truncate text-sm font-medium hover:underline"
+                        [href]="url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        (click)="$event.stopPropagation()"
+                        >{{ h.title }}</a
+                      >
+                    } @else {
+                      <span class="truncate text-sm font-medium">{{ h.title }}</span>
+                    }
                     @if (h.author) {
                       <span class="text-muted-foreground text-xs">by {{ h.author }}</span>
                     }
@@ -260,28 +324,15 @@ type SearchKey = {
                   </div>
                 </div>
 
+                <!-- stopPropagation, because the card itself opens the pane and a click on Add
+                     is not a click on the card. The Modrinth link is not here: it lives in the
+                     pane, which is where someone reading about a mod already is. -->
                 <div class="flex shrink-0 items-center gap-1" (click)="$event.stopPropagation()">
-                  @if (projectUrl(h); as url) {
-                    <a
-                      hlmBtn
-                      variant="ghost"
-                      size="sm"
-                      title="Open on Modrinth"
-                      [href]="url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ng-icon name="lucideExternalLink" size="14" />
-                    </a>
-                  }
                   <button hlmBtn variant="outline" size="sm" type="button" (click)="versions(h)">
                     Versions
                   </button>
                   @if (h.installed) {
-                    <button hlmBtn variant="outline" size="sm" type="button" disabled>
-                      <ng-icon name="lucideCheck" size="14" />
-                      Added
-                    </button>
+                    <span class="text-muted-foreground px-2 text-xs">Added</span>
                   } @else {
                     <button
                       [loading]="picking() === h.projectId"
@@ -314,15 +365,21 @@ type SearchKey = {
             }
           </div>
         }
-      </div>
+        </div>
+      </hlm-resizable-panel>
 
       <!-- Selection is a signal, not a route: on a route the back button would close the pane
            instead of leaving the page, and the grid would re-query on every click. Full width
            below lg, where two columns would squeeze the grid to one card per row. -->
       @if (selected(); as sel) {
-        <aside
-          class="bg-background flex w-full shrink-0 flex-col overflow-auto border-l lg:w-96"
+        <hlm-resizable-handle withHandle class="max-lg:hidden" />
+        <hlm-resizable-panel
+          [defaultSize]="30"
+          [minSize]="20"
+          [maxSize]="60"
+          class="bg-background min-h-0 w-full"
         >
+          <div class="flex h-full flex-col overflow-auto">
           <div class="flex items-start gap-3 border-b p-4">
             @if (sel.iconUrl) {
               <img
@@ -332,9 +389,23 @@ type SearchKey = {
               />
             }
             <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span class="text-sm font-medium">{{ sel.title }}</span>
+              <!-- The title is the way out to Modrinth, so the pane needs no button for it. -->
+              @if (projectUrl(sel); as url) {
+                <a
+                  class="text-sm font-medium hover:underline"
+                  [href]="url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >{{ sel.title }}</a
+                >
+              } @else {
+                <span class="text-sm font-medium">{{ sel.title }}</span>
+              }
               @if (sel.author) {
                 <span class="text-muted-foreground text-xs">by {{ sel.author }}</span>
+              }
+              @if (sel.installed) {
+                <span class="text-muted-foreground text-xs">Added to this server</span>
               }
             </div>
             <button
@@ -347,42 +418,6 @@ type SearchKey = {
             >
               <ng-icon name="lucideX" size="14" />
             </button>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2 border-b p-4">
-            @if (sel.installed) {
-              <button hlmBtn variant="outline" size="sm" type="button" disabled>
-                <ng-icon name="lucideCheck" size="14" />
-                Added
-              </button>
-            } @else {
-              <button
-                hlmBtn
-                size="sm"
-                type="button"
-                [disabled]="picking() === sel.projectId"
-                [loading]="picking() === sel.projectId"
-                (click)="addLatest(sel)"
-              >
-                Add
-              </button>
-            }
-            <button hlmBtn variant="outline" size="sm" type="button" (click)="versions(sel)">
-              Versions
-            </button>
-            @if (projectUrl(sel); as url) {
-              <a
-                hlmBtn
-                variant="ghost"
-                size="sm"
-                [href]="url"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ng-icon name="lucideExternalLink" size="14" />
-                Modrinth
-              </a>
-            }
           </div>
 
           @if (detailLoading()) {
@@ -403,34 +438,44 @@ type SearchKey = {
                 }
               </div>
 
-              <div class="flex flex-wrap gap-1">
-                @for (c of p.categories; track c) {
-                  <span hlmBadge variant="outline" class="text-xs">{{ c }}</span>
-                }
-              </div>
+              <div class="flex items-start gap-2">
+                <div class="flex flex-1 flex-wrap gap-1">
+                  @for (c of p.categories; track c) {
+                    <span hlmBadge variant="outline" class="text-xs">{{ c }}</span>
+                  }
+                </div>
 
-              @if (p.issuesUrl || p.sourceUrl) {
-                <div class="flex flex-wrap gap-2 text-xs">
+                <!-- The forge the source is hosted on, named by its own mark. A host nobody
+                     recognises still gets the generic git icon rather than no way through. -->
+                <div class="flex shrink-0 items-center gap-1">
                   @if (p.sourceUrl) {
                     <a
-                      class="underline"
+                      hlmBtn
+                      variant="ghost"
+                      size="icon-sm"
+                      [title]="sourceTitle(p.sourceUrl)"
                       [href]="p.sourceUrl"
                       target="_blank"
                       rel="noopener noreferrer"
-                      >Source</a
                     >
+                      <ng-icon [name]="sourceIcon(p.sourceUrl)" size="14" />
+                    </a>
                   }
                   @if (p.issuesUrl) {
                     <a
-                      class="underline"
+                      hlmBtn
+                      variant="ghost"
+                      size="icon-sm"
+                      title="Issue tracker"
                       [href]="p.issuesUrl"
                       target="_blank"
                       rel="noopener noreferrer"
-                      >Issues</a
                     >
+                      <ng-icon name="lucideBug" size="14" />
+                    </a>
                   }
                 </div>
-              }
+              </div>
 
               @if (body(); as html) {
                 <!-- innerHTML on purpose: Angular's sanitiser runs on it, which is what makes a
@@ -441,9 +486,10 @@ type SearchKey = {
               }
             </div>
           }
-        </aside>
+          </div>
+        </hlm-resizable-panel>
       }
-      </div>
+      </hlm-resizable-group>
     </section>
   `,
 })
@@ -488,6 +534,7 @@ export class ServerBrowse {
   });
 
   private readonly sentinel = viewChild<ElementRef<HTMLElement>>('sentinel');
+  private readonly scrollBox = viewChild<ElementRef<HTMLElement>>('scrollBox');
   private observer: IntersectionObserver | null = null;
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
@@ -623,6 +670,14 @@ export class ServerBrowse {
     return hit.categories.filter((c) => !loaderNames.has(c.toLowerCase())).slice(0, 4);
   }
 
+  protected sourceIcon(url: string): string {
+    return SOURCE_HOSTS.find((h) => h.matches(url))?.icon ?? 'simpleGit';
+  }
+
+  protected sourceTitle(url: string): string {
+    return SOURCE_HOSTS.find((h) => h.matches(url))?.title ?? 'Source code';
+  }
+
   protected projectUrl(hit: ModrinthSearchHitDto): string | null {
     return modrinthProjectUrl(hit.slug);
   }
@@ -676,11 +731,14 @@ export class ServerBrowse {
     // the empty and error states replace, so the node identity does not survive a new search.
     this.observer?.disconnect();
 
+    // root is the scrolling box, not the viewport. An IntersectionObserver intersects the root
+    // clipped by every scrolling ancestor, so against the viewport a rootMargin would be cut back
+    // to this box anyway and the fetch would only start once the end was nearly on screen.
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) this.loadMore();
       },
-      { rootMargin: '100% 0px' },
+      { root: this.scrollBox()?.nativeElement ?? null, rootMargin: `${LOOKAHEAD_VIEWPORTS * 100}% 0px` },
     );
 
     observer.observe(target);
