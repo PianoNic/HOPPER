@@ -7,14 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const PendingReason = {
+    NoApiKey: 0,
+    Blocked: 1,
+    DownloadFailed: 2,
+    HashMismatch: 3
+} as const;
+export type PendingReason = typeof PendingReason[keyof typeof PendingReason];
 

@@ -7,12 +7,16 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ModLoader } from './modLoader';
 
 
 export interface UpdateServerRequest { 
     name: string;
     minecraftVersion?: string | null;
-    loader?: number;
+    loader?: ModLoader;
     loaderVersion?: string | null;
 }
+export namespace UpdateServerRequest {
+}
+
 

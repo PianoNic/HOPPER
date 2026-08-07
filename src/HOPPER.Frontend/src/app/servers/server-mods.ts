@@ -38,7 +38,8 @@ import { ServerDto } from '../api/model/serverDto';
 import { WhenPipe } from '../shared/utils/when';
 import { ServerChanged } from '../shared/services/server-changed';
 import { serverIdSignal } from './server-route';
-import { MOD_SIDE, modSideLabel, modSourceLabel, modrinthProjectUrl } from './mod-labels';
+import { modSideLabel, modSourceLabel, modrinthProjectUrl } from './mod-labels';
+import { ModSide } from '../api/model/modSide';
 import { ExportPackDialogService } from './export-pack-dialog';
 import { ImportPackDialogService } from './import-pack-dialog';
 import { UploadModsDialogService } from './upload-mods-dialog';
@@ -251,7 +252,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                   <!-- Quiet for Both, which is nearly every row. Only the exceptions should draw
                        the eye, because those are the ones somebody decided. -->
                   <td hlmTableCell class="text-sm">
-                    @if (m.side === MOD_SIDE.both) {
+                    @if (m.side === ModSide.Both) {
                       <span class="text-muted-foreground text-xs">Both</span>
                     } @else {
                       <span hlmBadge variant="secondary" class="text-xs">{{ sideLabel(m.side) }}</span>
@@ -344,13 +345,13 @@ export class ServerMods {
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
   protected readonly settingSide = signal(false);
 
-  protected readonly MOD_SIDE = MOD_SIDE;
+  protected readonly ModSide = ModSide;
   protected readonly sideLabel = modSideLabel;
 
   protected readonly sideChoices = [
-    { side: MOD_SIDE.both, label: 'Both' },
-    { side: MOD_SIDE.clientOnly, label: 'Client only' },
-    { side: MOD_SIDE.serverOnly, label: 'Server only' },
+    { side: ModSide.Both, label: 'Both' },
+    { side: ModSide.ClientOnly, label: 'Client only' },
+    { side: ModSide.ServerOnly, label: 'Server only' },
   ] as const;
   protected readonly pendingCount = signal(0);
 
@@ -370,8 +371,8 @@ export class ServerMods {
     const total = list.reduce((sum, m) => sum + toNumber(m.size), 0);
     const base = `· ${list.length} jar${list.length === 1 ? '' : 's'} · ${formatBytes(total)}`;
 
-    const clients = list.filter((m) => m.side !== MOD_SIDE.serverOnly).length;
-    const servers = list.filter((m) => m.side !== MOD_SIDE.clientOnly).length;
+    const clients = list.filter((m) => m.side !== ModSide.ServerOnly).length;
+    const servers = list.filter((m) => m.side !== ModSide.ClientOnly).length;
     if (clients === list.length && servers === list.length) return base;
 
     return `${base} · ${clients} to clients · ${servers} to the server`;
@@ -415,7 +416,7 @@ export class ServerMods {
     this.selected.set(new Set());
   }
 
-  protected setSide(side: number): void {
+  protected setSide(side: ModSide): void {
     const ids = [...this.selected()];
     if (ids.length === 0) return;
 

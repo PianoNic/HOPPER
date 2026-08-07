@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { groupPendingByImport } from './pending-groups';
-import { IMPORT_STATUS, PACK_FORMAT, PENDING_REASON } from './import-labels';
+import { ImportStatus } from '../api/model/importStatus';
+import { PackFormat } from '../api/model/packFormat';
+import { PendingReason } from '../api/model/pendingReason';
 import { ModImportDto } from '../api/model/modImportDto';
 import { PendingModDto } from '../api/model/pendingModDto';
 
@@ -8,7 +10,7 @@ function pending(id: string, importId: string): PendingModDto {
   return {
     id,
     importId,
-    reason: PENDING_REASON.noApiKey,
+    reason: PendingReason.NoApiKey,
     displayName: null,
     fileName: null,
     projectId: null,
@@ -25,8 +27,8 @@ function imported(id: string, sourceName: string, createdAt: string): ModImportD
     id,
     sourceName,
     sourceKind: 0,
-    format: PACK_FORMAT.curseForge,
-    status: IMPORT_STATUS.completed,
+    format: PackFormat.CurseForge,
+    status: ImportStatus.Completed,
     importedCount: 0,
     skippedCount: 0,
     pendingCount: 0,
@@ -61,7 +63,7 @@ describe('groupPendingByImport', () => {
       [imported('one', 'pack.zip', '2026-08-01T09:00:00Z')],
     );
 
-    expect(groups[0].format).toBe(PACK_FORMAT.curseForge);
+    expect(groups[0].format).toBe(PackFormat.CurseForge);
     expect(groups[0].createdAt).toBe('2026-08-01T09:00:00Z');
   });
 
@@ -74,7 +76,7 @@ describe('groupPendingByImport', () => {
     expect(groups).toHaveLength(2);
     expect(groups[0].sourceName).toBe('pack.zip');
     expect(groups[1].sourceName).toBe('Import no longer listed');
-    expect(groups[1].format).toBe(PACK_FORMAT.unknown);
+    expect(groups[1].format).toBe(PackFormat.Unknown);
     expect(groups[1].createdAt).toBeNull();
     expect(groups[1].entries.map((e) => e.id)).toEqual(['orphan']);
   });

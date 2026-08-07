@@ -7,14 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const SyncSide = {
+    Client: 0,
+    Server: 1
+} as const;
+export type SyncSide = typeof SyncSide[keyof typeof SyncSide];
 

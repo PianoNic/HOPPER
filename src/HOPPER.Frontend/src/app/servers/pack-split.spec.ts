@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ModDto } from '../api/model/modDto';
 import { ManifestModDtoSize } from '../api/model/manifestModDtoSize';
-import { PACK_FORMAT } from './import-labels';
-import { MOD_SOURCE } from './mod-labels';
+import { PackFormat } from '../api/model/packFormat';
+import { ModSource } from '../api/model/modSource';
 import { linksToCurseForge, linksToModrinth, packSplit } from './pack-split';
 
 function mod(overrides: Partial<ModDto> & { size?: number }): ModDto {
@@ -13,13 +13,13 @@ function mod(overrides: Partial<ModDto> & { size?: number }): ModDto {
     sha256: 'f'.repeat(64),
     size: (size ?? 0) as unknown as ManifestModDtoSize,
     createdAt: '2026-08-06T00:00:00Z',
-    source: MOD_SOURCE.manual,
+    source: ModSource.Manual,
     ...rest,
   } as ModDto;
 }
 
 const modrinthMod = mod({
-  source: MOD_SOURCE.modrinth,
+  source: ModSource.Modrinth,
   projectId: 'u6dRKJwZ',
   versionId: 'mcC2LhSG',
   downloadUrl: 'https://cdn.modrinth.com/data/u6dRKJwZ/versions/mcC2LhSG/jei.jar',
@@ -46,14 +46,14 @@ describe('linksToCurseForge', () => {
   it('accepts only numeric ids, which is what a CurseForge files[] entry is made of', () => {
     expect(
       linksToCurseForge(
-        mod({ source: MOD_SOURCE.curseForge, projectId: '32274', versionId: '5172461' }),
+        mod({ source: ModSource.CurseForge, projectId: '32274', versionId: '5172461' }),
       ),
     ).toBe(true);
   });
 
   it('never accepts a Modrinth row', () => {
     expect(linksToCurseForge(modrinthMod)).toBe(false);
-    expect(linksToCurseForge({ ...modrinthMod, source: MOD_SOURCE.curseForge })).toBe(false);
+    expect(linksToCurseForge({ ...modrinthMod, source: ModSource.CurseForge })).toBe(false);
   });
 });
 
@@ -65,7 +65,7 @@ describe('packSplit', () => {
   ];
 
   it('links Modrinth rows in a mrpack and bundles only the rest', () => {
-    expect(packSplit(mods, PACK_FORMAT.modrinth)).toEqual({
+    expect(packSplit(mods, PackFormat.Modrinth)).toEqual({
       manifestEntries: 2,
       bundledFiles: 1,
       bundledBytes: 4_000_000,
@@ -73,7 +73,7 @@ describe('packSplit', () => {
   });
 
   it('bundles everything in a CurseForge pack while nothing records CurseForge ids', () => {
-    expect(packSplit(mods, PACK_FORMAT.curseForge)).toEqual({
+    expect(packSplit(mods, PackFormat.CurseForge)).toEqual({
       manifestEntries: 0,
       bundledFiles: 3,
       bundledBytes: 6_000_000,
@@ -81,7 +81,7 @@ describe('packSplit', () => {
   });
 
   it('bundles everything in a Prism instance, which has no manifest at all', () => {
-    expect(packSplit(mods, PACK_FORMAT.prismInstance)).toEqual({
+    expect(packSplit(mods, PackFormat.PrismInstance)).toEqual({
       manifestEntries: 0,
       bundledFiles: 3,
       bundledBytes: 6_000_000,
@@ -93,7 +93,7 @@ describe('packSplit', () => {
   });
 
   it('answers zero for a server with no mods', () => {
-    expect(packSplit([], PACK_FORMAT.modrinth)).toEqual({
+    expect(packSplit([], PackFormat.Modrinth)).toEqual({
       manifestEntries: 0,
       bundledFiles: 0,
       bundledBytes: 0,

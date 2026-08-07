@@ -7,14 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const PackFormat = {
+    Unknown: 0,
+    Modrinth: 1,
+    CurseForge: 2,
+    PrismInstance: 3,
+    JarArchive: 4
+} as const;
+export type PackFormat = typeof PackFormat[keyof typeof PackFormat];
 

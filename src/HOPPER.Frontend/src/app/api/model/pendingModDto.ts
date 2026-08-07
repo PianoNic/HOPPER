@@ -7,13 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { PendingReason } from './pendingReason';
 import { PendingModDtoProjectId } from './pendingModDtoProjectId';
 
 
 export interface PendingModDto { 
     id: string;
     importId: string;
-    reason: number;
+    reason: PendingReason;
     displayName?: string | null;
     fileName?: string | null;
     projectId?: PendingModDtoProjectId | null;
@@ -23,4 +24,7 @@ export interface PendingModDto {
     detail?: string | null;
     createdAt: string;
 }
+export namespace PendingModDto {
+}
+
 

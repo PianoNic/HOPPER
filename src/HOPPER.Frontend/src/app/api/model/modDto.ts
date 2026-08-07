@@ -7,7 +7,9 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ModSource } from './modSource';
 import { ManifestModDtoSize } from './manifestModDtoSize';
+import { ModSide } from './modSide';
 
 
 export interface ModDto { 
@@ -17,8 +19,8 @@ export interface ModDto {
     size: ManifestModDtoSize;
     uploadedBy?: string | null;
     createdAt: string;
-    source: number;
-    side: number;
+    source: ModSource;
+    side: ModSide;
     projectId?: string | null;
     versionId?: string | null;
     projectName?: string | null;
@@ -26,4 +28,7 @@ export interface ModDto {
     iconSha256?: string | null;
     iconUrl?: string | null;
 }
+export namespace ModDto {
+}
+
 

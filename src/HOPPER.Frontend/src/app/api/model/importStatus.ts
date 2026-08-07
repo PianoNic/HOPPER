@@ -7,14 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const ImportStatus = {
+    Queued: 0,
+    Running: 1,
+    Completed: 2,
+    Failed: 3
+} as const;
+export type ImportStatus = typeof ImportStatus[keyof typeof ImportStatus];
 

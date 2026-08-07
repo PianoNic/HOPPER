@@ -1,54 +1,14 @@
-export const MOD_SOURCE = {
-  manual: 0,
-  modrinth: 1,
-  curseForge: 2,
-} as const;
-
-export const MOD_SIDE = {
-  both: 0,
-  clientOnly: 1,
-  serverOnly: 2,
-} as const;
-
-export const SYNC_SIDE = {
-  client: 0,
-  server: 1,
-} as const;
-
-export const MOD_LOADER = {
-  unknown: 0,
-  forge: 1,
-  neoForge: 2,
-  fabric: 3,
-  quilt: 4,
-} as const;
-
-export const PLAN_NODE_KIND = {
-  root: 0,
-  required: 1,
-  optional: 2,
-} as const;
-
-export const PLAN_NODE_STATUS = {
-  new: 0,
-  alreadyInstalled: 1,
-  otherVersionInstalled: 2,
-  fileNameTaken: 3,
-} as const;
-
-export const SEARCH_INDEX = {
-  relevance: 0,
-  downloads: 1,
-  follows: 2,
-  newest: 3,
-  updated: 4,
-} as const;
+import { ModLoader } from '../api/model/modLoader';
+import { ModSide } from '../api/model/modSide';
+import { ModSource } from '../api/model/modSource';
+import { PlanNodeKind } from '../api/model/planNodeKind';
+import { PlanNodeStatus } from '../api/model/planNodeStatus';
 
 export function modSideLabel(side: number): string {
   switch (side) {
-    case MOD_SIDE.clientOnly:
+    case ModSide.ClientOnly:
       return 'Client only';
-    case MOD_SIDE.serverOnly:
+    case ModSide.ServerOnly:
       return 'Server only';
     default:
       return 'Both';
@@ -57,11 +17,11 @@ export function modSideLabel(side: number): string {
 
 export function modSourceLabel(source: number): string {
   switch (source) {
-    case MOD_SOURCE.manual:
+    case ModSource.Manual:
       return 'Uploaded';
-    case MOD_SOURCE.modrinth:
+    case ModSource.Modrinth:
       return 'Modrinth';
-    case MOD_SOURCE.curseForge:
+    case ModSource.CurseForge:
       return 'CurseForge';
     default:
       return 'Unknown';
@@ -70,15 +30,15 @@ export function modSourceLabel(source: number): string {
 
 export function modLoaderLabel(loader: number): string {
   switch (loader) {
-    case MOD_LOADER.forge:
+    case ModLoader.Forge:
       return 'Forge';
-    case MOD_LOADER.neoForge:
+    case ModLoader.NeoForge:
       return 'NeoForge';
-    case MOD_LOADER.fabric:
+    case ModLoader.Fabric:
       return 'Fabric';
-    case MOD_LOADER.quilt:
+    case ModLoader.Quilt:
       return 'Quilt';
-    case MOD_LOADER.unknown:
+    case ModLoader.Unknown:
       return 'Not set';
     default:
       return 'Unknown';
@@ -87,13 +47,13 @@ export function modLoaderLabel(loader: number): string {
 
 export function modLoaderFacet(loader: number): string | null {
   switch (loader) {
-    case MOD_LOADER.forge:
+    case ModLoader.Forge:
       return 'forge';
-    case MOD_LOADER.neoForge:
+    case ModLoader.NeoForge:
       return 'neoforge';
-    case MOD_LOADER.fabric:
+    case ModLoader.Fabric:
       return 'fabric';
-    case MOD_LOADER.quilt:
+    case ModLoader.Quilt:
       return 'quilt';
     default:
       return null;
@@ -103,25 +63,25 @@ export function modLoaderFacet(loader: number): string | null {
 export function modLoaderFromFacet(name: string): number {
   switch (name.toLowerCase()) {
     case 'forge':
-      return MOD_LOADER.forge;
+      return ModLoader.Forge;
     case 'neoforge':
-      return MOD_LOADER.neoForge;
+      return ModLoader.NeoForge;
     case 'fabric':
-      return MOD_LOADER.fabric;
+      return ModLoader.Fabric;
     case 'quilt':
-      return MOD_LOADER.quilt;
+      return ModLoader.Quilt;
     default:
-      return MOD_LOADER.unknown;
+      return ModLoader.Unknown;
   }
 }
 
 export function planNodeKindLabel(kind: number): string {
   switch (kind) {
-    case PLAN_NODE_KIND.root:
+    case PlanNodeKind.Root:
       return 'Selected';
-    case PLAN_NODE_KIND.required:
+    case PlanNodeKind.Required:
       return 'Required';
-    case PLAN_NODE_KIND.optional:
+    case PlanNodeKind.Optional:
       return 'Optional';
     default:
       return 'Unknown';
@@ -130,13 +90,13 @@ export function planNodeKindLabel(kind: number): string {
 
 export function planNodeStatusLabel(status: number): string {
   switch (status) {
-    case PLAN_NODE_STATUS.new:
+    case PlanNodeStatus.New:
       return 'New';
-    case PLAN_NODE_STATUS.alreadyInstalled:
+    case PlanNodeStatus.AlreadyInstalled:
       return 'Already installed';
-    case PLAN_NODE_STATUS.otherVersionInstalled:
+    case PlanNodeStatus.OtherVersionInstalled:
       return 'Other version installed';
-    case PLAN_NODE_STATUS.fileNameTaken:
+    case PlanNodeStatus.FileNameTaken:
       return 'Filename taken';
     default:
       return 'Unknown';
@@ -145,11 +105,11 @@ export function planNodeStatusLabel(status: number): string {
 
 export function planNodeStatusDetail(status: number): string {
   switch (status) {
-    case PLAN_NODE_STATUS.alreadyInstalled:
+    case PlanNodeStatus.AlreadyInstalled:
       return 'This exact version is already on this server, so it is not downloaded again.';
-    case PLAN_NODE_STATUS.otherVersionInstalled:
+    case PlanNodeStatus.OtherVersionInstalled:
       return 'Another version of this mod is on this server. It is skipped unless you tick Replace, which removes the old jar.';
-    case PLAN_NODE_STATUS.fileNameTaken:
+    case PlanNodeStatus.FileNameTaken:
       return 'A different file already has this name on this server. It is skipped unless you tick Replace.';
     default:
       return '';
@@ -158,7 +118,7 @@ export function planNodeStatusDetail(status: number): string {
 
 export function isReplaceable(status: number): boolean {
   return (
-    status === PLAN_NODE_STATUS.otherVersionInstalled || status === PLAN_NODE_STATUS.fileNameTaken
+    status === PlanNodeStatus.OtherVersionInstalled || status === PlanNodeStatus.FileNameTaken
   );
 }
 

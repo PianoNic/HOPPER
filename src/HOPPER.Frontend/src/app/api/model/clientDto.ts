@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { SyncSide } from './syncSide';
 import { ClientModDto } from './clientModDto';
 
 
@@ -14,10 +15,13 @@ export interface ClientDto {
     id: string;
     clientId: string;
     username?: string | null;
-    side: number;
+    side: SyncSide;
     lastSeenAt: string;
     lastIpAddress?: string | null;
     mods: Array<ClientModDto>;
     createdAt: string;
 }
+export namespace ClientDto {
+}
+
 

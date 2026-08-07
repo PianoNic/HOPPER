@@ -30,7 +30,7 @@ import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { formatAge, messageFrom } from '../shared/utils/format';
 import { ClientDrift, diffClient, reaches } from '../shared/utils/drift';
-import { SYNC_SIDE } from './mod-labels';
+import { SyncSide } from '../api/model/syncSide';
 import { ServersService } from '../api/api/servers.service';
 import { ServerClientsService } from '../api/api/serverClients.service';
 import { ServerModsService } from '../api/api/serverMods.service';
@@ -234,7 +234,7 @@ export class ServerClients {
   });
 
   protected isServer(row: ClientDrift): boolean {
-    return row.client.side === SYNC_SIDE.server;
+    return row.client.side === SyncSide.Server;
   }
 
   protected requiredFor(row: ClientDrift): number {

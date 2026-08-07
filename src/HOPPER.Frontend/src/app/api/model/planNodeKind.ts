@@ -7,14 +7,12 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const PlanNodeKind = {
+    Root: 0,
+    Required: 1,
+    Optional: 2
+} as const;
+export type PlanNodeKind = typeof PlanNodeKind[keyof typeof PlanNodeKind];
 

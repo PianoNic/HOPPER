@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { MOD_SIDE, modSideLabel } from './mod-labels';
+import { modSideLabel } from './mod-labels';
+import { ModSide } from '../api/model/modSide';
 
 describe('modSideLabel', () => {
   it('names each side the way the table shows it', () => {
-    expect(modSideLabel(MOD_SIDE.both)).toBe('Both');
-    expect(modSideLabel(MOD_SIDE.clientOnly)).toBe('Client only');
-    expect(modSideLabel(MOD_SIDE.serverOnly)).toBe('Server only');
+    expect(modSideLabel(ModSide.Both)).toBe('Both');
+    expect(modSideLabel(ModSide.ClientOnly)).toBe('Client only');
+    expect(modSideLabel(ModSide.ServerOnly)).toBe('Server only');
   });
 
   it('falls back to Both for anything unknown', () => {
@@ -15,14 +16,14 @@ describe('modSideLabel', () => {
 
 export function sideCounts(sides: ReadonlyArray<number>): { clients: number; servers: number } {
   return {
-    clients: sides.filter((s) => s !== MOD_SIDE.serverOnly).length,
-    servers: sides.filter((s) => s !== MOD_SIDE.clientOnly).length,
+    clients: sides.filter((s) => s !== ModSide.ServerOnly).length,
+    servers: sides.filter((s) => s !== ModSide.ClientOnly).length,
   };
 }
 
 describe('side counts', () => {
   it('counts a mod on both sides towards both', () => {
-    const { clients, servers } = sideCounts([MOD_SIDE.both, MOD_SIDE.both]);
+    const { clients, servers } = sideCounts([ModSide.Both, ModSide.Both]);
 
     expect(clients).toBe(2);
     expect(servers).toBe(2);
@@ -30,9 +31,9 @@ describe('side counts', () => {
 
   it('leaves a one-sided mod out of the other count', () => {
     const { clients, servers } = sideCounts([
-      MOD_SIDE.both,
-      MOD_SIDE.clientOnly,
-      MOD_SIDE.serverOnly,
+      ModSide.Both,
+      ModSide.ClientOnly,
+      ModSide.ServerOnly,
     ]);
 
     expect(clients).toBe(2);

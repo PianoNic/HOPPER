@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { needsADecision } from './modrinth-plan-dialog';
 import { ModrinthInstallPlanDto } from '../api/model/modrinthInstallPlanDto';
 import { ModrinthPlanNodeDto } from '../api/model/modrinthPlanNodeDto';
-import { PLAN_NODE_STATUS } from './mod-labels';
+import { PlanNodeStatus } from '../api/model/planNodeStatus';
 
-function node(status: number = PLAN_NODE_STATUS.new): ModrinthPlanNodeDto {
+function node(status: number = PlanNodeStatus.New): ModrinthPlanNodeDto {
   return {
     versionId: `v-${status}-${Math.random()}`,
     projectId: 'p',
@@ -44,7 +44,7 @@ describe('needsADecision', () => {
   });
 
   it('asks when a mod is already on the server, because replacing it is a decision', () => {
-    expect(needsADecision({ ...plan(), nodes: [node(PLAN_NODE_STATUS.new), node(99)] })).toBe(true);
+    expect(needsADecision({ ...plan(), nodes: [node(PlanNodeStatus.New), node(99)] })).toBe(true);
   });
 
   it.each([

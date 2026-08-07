@@ -37,12 +37,8 @@ import { ModrinthInstallPlanDto } from '../api/model/modrinthInstallPlanDto';
 import { ModrinthInstallResultDto } from '../api/model/modrinthInstallResultDto';
 import { ModrinthPlanNodeDto } from '../api/model/modrinthPlanNodeDto';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
-import {
-  PLAN_NODE_STATUS,
-  isReplaceable,
-  planNodeStatusDetail,
-  planNodeStatusLabel,
-} from './mod-labels';
+import { isReplaceable, planNodeStatusDetail, planNodeStatusLabel } from './mod-labels';
+import { PlanNodeStatus } from '../api/model/planNodeStatus';
 
 export type ModrinthPlanDialogContext = {
   serverId: string;
@@ -416,11 +412,11 @@ export class ModrinthPlanDialog {
   }));
 
   protected readonly newNodes = computed(() =>
-    (this.plan()?.nodes ?? []).filter((n) => n.status === PLAN_NODE_STATUS.new),
+    (this.plan()?.nodes ?? []).filter((n) => n.status === PlanNodeStatus.New),
   );
 
   protected readonly existingNodes = computed(() =>
-    (this.plan()?.nodes ?? []).filter((n) => n.status !== PLAN_NODE_STATUS.new),
+    (this.plan()?.nodes ?? []).filter((n) => n.status !== PlanNodeStatus.New),
   );
 
   protected readonly installedCount = computed(() => this.result()?.installed.length ?? 0);
@@ -665,6 +661,6 @@ export function needsADecision(plan: ModrinthInstallPlanDto): boolean {
     || plan.unresolvable.length > 0
     || plan.embedded.length > 0
     || plan.warnings.length > 0
-    || plan.nodes.some((n) => n.status !== PLAN_NODE_STATUS.new)
+    || plan.nodes.some((n) => n.status !== PlanNodeStatus.New)
   );
 }

@@ -9,6 +9,8 @@
  */
 import { ManifestModDtoSize } from './manifestModDtoSize';
 import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { PlanNodeStatus } from './planNodeStatus';
+import { PlanNodeKind } from './planNodeKind';
 
 
 export interface ModrinthPlanNodeDto { 
@@ -21,11 +23,14 @@ export interface ModrinthPlanNodeDto {
     versionType?: string | null;
     fileName: string;
     fileSize: ManifestModDtoSize;
-    kind: number;
-    status: number;
+    kind: PlanNodeKind;
+    status: PlanNodeStatus;
     depth: ModImportDtoImportedCount;
     requiredBy: Array<string>;
     pinned: boolean;
     prerelease: boolean;
 }
+export namespace ModrinthPlanNodeDto {
+}
+
 

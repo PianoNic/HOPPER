@@ -56,13 +56,9 @@ import { renderProjectBody } from '../shared/utils/markdown';
 import { WhenPipe } from '../shared/utils/when';
 import { ServerChanged } from '../shared/services/server-changed';
 import { serverIdSignal } from './server-route';
-import {
-  MOD_LOADER,
-  SEARCH_INDEX,
-  formatCount,
-  modLoaderFacet,
-  modrinthProjectUrl,
-} from './mod-labels';
+import { formatCount, modLoaderFacet, modrinthProjectUrl } from './mod-labels';
+import { ModLoader } from '../api/model/modLoader';
+import { ModrinthSearchIndex } from '../api/model/modrinthSearchIndex';
 import { ModrinthVersionDialogService } from './modrinth-version-dialog';
 import { ModrinthPlanDialogService } from './modrinth-plan-dialog';
 
@@ -94,12 +90,12 @@ const SOURCE_HOSTS: ReadonlyArray<{ matches: (url: string) => boolean; icon: str
 
 const SEARCH_DEBOUNCE_MS = 350;
 
-const SORTS: ReadonlyArray<{ value: number; label: string }> = [
-  { value: SEARCH_INDEX.relevance, label: 'Relevance' },
-  { value: SEARCH_INDEX.downloads, label: 'Downloads' },
-  { value: SEARCH_INDEX.follows, label: 'Followers' },
-  { value: SEARCH_INDEX.newest, label: 'Newest' },
-  { value: SEARCH_INDEX.updated, label: 'Updated' },
+const SORTS: ReadonlyArray<{ value: ModrinthSearchIndex; label: string }> = [
+  { value: ModrinthSearchIndex.Relevance, label: 'Relevance' },
+  { value: ModrinthSearchIndex.Downloads, label: 'Downloads' },
+  { value: ModrinthSearchIndex.Follows, label: 'Followers' },
+  { value: ModrinthSearchIndex.Newest, label: 'Newest' },
+  { value: ModrinthSearchIndex.Updated, label: 'Updated' },
 ];
 
 type SearchKey = {
@@ -107,7 +103,7 @@ type SearchKey = {
   query: string;
   loader: string;
   gameVersion: string;
-  index: number;
+  index: ModrinthSearchIndex;
   offset: number;
 };
 
@@ -530,7 +526,7 @@ export class ServerBrowse {
   protected readonly term = signal('');
   protected readonly loader = signal('');
   protected readonly gameVersion = signal('');
-  protected readonly index = signal<number>(SEARCH_INDEX.relevance);
+  protected readonly index = signal<ModrinthSearchIndex>(ModrinthSearchIndex.Relevance);
   protected readonly offset = signal(0);
 
   protected readonly selected = signal<ModrinthSearchHitDto | null>(null);
@@ -854,7 +850,7 @@ export class ServerBrowse {
         this.gameVersions.set(tags.gameVersions);
 
         const known = new Set(
-          [MOD_LOADER.forge, MOD_LOADER.neoForge, MOD_LOADER.fabric, MOD_LOADER.quilt].map((l) =>
+          [ModLoader.Forge, ModLoader.NeoForge, ModLoader.Fabric, ModLoader.Quilt].map((l) =>
             modLoaderFacet(l),
           ),
         );
