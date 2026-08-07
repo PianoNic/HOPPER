@@ -32,6 +32,7 @@ import { ThemeService, ThemeMode } from '../shared/services/theme.service';
 import { AppService } from '../api/api/app.service';
 import { ServersService } from '../api/api/servers.service';
 import { ServerChanged } from '../shared/services/server-changed';
+import { ServerIcon } from '../shared/components/server-icon/server-icon';
 import { toNumber } from '../shared/utils/format';
 import { ServerDto } from '../api/model/serverDto';
 
@@ -41,7 +42,7 @@ const SERVER_ROUTE = /^\/server\/([^/]+)/;
 
 @Component({
   selector: 'app-sidenav',
-  imports: [HlmSidebarImports, HlmDropdownMenuImports, HlmAvatarImports, NgIcon, RouterLink],
+  imports: [HlmSidebarImports, HlmDropdownMenuImports, HlmAvatarImports, NgIcon, RouterLink, ServerIcon],
   providers: [
     provideIcons({
       lucideBookOpen,
@@ -123,6 +124,8 @@ export class Sidenav {
   });
 
   protected readonly currentServerName = computed(() => this.currentServer()?.name ?? '');
+
+  protected readonly currentServerIcon = computed(() => this.currentServer()?.iconSha256 ?? null);
 
   protected readonly servers = toSignal(
     toObservable(this.currentUrl).pipe(

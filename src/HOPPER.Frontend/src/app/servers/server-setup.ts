@@ -2,13 +2,15 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { ActivatedRoute } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
-import { lucideDownload, lucideEye, lucideEyeOff, lucideRotateCw } from '@ng-icons/lucide';
+import { lucideDownload, lucideEye, lucideEyeOff, lucideImage, lucideRotateCw } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { CopyButton } from '../shared/components/copy-button/copy-button';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
+import { ServerIcon } from '../shared/components/server-icon/server-icon';
+import { ServerChanged } from '../shared/services/server-changed';
 import { messageFrom } from '../shared/utils/format';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
 import { ServersService } from '../api/api/servers.service';
@@ -18,8 +20,8 @@ import { serverIdSignal } from './server-route';
 @Component({
   selector: 'app-server-setup',
   imports: [ContentHeader, CopyButton, NgIcon, HlmButtonImports,
-    ButtonLoading, HlmCardImports],
-  providers: [provideIcons({ lucideDownload, lucideEye, lucideEyeOff, lucideRotateCw })],
+    ButtonLoading, HlmCardImports, ServerIcon],
+  providers: [provideIcons({ lucideDownload, lucideEye, lucideEyeOff, lucideImage, lucideRotateCw })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-content-header>
@@ -112,6 +114,58 @@ import { serverIdSignal } from './server-route';
 
           <section hlmCard>
             <div hlmCardHeader>
+              <h3 hlmCardTitle class="text-sm">Server icon</h3>
+              <p hlmCardDescription class="text-xs">
+                Shown wherever this server is named. Any common image works - it is cropped square
+                and stored at 64x64, the size Minecraft itself uses, so the
+                <code class="font-mono">server-icon.png</code> a server already has can be reused as
+                it is. Importing a Prism instance adopts the icon it carries.
+              </p>
+            </div>
+            <div hlmCardContent class="flex items-center gap-4">
+              <app-server-icon [sha256]="iconSha256()" [name]="serverName()" [size]="64" />
+
+              <input
+                #iconPicker
+                type="file"
+                class="hidden"
+                accept="image/*"
+                (change)="pickIcon($event)"
+              />
+
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  [loading]="savingIcon()"
+                  [disabled]="savingIcon()"
+                  (click)="iconPicker.click()"
+                >
+                  <ng-icon name="lucideImage" size="14" />
+                  {{ iconSha256() ? 'Replace' : 'Upload' }}
+                </button>
+
+                @if (iconSha256()) {
+                  <button
+                    hlmBtn
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    class="text-destructive hover:text-destructive"
+                    [disabled]="savingIcon()"
+                    (click)="removeIcon()"
+                  >
+                    Remove
+                  </button>
+                }
+              </div>
+            </div>
+          </section>
+
+          <section hlmCard>
+            <div hlmCardHeader>
               <h3 hlmCardTitle class="text-sm">Rotate the token</h3>
               <p hlmCardDescription class="text-xs">
                 Mints a new token for this server and invalidates the old one immediately. Every jar
@@ -172,6 +226,7 @@ export class ServerSetup {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(ServersService);
   private readonly confirm = inject(ConfirmService);
+  private readonly serverChanged = inject(ServerChanged);
 
   protected readonly serverId = serverIdSignal(this.route);
 
@@ -180,6 +235,9 @@ export class ServerSetup {
   protected readonly revealing = signal(false);
   protected readonly rotating = signal(false);
   protected readonly building = signal(false);
+  protected readonly savingIcon = signal(false);
+
+  protected readonly iconSha256 = computed(() => this.server()?.iconSha256 ?? null);
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
   protected readonly jarName = computed(() => {
@@ -283,6 +341,68 @@ export class ServerSetup {
       error: async (err) => {
         toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
         this.building.set(false);
+      },
+    });
+  }
+
+  private refresh(): void {
+    const id = this.serverId();
+    if (id === '') return;
+
+    this.api.apiServersIdGet(id).subscribe({
+      next: (server) => {
+        this.server.set(server);
+        this.serverChanged.changed();
+      },
+      error: (err) => toast.error(messageFrom(err, 'Failed to load the server')),
+    });
+  }
+
+  protected pickIcon(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    input.value = '';
+    if (!file) return;
+
+    const id = this.serverId();
+    if (id === '') return;
+
+    this.savingIcon.set(true);
+    this.api.apiServersIdIconPost(id, file).subscribe({
+      next: () => {
+        this.savingIcon.set(false);
+        toast.success('Icon updated.');
+        this.refresh();
+      },
+      error: (err) => {
+        this.savingIcon.set(false);
+        toast.error(messageFrom(err, 'That file is not an image HOPPER can read'));
+      },
+    });
+  }
+
+  protected async removeIcon(): Promise<void> {
+    const id = this.serverId();
+    if (id === '') return;
+
+    const ok = await this.confirm.open({
+      title: 'Remove this icon?',
+      message: 'The server falls back to the default mark wherever it is named.',
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (!ok) return;
+
+    this.savingIcon.set(true);
+    this.api.apiServersIdIconDelete(id).subscribe({
+      next: () => {
+        this.savingIcon.set(false);
+        this.refresh();
+      },
+      error: (err) => {
+        this.savingIcon.set(false);
+        toast.error(messageFrom(err, 'Failed to remove the icon'));
       },
     });
   }

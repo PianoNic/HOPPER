@@ -62,6 +62,29 @@ namespace HOPPER.API.Controllers
             return NoContent();
         }
 
+        [HttpPost("{id:guid}/icon")]
+        [ProducesResponseType(typeof(ServerIconDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetIcon(Guid id, IFormFile file, CancellationToken cancellationToken = default)
+        {
+            if (file is null || file.Length == 0)
+                return BadRequest(new { error = "No file." });
+
+            await using var content = file.OpenReadStream();
+            var sha256 = await mediator.Send(new SetServerIconCommand(id, content), cancellationToken);
+
+            return Ok(new ServerIconDto { IconSha256 = sha256 });
+        }
+
+        [HttpDelete("{id:guid}/icon")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> ClearIcon(Guid id, CancellationToken cancellationToken = default)
+        {
+            await mediator.Send(new ClearServerIconCommand(id), cancellationToken);
+            return NoContent();
+        }
+
         [HttpGet("{id:guid}/token")]
         [ProducesResponseType(typeof(ServerTokenDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

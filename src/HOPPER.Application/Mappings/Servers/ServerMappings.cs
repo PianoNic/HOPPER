@@ -16,6 +16,7 @@ namespace HOPPER.Application.Mappings.Servers
             MinecraftVersion = s.MinecraftVersion,
             Loader = s.Loader,
             LoaderVersion = s.LoaderVersion,
+            IconSha256 = s.IconSha256,
         };
 
         public static ServerTokenDto ToTokenDto(this Server s) => new()

@@ -22,7 +22,9 @@ namespace HOPPER.API.Controllers
                 return BadRequest(new { error = "Not a sha256." });
 
             var claimed = await db.Mods.AsNoTracking()
-                .AnyAsync(m => m.IconSha256 == sha256, cancellationToken);
+                .AnyAsync(m => m.IconSha256 == sha256, cancellationToken)
+                || await db.Servers.AsNoTracking()
+                    .AnyAsync(s => s.IconSha256 == sha256, cancellationToken);
 
             if (!claimed) return NotFound();
 

@@ -66,6 +66,9 @@ namespace HOPPER.Application.Imports
 
                 RefuseOversizedPlan(archive, plan);
 
+                if (detection.Format == PackFormat.PrismInstance)
+                    await AdoptPrismIconAsync(import, archive, detection.Prefix, cancellationToken);
+
                 errors.AddRange(plan.Warnings);
 
                 import.SkippedCount += plan.Skipped;
@@ -410,6 +413,35 @@ namespace HOPPER.Application.Imports
         {
             import.FailedCount++;
             errors.Add($"{fileName}: {reason}");
+        }
+
+        // A Prism instance already carries the icon the player picked, and it is the only format that
+        // does. Never over an icon somebody chose here: an import is not a reason to lose it.
+        private async Task AdoptPrismIconAsync(ModImport import, ZipArchive archive, string prefix, CancellationToken cancellationToken)
+        {
+            var server = await db.Servers.FirstOrDefaultAsync(s => s.Id == import.ServerId, cancellationToken);
+            if (server is null || server.IconSha256 is not null)
+                return;
+
+            var entry = archive.GetEntry(prefix + "minecraft/icon.png")
+                ?? archive.GetEntry(prefix + ".minecraft/icon.png");
+
+            if (entry is null || entry.Length > ServerIconReader.MaxUploadBytes)
+                return;
+
+            byte[]? icon;
+            await using (var content = entry.Open())
+                icon = ServerIconReader.ToServerIcon(content);
+
+            if (icon is null)
+                return;
+
+            using var source = new MemoryStream(icon);
+            var staged = await blobs.StageAsync(source, ServerIconReader.MaxUploadBytes, cancellationToken);
+            blobs.Promote(staged);
+
+            server.IconSha256 = staged.Sha256;
+            await db.SaveChangesAsync(cancellationToken);
         }
 
         private async Task AddPendingAsync(ModImport import, PendingSpec spec, CancellationToken cancellationToken)

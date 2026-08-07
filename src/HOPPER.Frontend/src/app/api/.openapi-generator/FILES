@@ -75,6 +75,7 @@ model/planNodeKind.ts
 model/planNodeStatus.ts
 model/problemDetails.ts
 model/serverDto.ts
+model/serverIconDto.ts
 model/serverTokenDto.ts
 model/setModSideRequest.ts
 model/setModSideResultDto.ts

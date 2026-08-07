@@ -14,6 +14,8 @@ namespace HOPPER.Infrastructure.DBConfigurations
 
             builder.Property(s => s.Token).HasMaxLength(200);
 
+            builder.Property(s => s.IconSha256).HasMaxLength(64);
+
             builder.HasIndex(s => s.Slug).IsUnique();
 
             builder.HasIndex(s => s.Token).IsUnique();

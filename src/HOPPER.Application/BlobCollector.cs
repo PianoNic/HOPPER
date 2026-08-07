@@ -15,6 +15,9 @@ namespace HOPPER.Application
             if (await db.Mods.AnyAsync(m => m.Sha256 == sha256 || m.IconSha256 == sha256, cancellationToken))
                 return false;
 
+            if (await db.Servers.AnyAsync(s => s.IconSha256 == sha256, cancellationToken))
+                return false;
+
             blobs.Delete(sha256);
             await hold.CommitAsync(cancellationToken);
             return true;

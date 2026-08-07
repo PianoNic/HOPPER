@@ -17,6 +17,7 @@ import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
+import { ServerIcon } from '../shared/components/server-icon/server-icon';
 import { WhenPipe } from '../shared/utils/when';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { messageFrom, toNumber } from '../shared/utils/format';
@@ -32,6 +33,7 @@ import { ServerDialogService } from './server-dialog';
   selector: 'app-servers',
   imports: [
     ContentHeader,
+    ServerIcon,
     WhenPipe,
     NgIcon,
     HlmButtonImports,
@@ -116,6 +118,7 @@ import { ServerDialogService } from './server-dialog';
           <table hlmTable>
             <thead hlmTableHeader>
               <tr hlmTableRow>
+                <th hlmTableHead class="w-10"><span class="sr-only">Icon</span></th>
                 <th hlmTableHead>Name</th>
                 <th hlmTableHead>Runs</th>
                 <th hlmTableHead class="text-right">Mods</th>
@@ -127,6 +130,9 @@ import { ServerDialogService } from './server-dialog';
             <tbody hlmTableBody>
               @for (s of filteredServers(); track s.id) {
                 <tr hlmTableRow class="cursor-pointer" (click)="open(s)">
+                  <td hlmTableCell>
+                    <app-server-icon [sha256]="s.iconSha256" [name]="s.name" [size]="28" />
+                  </td>
                   <td hlmTableCell class="font-medium">{{ s.name }}</td>
                   <td hlmTableCell class="text-xs">
                     @if (platform(s); as p) {
