@@ -1,3 +1,4 @@
+import { ModDto } from '../api/model/modDto';
 import { ModLoader } from '../api/model/modLoader';
 import { ModSide } from '../api/model/modSide';
 import { ModSource } from '../api/model/modSource';
@@ -143,4 +144,10 @@ export function formatCount(value: number): string {
   if (value < 1000) return `${value}`;
   if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}K`;
   return `${(value / 1_000_000).toFixed(value < 10_000_000 ? 1 : 0)}M`;
+}
+
+export function modIconUrl(mod: ModDto, apiBaseUrl: string): string | null {
+  if (mod.iconSha256) return `${apiBaseUrl}/api/icons/${mod.iconSha256}`;
+
+  return mod.iconUrl ?? null;
 }
