@@ -13,6 +13,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -235,6 +237,12 @@ class SyncerTest {
         Path stale = dir.resolve("jei-1.20.1-15.3.0.4.jar");
         Files.write(stale, "the required build".getBytes(StandardCharsets.UTF_8));
 
+        // What a previous launch would have left: HOPPER downloaded that copy, so it may delete it.
+        // Without the claim it would be parked instead, replaced/ here is a regular file, the park
+        // would fail, and the game would start with two copies of JEI.
+        Files.write(dir.resolve(Syncer.DOWNLOADED),
+                "jei-1.20.1-15.3.0.4.jar\n".getBytes(StandardCharsets.UTF_8));
+
         Stub stub = new Stub();
         try {
             stub.manifest("{\"mods\":[{\"file\":\"jei-1.20.1-15.3.0.4.jar\",\"url\":\""
@@ -277,6 +285,149 @@ class SyncerTest {
         } finally {
             stub.stop();
         }
+    }
+
+    @Test
+    void aJarThePlayerDroppedIntoHoppermodsIsParkedNotDeleted(@TempDir Path game) throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        byte[] body = "a mod the player installed by hand".getBytes(StandardCharsets.UTF_8);
+        Path dropped = dir.resolve("Jade-1.20.1-Forge-11.13.3.jar");
+        Files.write(dropped, body);
+
+        Stub stub = new Stub();
+        try {
+            stub.manifest("{\"mods\":[]}");
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertFalse(Files.exists(dropped), "it must not still be where a loader would read it");
+
+            Path parked = dir.resolve(Migrator.REPLACED)
+                    .resolve("Jade-1.20.1-Forge-11.13.3.jar" + Migrator.PARKED_SUFFIX);
+            assertTrue(Files.exists(parked), "the only copy there is must survive somewhere");
+            assertArrayEquals(body, Files.readAllBytes(parked));
+            assertTrue(Files.exists(dir.resolve(Migrator.REPLACED).resolve("README.txt")),
+                    "and it has to say what happened and how to undo it");
+        } finally {
+            stub.stop();
+        }
+    }
+
+    @Test
+    void aJarHopperDownloadedItselfIsStillDeletedWhenItLeavesTheManifest(@TempDir Path game)
+            throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        Path ours = dir.resolve("Jade-1.20.1-Forge-11.13.3.jar");
+        Files.write(ours, "a build the server used to distribute".getBytes(StandardCharsets.UTF_8));
+        Files.write(dir.resolve(Syncer.DOWNLOADED),
+                "Jade-1.20.1-Forge-11.13.3.jar\n".getBytes(StandardCharsets.UTF_8));
+
+        Stub stub = new Stub();
+        try {
+            stub.manifest("{\"mods\":[]}");
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertFalse(Files.exists(ours));
+            assertFalse(Files.exists(dir.resolve(Migrator.REPLACED)),
+                    "the server still has it, so parking it would only grow a folder nobody reads");
+        } finally {
+            stub.stop();
+        }
+    }
+
+    @Test
+    void theDownloadedListSurvivesTheSweepAndNamesOnlyWhatIsStillWanted(@TempDir Path game)
+            throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        byte[] body = "a mod the player does not have".getBytes(StandardCharsets.UTF_8);
+
+        Stub stub = new Stub();
+        try {
+            stub.blob = body;
+            stub.manifest("{\"mods\":[{\"file\":\"create.jar\",\"url\":\"" + stub.blobUrl()
+                    + "\",\"sha256\":\"" + sha256(body) + "\",\"size\":" + body.length + "}]}");
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+            assertEquals(Collections.singletonList("create.jar"), claims(dir));
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+            assertEquals(Collections.singletonList("create.jar"), claims(dir),
+                    "the sweep must not eat the list it needs on the next launch");
+            assertEquals(1, stub.downloads, "and the claim must not cost a second download");
+
+            stub.manifest("{\"mods\":[]}");
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertFalse(Files.exists(dir.resolve("create.jar")));
+            assertFalse(Files.exists(dir.resolve(Migrator.REPLACED)));
+            assertTrue(claims(dir).isEmpty());
+        } finally {
+            stub.stop();
+        }
+    }
+
+    @Test
+    void aFileNamedModsMirrorTxtIsNotSwept(@TempDir Path game) throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        byte[] list = "# Written by HOPPER.\ncreate.jar\n".getBytes(StandardCharsets.UTF_8);
+        Path mirror = dir.resolve(Syncer.MIRROR_LIST);
+        Files.write(mirror, list);
+
+        Stub stub = new Stub();
+        try {
+            stub.manifest("{\"mods\":[]}");
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertTrue(Files.exists(mirror), "the sweep runs before the mirror reads it, so eating"
+                    + " it would make the mirror forget what it owns on every single launch");
+            assertArrayEquals(list, Files.readAllBytes(mirror));
+        } finally {
+            stub.stop();
+        }
+    }
+
+    @Test
+    void aHalfFinishedDownloadIsDeletedRatherThanParked(@TempDir Path game) throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        Path part = dir.resolve("create.jar.part");
+        Files.write(part, "half a download".getBytes(StandardCharsets.UTF_8));
+
+        Stub stub = new Stub();
+        try {
+            stub.manifest("{\"mods\":[]}");
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertFalse(Files.exists(part));
+            assertFalse(Files.exists(dir.resolve(Migrator.REPLACED)),
+                    "a leftover of ours is not the player's property");
+        } finally {
+            stub.stop();
+        }
+    }
+
+    private static List<String> claims(Path dir) throws IOException {
+        Path f = dir.resolve(Syncer.DOWNLOADED);
+        assertTrue(Files.isRegularFile(f), Syncer.DOWNLOADED + " has to exist after a sync");
+
+        List<String> out = new ArrayList<String>();
+        for (String line : new String(Files.readAllBytes(f), StandardCharsets.UTF_8).split("\n")) {
+            String name = line.trim();
+            if (!name.isEmpty() && name.charAt(0) != '#') out.add(name);
+        }
+        return out;
     }
 
     private static final Consumer<String> NO_PROGRESS = new Consumer<String>() {

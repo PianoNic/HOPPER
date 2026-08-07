@@ -169,6 +169,12 @@ app.Use(async (context, next) =>
         context.Response.StatusCode = StatusCodes.Status400BadRequest;
         await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
+
+    catch (LocatorVariantNotAvailableException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
     catch (ArgumentException ex) when (!context.Response.HasStarted)
     {
         context.Response.StatusCode = StatusCodes.Status400BadRequest;

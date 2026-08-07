@@ -38,6 +38,18 @@ subprojects {
         //            follows it and warns once per entry.
         options.compilerArgs << '-Xlint:all,-options,-path' << '-Werror'
     }
+
+    // Two clean builds of the same sources must produce the same bytes, or "the template did not
+    // change" is not a checkable statement. Gradle stamps every zip entry with the source file's
+    // mtime and emits entries in filesystem order; both are wall-clock and machine noise. Here
+    // rather than in the adapter-only block below, because that one skips hopper-core.
+    //
+    // The guarantee is "same sources, same JDK, same OS" - a different javac writes different class
+    // files, and permission bits differ between a Windows host and the Docker JDK stage.
+    tasks.withType(Jar).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
 }
 
 // ---- every adapter embeds the core ----
@@ -73,16 +85,18 @@ configure(subprojects.findAll { it.name != 'hopper-core' }) {
 // what makes those names exist, and it is the ONLY place the module-to-filename mapping lives -
 // the Dockerfile and a local `dotnet run` both consume its output rather than restating it.
 //
-// hopper-quilt-plugin is deliberately not shipped. Quilt servers are served hopper-fabric.jar,
-// because the plugin variant throws a ParseException unless the player adds a JVM argument; the
-// jar is still built and tested, it is just not a template. See hopper-quilt/build.gradle.
-def shippedAdapters = [
-        'hopper-forge-1122',
-        'hopper-forge-1165',
-        'hopper-forge-1182',
-        'hopper-forge-modern',
-        'hopper-neoforge',
-        'hopper-fabric',
+// hopper-quilt ships under a name that is not its module name, so this is a map rather than a list.
+// It is shipped but never the default: a Quilt server is served hopper-fabric.jar unless the
+// download explicitly asks for the quilt-plugin variant, because this jar throws a ParseException
+// unless the player adds a JVM argument. See hopper-quilt/build.gradle.
+def shippedTemplates = [
+        'hopper-forge-1122'  : 'hopper-forge-1122.jar',
+        'hopper-forge-1165'  : 'hopper-forge-1165.jar',
+        'hopper-forge-1182'  : 'hopper-forge-1182.jar',
+        'hopper-forge-modern': 'hopper-forge-modern.jar',
+        'hopper-neoforge'    : 'hopper-neoforge.jar',
+        'hopper-fabric'      : 'hopper-fabric.jar',
+        'hopper-quilt'       : 'hopper-quilt-plugin.jar',
 ]
 
 tasks.register('templates', Copy) {
@@ -91,11 +105,11 @@ tasks.register('templates', Copy) {
 
     into layout.buildDirectory.dir('templates')
 
-    shippedAdapters.each { name ->
+    shippedTemplates.each { module, fileName ->
         // from(task) rather than from(file): it carries the dependency on that module's jar task, so
         // `./gradlew templates` builds what it needs instead of silently copying nothing.
-        from(project(":$name").tasks.named('jar')) {
-            rename '.*\\.jar', "${name}.jar"
+        from(project(":$module").tasks.named('jar')) {
+            rename '.*\\.jar', fileName
         }
     }
 }

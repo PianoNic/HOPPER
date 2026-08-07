@@ -59,7 +59,17 @@ None of the three client endpoints carries a server segment, and that is deliber
 ## Sync behaviour
 
 - A file is downloaded only if it is missing or its sha256 does not match.
-- Anything in `hoppermods/` the manifest no longer lists is deleted, except `hoppermods/client-id`.
+- Anything in `hoppermods/` the manifest no longer lists is disposed of by where it came from. A jar
+  HOPPER downloaded is deleted, because the server still has it and the next sync fetches it again.
+  Anything else - a jar you dropped in by hand, or one HOPPER moved out of your `mods/` folder - is
+  moved to `hoppermods/replaced/` with a `.replaced` suffix, where no loader sees it and nothing is
+  destroyed. Deleting a file a person put there is the one thing HOPPER will not do, and parking
+  everything instead would grow that folder by the size of the pack on every update.
+- HOPPER knows which is which from `hoppermods/downloaded`, the list it writes after every sync.
+  Delete that file and HOPPER forgets the claim: from then on everything stale is parked, which is
+  the safe direction to be wrong in.
+- `client-id`, `downloaded`, `mods-mirror.txt` and `replaced/` are HOPPER's own bookkeeping and are
+  never swept. A leftover `.part` from an interrupted download is.
 - A download whose hash does not match is discarded, not installed.
 - Filenames are rejected if they contain a path separator, `..`, a leading dot, or do not end in `.jar`.
 - A failed report never fails the sync, and a failed sync never blocks the launch.
@@ -73,7 +83,7 @@ Every loader that exposes a hook running *before* mod discovery can do the no-re
 | Forge 1.16.x | yes | `forgespi.locating.IModLocator` (SPI 3.2/4.0), `scanMods()` returns `List<IModFile>` |
 | Forge 1.17 to 1.20.1 | yes | same class name, SPI 7.0, `scanMods()` returns `List<ModFileOrException>` |
 | NeoForge 1.20.2+ | yes | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
-| Quilt | yes | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin` |
+| Quilt | opt-in | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
 | Fabric | **no** | see below |
 | Forge 1.12.2 and older | yes | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
 
@@ -88,6 +98,12 @@ Fabric has no public pre-discovery hook. Its only lever is the `fabric.addMods` 
 Everything else in Fabric's discovery lives under `net.fabricmc.loader.impl`, which is internal and free to break at any time.
 
 So Fabric gets the honest version instead: sync from the `preLaunch` entrypoint, and when something changed, tell the player a restart is needed. That is what AutoModpack does, and for the same reason. Same `core/`, worse promise.
+
+### Quilt
+
+Quilt has the right hook, and a declaration Quilt refuses to read. `V1ModMetadataImpl` throws a `ParseException` - a hard failure, not a degradation - the moment it sees the `experimental_quilt_loader_plugin` key while `-Dloader.experimental.allow_loading_plugins=true` is unset. So a Quilt server is served `hopper-fabric.jar` by default: Quilt runs Fabric mods through `StandardFabricPlugin`, the `preLaunch` entrypoint works unchanged, and the player gets the Fabric promise - it works, it needs a restart.
+
+The plugin jar is built, tested and shipped as `hopper-quilt-plugin.jar` all the same. A player who has set that JVM flag downloads it from `GET /api/servers/{id}/jar?variant=quilt-plugin` and gets same-launch loading. Asking for that variant on any other loader is a 400 rather than a jar that will not parse.
 
 ## Limits
 

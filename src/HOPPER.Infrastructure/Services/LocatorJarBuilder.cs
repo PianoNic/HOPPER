@@ -10,9 +10,10 @@ namespace HOPPER.Infrastructure.Services
     {
         public const string ConfigEntry = "hopper-server.properties";
 
-        public byte[] Build(Guid serverId, string manifestUrl, string token, ModLoader loader, string? minecraftVersion)
+        public byte[] Build(Guid serverId, string manifestUrl, string token, ModLoader loader, string? minecraftVersion,
+            string? variant = null)
         {
-            var selected = LocatorTemplates.For(loader, minecraftVersion);
+            var selected = LocatorTemplates.For(loader, minecraftVersion, variant);
             var template = Path.Combine(ResolveTemplateDirectory(), selected.FileName);
 
             if (!File.Exists(template))

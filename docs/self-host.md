@@ -1,6 +1,6 @@
 # Self-hosting HOPPER
 
-One image holds both halves: the Dockerfile builds the Angular dashboard into the API's `wwwroot`, so the dashboard is always same-origin with the API and there is no CORS allowlist to configure. It also builds the Forge locator template jar in a JDK stage, which is what `GET /api/servers/{id}/jar` patches per server.
+One image holds both halves: the Dockerfile builds the Angular dashboard into the API's `wwwroot`, so the dashboard is always same-origin with the API and there is no CORS allowlist to configure. It also builds the locator template jars, one per loader generation, in a JDK stage, which is what `GET /api/servers/{id}/jar` patches per server.
 
 ## Run it
 

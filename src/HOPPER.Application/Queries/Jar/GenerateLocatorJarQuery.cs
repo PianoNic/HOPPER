@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Jar
 {
-    public record GenerateLocatorJarQuery(Guid ServerId, string BaseUrl) : IQuery<LocatorJarDto>;
+    public record GenerateLocatorJarQuery(Guid ServerId, string BaseUrl, string? Variant = null) : IQuery<LocatorJarDto>;
 
     public class GenerateLocatorJarQueryHandler(HopperDbContext db, ILocatorJarBuilder builder)
         : IQueryHandler<GenerateLocatorJarQuery, LocatorJarDto>
@@ -19,11 +19,16 @@ namespace HOPPER.Application.Queries.Jar
 
             var manifestUrl = $"{query.BaseUrl.TrimEnd('/')}/api/manifest";
 
+            var variant = string.IsNullOrWhiteSpace(query.Variant) ? null : query.Variant.Trim();
+
             return new LocatorJarDto
             {
-                FileName = $"{server.Slug}-hopper.jar",
+                FileName = variant is null
+                    ? $"{server.Slug}-hopper.jar"
+                    : $"{server.Slug}-hopper-{variant}.jar",
 
-                Content = builder.Build(server.Id, manifestUrl, server.Token, server.Loader, server.MinecraftVersion),
+                Content = builder.Build(server.Id, manifestUrl, server.Token, server.Loader,
+                    server.MinecraftVersion, variant),
             };
         }
     }

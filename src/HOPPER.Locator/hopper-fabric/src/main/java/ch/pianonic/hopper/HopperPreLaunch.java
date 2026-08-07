@@ -80,8 +80,8 @@ public final class HopperPreLaunch implements PreLaunchEntrypoint {
                 + " true in config/hopper.properties.", null);
         LOG.warn("[HOPPER] set " + Config.MIRROR_MODS + "=true there to let HOPPER copy its"
                 + " downloads into mods/ and delete the ones it put there itself. It records what"
-                + " it owns in " + Hopper.DIR + "/mods-mirror.txt and never touches a file that is"
-                + " not on that list.", null);
+                + " it owns in " + Hopper.DIR + "/" + Syncer.MIRROR_LIST + " and never touches a"
+                + " file that is not on that list.", null);
     }
 
     private static void report(Hopper.Result result, ModsFolderMirror mirror) {

@@ -336,6 +336,122 @@ namespace HOPPER.Tests.Infrastructure
             await Assert.That(LocatorTemplates.For(ModLoader.Quilt, "1.21.1").FileName).IsEqualTo("hopper-fabric.jar");
         }
 
+        private const string QuiltPluginJar = "hopper-quilt-plugin.jar";
+
+        private const string QuiltModJson = """
+            {"schema_version":1,"quilt_loader":{"group":"ch.pianonic","id":"hopper"},
+            "experimental_quilt_loader_plugin":{"class":"ch.pianonic.hopper.HopperQuiltPlugin",
+            "packages":["ch.pianonic.hopper"]}}
+            """;
+
+        private static void WriteFabricTemplate(string directory)
+        {
+            using var file = File.Create(Path.Combine(directory, "hopper-fabric.jar"));
+            using var archive = new ZipArchive(file, ZipArchiveMode.Create);
+            using var stream = archive.CreateEntry("fabric.mod.json").Open();
+            stream.Write("""{"schemaVersion":1,"id":"hopper","entrypoints":{"preLaunch":["ch.pianonic.hopper.HopperPreLaunch"]}}"""u8);
+        }
+
+        private static void WriteQuiltPluginTemplate(string directory)
+        {
+            using var file = File.Create(Path.Combine(directory, QuiltPluginJar));
+            using var archive = new ZipArchive(file, ZipArchiveMode.Create);
+
+            using (var manifest = archive.CreateEntry("META-INF/MANIFEST.MF").Open())
+                manifest.Write("Manifest-Version: 1.0\n"u8);
+
+            using var declaration = archive.CreateEntry("quilt.mod.json").Open();
+            declaration.Write(Encoding.UTF8.GetBytes(QuiltModJson));
+        }
+
+        [Test]
+        public async Task For_QuiltWithThePluginVariant_IsServedThePluginJar()
+        {
+            var template = LocatorTemplates.For(ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant);
+
+            await Assert.That(template.FileName).IsEqualTo(QuiltPluginJar);
+            await Assert.That(template.MarkerEntry).IsEqualTo("quilt.mod.json");
+        }
+
+        [Test]
+        [Arguments(ModLoader.Fabric)]
+        [Arguments(ModLoader.Forge)]
+        [Arguments(ModLoader.NeoForge)]
+        [Arguments(ModLoader.Unknown)]
+        public async Task For_ThePluginVariantOnAnyOtherLoader_ThrowsRatherThanServingAJarThatWillNotParse(
+            ModLoader loader)
+        {
+            await Assert.That(() => LocatorTemplates.For(loader, "1.21.1", LocatorTemplates.QuiltPluginVariant))
+                .Throws<LocatorVariantNotAvailableException>();
+        }
+
+        [Test]
+        public async Task For_AVariantNobodyDefined_ThrowsRatherThanFallingBackToTheDefault()
+        {
+            await Assert.That(() => LocatorTemplates.For(ModLoader.Quilt, "1.21.1", "fabric-plugin"))
+                .Throws<LocatorVariantNotAvailableException>();
+        }
+
+        [Test]
+        public async Task Build_QuiltWithThePluginVariant_ServesTheQuiltPluginDeclarationAndNoFabricEntrypoint()
+        {
+            using var dir = new TempDir();
+            WriteQuiltPluginTemplate(dir.Path);
+            WriteFabricTemplate(dir.Path);
+
+            var jar = BuilderFor(dir.Path).Build(Guid.NewGuid(), "https://h/api/manifest", "tok",
+                ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant);
+
+            using var archive = new ZipArchive(new MemoryStream(jar), ZipArchiveMode.Read);
+            var names = archive.Entries.Select(e => e.FullName).ToList();
+
+            await Assert.That(names).Contains("quilt.mod.json");
+            await Assert.That(names).DoesNotContain("fabric.mod.json");
+
+            using var declaration = new StreamReader(archive.GetEntry("quilt.mod.json")!.Open());
+            var text = await declaration.ReadToEndAsync();
+
+            await Assert.That(text).Contains("experimental_quilt_loader_plugin");
+            await Assert.That(text).Contains("ch.pianonic.hopper.HopperQuiltPlugin");
+            await Assert.That(ReadProperties(jar)["token"]).IsEqualTo("tok");
+        }
+
+        [Test]
+        public async Task Build_QuiltWithNoVariant_StillReadsTheFabricTemplate()
+        {
+            using var dir = new TempDir();
+            WriteQuiltPluginTemplate(dir.Path);
+            WriteFabricTemplate(dir.Path);
+
+            var jar = BuilderFor(dir.Path).Build(Guid.NewGuid(), "https://h/api/manifest", "tok",
+                ModLoader.Quilt, "1.21.1");
+
+            using var built = new ZipArchive(new MemoryStream(jar), ZipArchiveMode.Read);
+            var names = built.Entries.Select(e => e.FullName).ToList();
+
+            await Assert.That(names).Contains("fabric.mod.json");
+            await Assert.That(names).DoesNotContain("quilt.mod.json");
+        }
+
+        [Test]
+        public async Task Build_QuiltPluginTemplateThatIsActuallyTheFabricJar_Is503RatherThanServed()
+        {
+            using var dir = new TempDir();
+
+            using (var file = File.Create(Path.Combine(dir.Path, QuiltPluginJar)))
+            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
+            using (var stream = archive.CreateEntry("fabric.mod.json").Open())
+            {
+                stream.Write("""{"schemaVersion":1,"id":"hopper"}"""u8);
+            }
+
+            var exception = await Assert.That(() => BuilderFor(dir.Path).Build(Guid.NewGuid(),
+                    "https://h/api/manifest", "t", ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant))
+                .Throws<LocatorTemplateMissingException>();
+
+            await Assert.That(exception!.Message).Contains(QuiltPluginJar);
+        }
+
         [Test]
         [Arguments("25w14a")]
         [Arguments("23w13a_or_b")]
