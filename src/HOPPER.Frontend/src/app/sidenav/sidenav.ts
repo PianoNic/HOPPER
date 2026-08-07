@@ -139,7 +139,7 @@ export class Sidenav {
   protected readonly themeMode = this.theme.mode;
 
   protected readonly rootNav: ReadonlyArray<NavItem> = [
-    { route: '/servers', label: 'Servers', icon: 'lucideServer', exact: false },
+    { route: '/', label: 'Servers', icon: 'lucideServer', exact: true },
   ];
 
   private static readonly SERVER_PAGES: ReadonlyArray<Omit<NavItem, 'route'> & { suffix: string }> =

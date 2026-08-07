@@ -4,6 +4,7 @@ import { toast } from '@spartan-ng/brain/sonner';
 import { lucideExternalLink, lucideUpload, lucideX } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { ServerImportsService } from '../api/api/serverImports.service';
 import { ModDto } from '../api/model/modDto';
 import { PendingModDto } from '../api/model/pendingModDto';
@@ -17,7 +18,7 @@ import {
 
 @Component({
   selector: 'app-pending-mods',
-  imports: [NgIcon, HlmBadgeImports, HlmButtonImports],
+  imports: [NgIcon, HlmBadgeImports, HlmButtonImports, ButtonLoading],
   providers: [provideIcons({ lucideExternalLink, lucideUpload, lucideX })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -59,6 +60,7 @@ import {
               (change)="supply(entry, picker)"
             />
             <button
+              [loading]="busy()[entry.id] === true"
               hlmBtn
               variant="outline"
               size="sm"
@@ -67,7 +69,7 @@ import {
               (click)="picker.click()"
             >
               <ng-icon name="lucideUpload" size="12" />
-              {{ busy()[entry.id] === true ? 'Storing…' : 'Supply jar' }}
+              {{ busy()[entry.id] === true ? 'Storing' : 'Supply jar' }}
             </button>
             <button
               hlmBtn

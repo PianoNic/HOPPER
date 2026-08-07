@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 import { AppLayout } from './shared/layouts/app-layout/app-layout';
-import { Home } from './home/home';
 import { Servers } from './servers/servers';
 import { ServerOverview } from './servers/server-overview';
 import { ServerMods } from './servers/server-mods';
@@ -16,8 +15,10 @@ export const routes: Routes = [
     component: AppLayout,
     canActivateChild: [autoLoginPartialRoutesGuard],
     children: [
-      { path: '', component: Home },
-      { path: 'servers', component: Servers },
+      { path: '', component: Servers },
+
+      // Kept so links and bookmarks handed out while /servers was its own path still land.
+      { path: 'servers', redirectTo: '', pathMatch: 'full' },
       { path: 'server/:id', component: ServerOverview },
       { path: 'server/:id/mods', component: ServerMods },
 

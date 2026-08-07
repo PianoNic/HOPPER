@@ -26,6 +26,7 @@ import { simpleCurseforge, simpleModrinth } from '@ng-icons/simple-icons';
 import { hopperPrism } from '../shared/icons/prism-icon';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import {
   HlmDialogDescription,
   HlmDialogHeader,
@@ -62,6 +63,7 @@ const POLL_MS = 2000;
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
+    ButtonLoading,
     HlmDialogHeader,
     HlmDialogTitle,
     HlmDialogDescription,
@@ -275,8 +277,8 @@ const POLL_MS = 2000;
         </button>
       }
       @if (job() === null) {
-        <button hlmBtn type="button" [disabled]="!canSubmit()" (click)="submit()">
-          {{ submitting() ? 'Uploading…' : 'Import' }}
+        <button hlmBtn type="button" [disabled]="!canSubmit()" (click)="submit()" [loading]="submitting()">
+          {{ submitting() ? 'Uploading' : 'Import' }}
         </button>
       } @else if (pending().length > 0) {
         <button hlmBtn type="button" (click)="close(true)">

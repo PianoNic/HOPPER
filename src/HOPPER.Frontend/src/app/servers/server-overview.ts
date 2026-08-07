@@ -12,6 +12,7 @@ import {
   lucideUsers,
 } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
@@ -31,6 +32,7 @@ import { serverIdSignal } from './server-route';
     ContentHeader,
     NgIcon,
     HlmButtonImports,
+    ButtonLoading,
     HlmCardImports,
   ],
   providers: [
@@ -54,6 +56,7 @@ import { serverIdSignal } from './server-route';
         <h2 class="text-sm font-medium">Overview</h2>
         <div class="flex items-center gap-2">
           <button
+            [loading]="loading()"
             hlmBtn
             variant="outline"
             size="sm"
@@ -62,11 +65,11 @@ import { serverIdSignal } from './server-route';
             [disabled]="loading()"
           >
             <ng-icon name="lucideRefreshCw" size="14" />
-            {{ loading() ? 'Loading…' : 'Refresh' }}
+            {{ loading() ? 'Loading' : 'Refresh' }}
           </button>
-          <button hlmBtn size="sm" type="button" [disabled]="building()" (click)="downloadJar()">
+          <button hlmBtn size="sm" type="button" [disabled]="building()" (click)="downloadJar()" [loading]="building()">
             <ng-icon name="lucideDownload" size="14" />
-            {{ building() ? 'Building…' : 'Download client jar' }}
+            {{ building() ? 'Building' : 'Download client jar' }}
           </button>
         </div>
       </header>

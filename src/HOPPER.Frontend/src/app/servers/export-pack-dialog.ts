@@ -13,6 +13,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideDownload, lucideLink, lucidePackage, lucideTriangleAlert } from '@ng-icons/lucide';
 import { simpleCurseforge, simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import {
   HlmDialogDescription,
   HlmDialogHeader,
@@ -51,7 +52,8 @@ type ExportOption = {
 
 @Component({
   selector: 'app-export-pack-dialog',
-  imports: [NgIcon, HlmButtonImports, HlmDialogHeader, HlmDialogTitle, HlmDialogDescription],
+  imports: [NgIcon, HlmButtonImports,
+    ButtonLoading, HlmDialogHeader, HlmDialogTitle, HlmDialogDescription],
   providers: [
     provideIcons({
       simpleModrinth,
@@ -147,9 +149,9 @@ type ExportOption = {
         Cancel
       </button>
       @if (platformReady()) {
-        <button hlmBtn type="button" [disabled]="busy()" (click)="download()">
+        <button hlmBtn type="button" [disabled]="busy()" (click)="download()" [loading]="busy()">
           <ng-icon name="lucideDownload" size="14" />
-          {{ busy() ? 'Building…' : downloadLabel() }}
+          {{ busy() ? 'Building' : downloadLabel() }}
         </button>
       } @else {
         <button hlmBtn type="button" (click)="goToServers()">Go to Servers</button>

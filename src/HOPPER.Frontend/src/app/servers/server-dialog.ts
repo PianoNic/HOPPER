@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signa
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { toast } from '@spartan-ng/brain/sonner';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import {
   HlmDialogDescription,
   HlmDialogHeader,
@@ -32,6 +33,7 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
   selector: 'app-server-dialog',
   imports: [
     HlmButtonImports,
+    ButtonLoading,
     HlmDialogHeader,
     HlmDialogTitle,
     HlmDialogDescription,
@@ -152,8 +154,8 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
       <button hlmBtn variant="ghost" type="button" [disabled]="saving()" (click)="cancel()">
         Cancel
       </button>
-      <button hlmBtn type="button" [disabled]="saving() || !canSave()" (click)="save()">
-        {{ saving() ? 'Saving…' : creating ? 'Create' : 'Save' }}
+      <button hlmBtn type="button" [disabled]="saving() || !canSave()" (click)="save()" [loading]="saving()">
+        {{ saving() ? 'Saving' : creating ? 'Create' : 'Save' }}
       </button>
     </div>
   `,

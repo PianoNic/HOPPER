@@ -23,6 +23,7 @@ import {
 } from '@ng-icons/lucide';
 import { simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -49,6 +50,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
     NgIcon,
     RouterLink,
     HlmButtonImports,
+    ButtonLoading,
     HlmInputImports,
     HlmTableImports,
   ],
@@ -93,6 +95,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             />
           </div>
           <button
+            [loading]="loading()"
             hlmBtn
             variant="outline"
             size="sm"
@@ -101,7 +104,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             [disabled]="loading()"
           >
             <ng-icon name="lucideRefreshCw" size="14" />
-            {{ loading() ? 'Loading…' : 'Refresh' }}
+            {{ loading() ? 'Loading' : 'Refresh' }}
           </button>
           <!-- Only when there is something to do. A pack import can leave jars only a human can
                fetch, and this is the count of them plus the way to the page that lists them - the
