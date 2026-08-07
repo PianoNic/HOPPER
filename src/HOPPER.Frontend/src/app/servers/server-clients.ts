@@ -8,7 +8,6 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DatePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {
   catchError,
@@ -39,6 +38,7 @@ import { ModDto } from '../api/model/modDto';
 import { ServerDto } from '../api/model/serverDto';
 import { ClientModsDialogService } from './client-mods-dialog';
 import { shouldPoll } from './poll-gate';
+import { WhenPipe } from '../shared/utils/when';
 import { serverIdSignal } from './server-route';
 
 type ClientsSnapshot = {
@@ -52,7 +52,7 @@ const POLL_MS = 10000;
   selector: 'app-server-clients',
   imports: [
     ContentHeader,
-    DatePipe,
+    WhenPipe,
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
@@ -149,7 +149,7 @@ const POLL_MS = 10000;
                   <td
                     hlmTableCell
                     class="text-xs"
-                    [title]="row.client.lastSeenAt | date: 'yyyy-MM-dd HH:mm:ss'"
+                    [title]="row.client.lastSeenAt | when: 'long'"
                   >
                     {{ age(row.client.lastSeenAt) }}
                   </td>

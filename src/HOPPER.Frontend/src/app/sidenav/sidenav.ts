@@ -31,9 +31,11 @@ import { HlmAvatarImports } from '@spartan-ng/helm/avatar';
 import { ThemeService, ThemeMode } from '../shared/services/theme.service';
 import { AppService } from '../api/api/app.service';
 import { ServersService } from '../api/api/servers.service';
+import { ServerChanged } from '../shared/services/server-changed';
+import { toNumber } from '../shared/utils/format';
 import { ServerDto } from '../api/model/serverDto';
 
-type NavItem = { route: string | null; label: string; icon: string; exact: boolean };
+type NavItem = { route: string | null; label: string; icon: string; exact: boolean; count?: number };
 
 const SERVER_ROUTE = /^\/server\/([^/]+)/;
 
@@ -99,9 +101,13 @@ export class Sidenav {
     return match ? match[1] : null;
   });
 
+  private readonly serverChanged = inject(ServerChanged);
+
   private readonly currentServer = toSignal(
-    toObservable(this.currentServerId).pipe(
-      switchMap((id) =>
+    // Re-read on a revision as well as on a change of server: adding a mod does not change the
+    // route, so nothing else the sidebar watches would move.
+    toObservable(computed(() => ({ id: this.currentServerId(), rev: this.serverChanged.revision() }))).pipe(
+      switchMap(({ id }) =>
         id === null
           ? of(null)
           : this.serversService.apiServersIdGet(id).pipe(catchError(() => of(null))),
@@ -109,6 +115,16 @@ export class Sidenav {
     ),
     { initialValue: null },
   );
+
+  // Undefined while unknown, so the template can leave the badge out rather than flash a 0 that
+  // turns into 18 a moment later.
+  protected readonly counts = computed<Record<string, number | undefined>>(() => {
+    const server = this.currentServer();
+    return {
+      '/mods': server === undefined || server === null ? undefined : toNumber(server.modCount),
+      '/clients': server === undefined || server === null ? undefined : toNumber(server.clientCount),
+    };
+  });
 
   protected readonly currentServerName = computed(() => this.currentServer()?.name ?? '');
 
@@ -157,6 +173,7 @@ export class Sidenav {
     return Sidenav.SERVER_PAGES.map(({ suffix, ...rest }) => ({
       ...rest,
       route: id === null ? null : `/server/${id}${suffix}`,
+      count: this.counts()[suffix],
     }));
   });
 

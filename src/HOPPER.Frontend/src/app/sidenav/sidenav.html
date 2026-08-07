@@ -93,6 +93,14 @@
                   >
                     <ng-icon [name]="item.icon" />
                     <span>{{ item.label }}</span>
+                    @if (item.count !== undefined) {
+                      <!-- Left out entirely while unknown: an empty badge, or a 0 that becomes 18 a
+                           moment later, is worse than no badge. -->
+                      <span
+                        class="bg-sidebar-accent text-sidebar-accent-foreground ml-auto rounded-full px-1.5 py-0.5 text-[0.6875rem] leading-none tabular-nums"
+                        >{{ item.count }}</span
+                      >
+                    }
                   </a>
                 } @else {
                   <button hlmSidebarMenuButton disabled type="button" class="!w-56 mx-auto">

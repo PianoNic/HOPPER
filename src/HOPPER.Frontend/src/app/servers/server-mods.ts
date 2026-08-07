@@ -6,7 +6,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -35,6 +34,8 @@ import { ServerModsService } from '../api/api/serverMods.service';
 import { ServerImportsService } from '../api/api/serverImports.service';
 import { ModDto } from '../api/model/modDto';
 import { ServerDto } from '../api/model/serverDto';
+import { WhenPipe } from '../shared/utils/when';
+import { ServerChanged } from '../shared/services/server-changed';
 import { serverIdSignal } from './server-route';
 import { modSourceLabel, modrinthProjectUrl } from './mod-labels';
 import { ExportPackDialogService } from './export-pack-dialog';
@@ -45,8 +46,8 @@ import { UploadModsDialogService } from './upload-mods-dialog';
   selector: 'app-server-mods',
   imports: [
     ContentHeader,
+    WhenPipe,
     CopyButton,
-    DatePipe,
     NgIcon,
     RouterLink,
     HlmButtonImports,
@@ -219,7 +220,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                     }
                   </td>
                   <td hlmTableCell class="font-mono text-xs">
-                    {{ m.createdAt | date: 'yyyy-MM-dd HH:mm' }}
+                    {{ m.createdAt | when }}
                   </td>
                   <td hlmTableCell class="text-right">
                     <button
@@ -245,6 +246,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
 })
 export class ServerMods {
   private readonly route = inject(ActivatedRoute);
+  private readonly serverChanged = inject(ServerChanged);
   private readonly api = inject(ServerModsService);
   private readonly serversApi = inject(ServersService);
   private readonly importsApi = inject(ServerImportsService);
@@ -315,9 +317,13 @@ export class ServerMods {
     this.filter.set((event.target as HTMLInputElement).value);
   }
 
+  // Every mutation on this page goes through here, so this is the one place the sidebar's count
+  // has to hear about. The initial load calls load() directly and deliberately does not bump.
   protected reload(): void {
     const id = this.serverId();
-    if (id !== '') this.load(id);
+    if (id === '') return;
+    this.load(id);
+    this.serverChanged.changed();
   }
 
   private load(id: string): void {
