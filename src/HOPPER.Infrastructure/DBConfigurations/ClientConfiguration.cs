@@ -8,6 +8,12 @@ namespace HOPPER.Infrastructure.DBConfigurations
     {
         public void Configure(EntityTypeBuilder<Client> builder)
         {
+            builder.Property(c => c.ClientId).HasMaxLength(200);
+
+            builder.Property(c => c.Username).HasMaxLength(100);
+
+            builder.Property(c => c.LastIpAddress).HasMaxLength(45);
+
             builder.HasIndex(c => new { c.ServerId, c.ClientId }).IsUnique();
         }
     }

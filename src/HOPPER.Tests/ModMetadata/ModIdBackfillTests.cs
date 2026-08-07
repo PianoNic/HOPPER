@@ -62,7 +62,7 @@ namespace HOPPER.Tests.ModMetadata
                 if (bytes is not null)
                 {
                     await using var stream = new MemoryStream(bytes);
-                    (sha, _) = await Blobs.SaveAsync(stream, CancellationToken.None);
+                    (sha, _) = await Blobs.StoreAsync(stream, TestLimits.MaxBytes, CancellationToken.None);
                 }
 
                 var row = new Mod
@@ -160,14 +160,24 @@ namespace HOPPER.Tests.ModMetadata
 
         private sealed class ThrowingBlobs : IBlobStorage
         {
-            public Task<(string Sha256, long Size)> SaveAsync(Stream content, CancellationToken cancellationToken = default) =>
-                Task.FromResult((new string('a', 64), 0L));
+            public Task<StagedBlob> StageAsync(Stream content, long maxBytes, CancellationToken cancellationToken = default) =>
+                Task.FromResult(new StagedBlob(new string('a', 64), 0L, "unused"));
+
+            public void Promote(StagedBlob staged) { }
+
+            public void Discard(StagedBlob staged) { }
+
+            public Stream OpenStaged(StagedBlob staged) => throw new IOException("the volume went away");
 
             public Stream? OpenRead(string sha256) => throw new IOException("the volume went away");
 
             public bool Exists(string sha256) => false;
 
             public void Delete(string sha256) { }
+
+            public IEnumerable<StoredBlob> EnumerateBlobs() => [];
+
+            public IEnumerable<ScratchFile> EnumerateScratch() => [];
         }
 
         [Test]

@@ -13,6 +13,9 @@ namespace HOPPER.Application
             if (!name.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException($"Not a jar: {name}");
 
+            if (name.Length > HopperLimits.MaxFileNameLength)
+                throw new ArgumentException($"Filename is too long: {name.Length} characters, the limit is {HopperLimits.MaxFileNameLength}.");
+
             return name;
         }
     }

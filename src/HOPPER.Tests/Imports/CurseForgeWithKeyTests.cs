@@ -56,7 +56,7 @@ namespace HOPPER.Tests.Imports
                 ("overrides/mods/cc-tweaked.jar", "PK cc"));
 
             var http = Responding(CurseForgeFile("https://edge.forgecdn.net/files/6366/217/jei.jar"));
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Pending).IsEmpty();
 
@@ -76,7 +76,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = Responding("""{"data":[]}""");
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             var pending = plan.Pending.Single();
             await Assert.That(pending.Reason).IsEqualTo(PendingReason.DownloadFailed);
@@ -91,7 +91,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = new CannedHttp((_, _) => CannedHttp.Json(HttpStatusCode.Forbidden, """{"error":"bad key"}"""));
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Pending.Single().Reason).IsEqualTo(PendingReason.DownloadFailed);
             await Assert.That(http.Calls).Count().IsEqualTo(1);
@@ -103,7 +103,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = Responding(CurseForgeFile(downloadUrl: null), ModrinthHit);
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Pending).IsEmpty();
 
@@ -125,7 +125,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = Responding(CurseForgeFile(downloadUrl: null), modrinth: "{}");
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Files).IsEmpty();
 
@@ -147,7 +147,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = Responding(CurseForgeFile(downloadUrl: null, sha1: null));
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Pending.Single().Reason).IsEqualTo(PendingReason.Blocked);
             await Assert.That(plan.Pending.Single().ExpectedSha1).IsNull();
@@ -160,7 +160,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = Responding(CurseForgeFile(downloadUrl: null, fileName: null), ModrinthHit);
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Files).IsEmpty();
             await Assert.That(plan.Pending.Single().Reason).IsEqualTo(PendingReason.Blocked);
@@ -173,7 +173,7 @@ namespace HOPPER.Tests.Imports
             using var archive = PackArchive.Of(("manifest.json", ManifestOneFile));
 
             var http = Responding(CurseForgeFile("https://edge.forgecdn.net/files/6366/217/jei.jar", fileName: null));
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Files.Single().FileName).IsEqualTo("curseforge-351491-6366217.jar");
         }
@@ -186,7 +186,7 @@ namespace HOPPER.Tests.Imports
                 ("modlist.html", "<ul><li><a href=\"x\">Just Enough Items (by mezz)</a></li></ul>"));
 
             var http = Responding(CurseForgeFile(downloadUrl: null, displayName: null), modrinth: "{}");
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, Client(http), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, Client(http), CancellationToken.None);
 
             await Assert.That(plan.Pending.Single().DisplayName).IsEqualTo("Just Enough Items (by mezz)");
         }

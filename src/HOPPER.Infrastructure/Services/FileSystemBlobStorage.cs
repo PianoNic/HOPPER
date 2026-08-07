@@ -15,17 +15,16 @@ namespace HOPPER.Infrastructure.Services
 
         public FileSystemBlobStorage(IConfiguration configuration)
         {
-            var configured = configuration["Blobs:Directory"];
-            _root = string.IsNullOrWhiteSpace(configured)
-                ? Path.Combine(AppContext.BaseDirectory, "blobs")
-                : configured;
+            _root = BlobPaths.Root(configuration);
         }
 
-        public async Task<(string Sha256, long Size)> SaveAsync(Stream content, CancellationToken cancellationToken = default)
+        public async Task<StagedBlob> StageAsync(Stream content, long maxBytes, CancellationToken cancellationToken = default)
         {
             var tempDirectory = Path.Combine(_root, "tmp");
             Directory.CreateDirectory(tempDirectory);
             var tempPath = Path.Combine(tempDirectory, $"{Guid.NewGuid():N}.part");
+
+            var limited = new LimitedStream(content, maxBytes, "This file");
 
             string sha;
             long size = 0;
@@ -39,7 +38,7 @@ namespace HOPPER.Infrastructure.Services
                     try
                     {
                         int read;
-                        while ((read = await content.ReadAsync(buffer.AsMemory(0, CopyBufferSize), cancellationToken)) > 0)
+                        while ((read = await limited.ReadAsync(buffer.AsMemory(0, CopyBufferSize), cancellationToken)) > 0)
                         {
                             hash.AppendData(buffer, 0, read);
                             await temp.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
@@ -53,25 +52,6 @@ namespace HOPPER.Infrastructure.Services
 
                     sha = Convert.ToHexStringLower(hash.GetHashAndReset());
                 }
-
-                var finalPath = ResolvePath(_root, sha);
-                Directory.CreateDirectory(Path.GetDirectoryName(finalPath)!);
-
-                if (File.Exists(finalPath))
-                {
-                    File.Delete(tempPath);
-                }
-                else
-                {
-                    try
-                    {
-                        File.Move(tempPath, finalPath);
-                    }
-                    catch (IOException) when (File.Exists(finalPath))
-                    {
-                        File.Delete(tempPath);
-                    }
-                }
             }
             catch
             {
@@ -79,8 +59,34 @@ namespace HOPPER.Infrastructure.Services
                 throw;
             }
 
-            return (sha, size);
+            return new StagedBlob(sha, size, tempPath);
         }
+
+        public void Promote(StagedBlob staged)
+        {
+            var finalPath = ResolvePath(_root, staged.Sha256);
+            Directory.CreateDirectory(Path.GetDirectoryName(finalPath)!);
+
+            if (File.Exists(finalPath))
+            {
+                TryDeleteTemp(staged.TempPath);
+                return;
+            }
+
+            try
+            {
+                File.Move(staged.TempPath, finalPath);
+            }
+            catch (IOException) when (File.Exists(finalPath))
+            {
+                TryDeleteTemp(staged.TempPath);
+            }
+        }
+
+        public void Discard(StagedBlob staged) => TryDeleteTemp(staged.TempPath);
+
+        public Stream OpenStaged(StagedBlob staged) =>
+            new FileStream(staged.TempPath, FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize);
 
         public Stream? OpenRead(string sha256)
         {
@@ -104,6 +110,54 @@ namespace HOPPER.Infrastructure.Services
             }
         }
 
+        public IEnumerable<StoredBlob> EnumerateBlobs()
+        {
+            if (!Directory.Exists(_root))
+                yield break;
+
+            foreach (var first in Directory.EnumerateDirectories(_root))
+            {
+                if (!IsHex(Path.GetFileName(first), 2))
+                    continue;
+
+                foreach (var second in Directory.EnumerateDirectories(first))
+                {
+                    if (!IsHex(Path.GetFileName(second), 2))
+                        continue;
+
+                    foreach (var file in Directory.EnumerateFiles(second))
+                    {
+                        var name = Path.GetFileName(file);
+                        if (!IsHex(name, 64))
+                            continue;
+
+                        yield return new StoredBlob(name, File.GetLastWriteTimeUtc(file));
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<ScratchFile> EnumerateScratch()
+        {
+            foreach (var file in ScratchIn(Path.Combine(_root, "tmp"), "*.part"))
+                yield return file;
+
+            foreach (var file in ScratchIn(Path.Combine(_root, "exports"), "*.tmp"))
+                yield return file;
+        }
+
+        private static IEnumerable<ScratchFile> ScratchIn(string directory, string pattern)
+        {
+            if (!Directory.Exists(directory))
+                yield break;
+
+            foreach (var file in Directory.EnumerateFiles(directory, pattern))
+                yield return new ScratchFile(file, File.GetLastWriteTimeUtc(file));
+        }
+
+        private static bool IsHex(string value, int length) =>
+            value.Length == length && !value.AsSpan().ContainsAnyExcept(HexChars);
+
         private static string ResolvePath(string root, string sha256)
         {
             if (sha256.Length != 64 || sha256.AsSpan().ContainsAnyExcept(HexChars))
@@ -119,6 +173,9 @@ namespace HOPPER.Infrastructure.Services
                 if (File.Exists(tempPath)) File.Delete(tempPath);
             }
             catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
         }

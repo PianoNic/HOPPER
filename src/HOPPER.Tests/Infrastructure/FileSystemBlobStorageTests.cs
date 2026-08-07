@@ -22,52 +22,52 @@ namespace HOPPER.Tests.Infrastructure
         private static string Sha256Of(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
         [Test]
-        public async Task SaveAsync_Content_ReturnsTheSha256AndByteCount()
+        public async Task Store_Content_ReturnsTheSha256AndByteCount()
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = Encoding.UTF8.GetBytes("pretend this is a forge mod");
 
-            var (sha, size) = await storage.SaveAsync(new MemoryStream(bytes));
+            var (sha, size) = await storage.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             await Assert.That(sha).IsEqualTo(Sha256Of(bytes));
             await Assert.That(size).IsEqualTo((long)bytes.Length);
         }
 
         [Test]
-        public async Task SaveAsync_Hash_IsSixtyFourLowercaseHexCharacters()
+        public async Task Store_Hash_IsSixtyFourLowercaseHexCharacters()
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
 
-            var (sha, _) = await storage.SaveAsync(new MemoryStream(Encoding.UTF8.GetBytes("x")));
+            var (sha, _) = await storage.StoreAsync(new MemoryStream(Encoding.UTF8.GetBytes("x")), TestLimits.MaxBytes);
 
             await Assert.That(sha).Length().IsEqualTo(64);
             await Assert.That(sha.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))).IsTrue();
         }
 
         [Test]
-        public async Task SaveAsync_LargeContent_HashesTheWholeStreamNotJustTheFirstBuffer()
+        public async Task Store_LargeContent_HashesTheWholeStreamNotJustTheFirstBuffer()
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = new byte[81920 * 3 + 977];
             Random.Shared.NextBytes(bytes);
 
-            var (sha, size) = await storage.SaveAsync(new MemoryStream(bytes));
+            var (sha, size) = await storage.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             await Assert.That(sha).IsEqualTo(Sha256Of(bytes));
             await Assert.That(size).IsEqualTo((long)bytes.Length);
         }
 
         [Test]
-        public async Task SaveAsync_Content_LandsAtItsContentAddress()
+        public async Task Store_Content_LandsAtItsContentAddress()
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = Encoding.UTF8.GetBytes("addressed by its bytes");
 
-            var (sha, _) = await storage.SaveAsync(new MemoryStream(bytes));
+            var (sha, _) = await storage.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             var expected = Path.Combine(dir.Path, sha[..2], sha[2..4], sha);
             await Assert.That(File.Exists(expected)).IsTrue();
@@ -75,14 +75,14 @@ namespace HOPPER.Tests.Infrastructure
         }
 
         [Test]
-        public async Task SaveAsync_SameContentTwice_StoresOneFile()
+        public async Task Store_SameContentTwice_StoresOneFile()
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = Encoding.UTF8.GetBytes("identical");
 
-            var (first, _) = await storage.SaveAsync(new MemoryStream(bytes));
-            var (second, _) = await storage.SaveAsync(new MemoryStream(bytes));
+            var (first, _) = await storage.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
+            var (second, _) = await storage.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             await Assert.That(second).IsEqualTo(first);
 
@@ -94,12 +94,12 @@ namespace HOPPER.Tests.Infrastructure
         }
 
         [Test]
-        public async Task SaveAsync_Failure_LeavesNoPartialFileBehind()
+        public async Task Store_Failure_LeavesNoPartialFileBehind()
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
 
-            await Assert.That(async () => await storage.SaveAsync(new ThrowingStream()))
+            await Assert.That(async () => await storage.StoreAsync(new ThrowingStream(), TestLimits.MaxBytes))
                 .Throws<IOException>();
 
             var leftovers = Directory.GetFiles(dir.Path, "*.part", SearchOption.AllDirectories);
@@ -112,7 +112,7 @@ namespace HOPPER.Tests.Infrastructure
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
             var bytes = Encoding.UTF8.GetBytes("streamed back out");
-            var (sha, _) = await storage.SaveAsync(new MemoryStream(bytes));
+            var (sha, _) = await storage.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             await using var stream = storage.OpenRead(sha);
             await Assert.That(stream).IsNotNull();
@@ -151,7 +151,7 @@ namespace HOPPER.Tests.Infrastructure
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
-            var (sha, _) = await storage.SaveAsync(new MemoryStream(Encoding.UTF8.GetBytes("x")));
+            var (sha, _) = await storage.StoreAsync(new MemoryStream(Encoding.UTF8.GetBytes("x")), TestLimits.MaxBytes);
 
             await Assert.That(() => storage.OpenRead(sha.ToUpperInvariant())).Throws<ArgumentException>();
         }
@@ -161,7 +161,7 @@ namespace HOPPER.Tests.Infrastructure
         {
             using var dir = new TempDir();
             var storage = StorageIn(dir.Path);
-            var (sha, _) = await storage.SaveAsync(new MemoryStream(Encoding.UTF8.GetBytes("delete me")));
+            var (sha, _) = await storage.StoreAsync(new MemoryStream(Encoding.UTF8.GetBytes("delete me")), TestLimits.MaxBytes);
 
             storage.Delete(sha);
 
@@ -177,6 +177,167 @@ namespace HOPPER.Tests.Infrastructure
             storage.Delete(new string('e', 64));
 
             await Assert.That(storage.Exists(new string('e', 64))).IsFalse();
+        }
+
+        [Test]
+        public async Task Store_StreamLongerThanMaxBytes_Throws()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            await Assert.That(async () => await storage.StoreAsync(new MemoryStream(new byte[101]), 100))
+                .Throws<ContentTooLargeException>();
+        }
+
+        [Test]
+        public async Task Store_StreamExactlyMaxBytes_IsStored()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            var (sha, size) = await storage.StoreAsync(new MemoryStream(new byte[100]), 100);
+
+            await Assert.That(size).IsEqualTo(100L);
+            await Assert.That(storage.Exists(sha)).IsTrue();
+        }
+
+        [Test]
+        public async Task Store_StreamLongerThanMaxBytes_LeavesNoPartFileBehind()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            await Assert.That(async () => await storage.StoreAsync(new MemoryStream(new byte[101]), 100))
+                .Throws<ContentTooLargeException>();
+
+            await Assert.That(Directory.GetFiles(dir.Path, "*.part", SearchOption.AllDirectories)).IsEmpty();
+            await Assert.That(Stored(dir.Path)).IsEmpty();
+        }
+
+        [Test]
+        public async Task StageAsync_ThenDiscard_PublishesNothing()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            var staged = await storage.StageAsync(new MemoryStream(Encoding.UTF8.GetBytes("never committed")), TestLimits.MaxBytes);
+
+            await Assert.That(storage.Exists(staged.Sha256)).IsFalse();
+
+            storage.Discard(staged);
+
+            await Assert.That(storage.Exists(staged.Sha256)).IsFalse();
+            await Assert.That(File.Exists(staged.TempPath)).IsFalse();
+            await Assert.That(Stored(dir.Path)).IsEmpty();
+        }
+
+        [Test]
+        public async Task StageAsync_ThenPromote_StoresExactlyOneFile()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+            var bytes = Encoding.UTF8.GetBytes("committed");
+
+            var staged = await storage.StageAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
+            storage.Promote(staged);
+            storage.Discard(staged);
+
+            await Assert.That(staged.Sha256).IsEqualTo(Sha256Of(bytes));
+            await Assert.That(storage.Exists(staged.Sha256)).IsTrue();
+            await Assert.That(Stored(dir.Path)).Count().IsEqualTo(1);
+            await Assert.That(File.Exists(staged.TempPath)).IsFalse();
+        }
+
+        [Test]
+        public async Task Promote_WhenTheBlobAlreadyExists_KeepsTheExistingFileAndRemovesTheTemp()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+            var bytes = Encoding.UTF8.GetBytes("identical bytes");
+
+            var first = await storage.StageAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
+            var second = await storage.StageAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
+
+            storage.Promote(first);
+            storage.Promote(second);
+
+            await Assert.That(File.Exists(second.TempPath)).IsFalse();
+            await Assert.That(Stored(dir.Path)).Count().IsEqualTo(1);
+            await Assert.That(await File.ReadAllBytesAsync(Stored(dir.Path).Single())).IsEquivalentTo(bytes);
+        }
+
+        [Test]
+        public async Task OpenStaged_BeforePromote_ReturnsTheBytesThatWereStaged()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+            var bytes = Encoding.UTF8.GetBytes("readable while staged");
+
+            var staged = await storage.StageAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
+
+            using (var stream = storage.OpenStaged(staged))
+            using (var buffer = new MemoryStream())
+            {
+                await stream.CopyToAsync(buffer);
+                await Assert.That(buffer.ToArray()).IsEquivalentTo(bytes);
+            }
+
+            storage.Discard(staged);
+        }
+
+        [Test]
+        public async Task EnumerateBlobs_ReturnsStoredBlobsAndNothingFromTheScratchDirectories()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            var (sha, _) = await storage.StoreAsync(new MemoryStream(Encoding.UTF8.GetBytes("a blob")), TestLimits.MaxBytes);
+
+            Directory.CreateDirectory(Path.Combine(dir.Path, "imports"));
+            await File.WriteAllTextAsync(Path.Combine(dir.Path, "imports", $"{Guid.NewGuid():N}.pack"), "pack");
+            Directory.CreateDirectory(Path.Combine(dir.Path, "exports"));
+            await File.WriteAllTextAsync(Path.Combine(dir.Path, "exports", $"{Guid.NewGuid():N}.tmp"), "export");
+            Directory.CreateDirectory(Path.Combine(dir.Path, "tmp"));
+            await File.WriteAllTextAsync(Path.Combine(dir.Path, "tmp", $"{Guid.NewGuid():N}.part"), "part");
+
+            var found = storage.EnumerateBlobs().ToList();
+
+            await Assert.That(found.Select(b => b.Sha256).ToList()).IsEquivalentTo(new[] { sha });
+        }
+
+        [Test]
+        public async Task EnumerateScratch_ReturnsTempPartsAndExportScratchOnly()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            await storage.StoreAsync(new MemoryStream(Encoding.UTF8.GetBytes("a blob")), TestLimits.MaxBytes);
+
+            Directory.CreateDirectory(Path.Combine(dir.Path, "tmp"));
+            var part = Path.Combine(dir.Path, "tmp", $"{Guid.NewGuid():N}.part");
+            await File.WriteAllTextAsync(part, "part");
+
+            Directory.CreateDirectory(Path.Combine(dir.Path, "exports"));
+            var export = Path.Combine(dir.Path, "exports", $"{Guid.NewGuid():N}.tmp");
+            await File.WriteAllTextAsync(export, "export");
+
+            Directory.CreateDirectory(Path.Combine(dir.Path, "imports"));
+            await File.WriteAllTextAsync(Path.Combine(dir.Path, "imports", $"{Guid.NewGuid():N}.pack"), "pack");
+
+            var found = storage.EnumerateScratch().Select(s => s.Path).Order().ToList();
+
+            await Assert.That(found).IsEquivalentTo(new[] { part, export }.Order().ToList());
+        }
+
+        private static List<string> Stored(string root)
+        {
+            var scratch = new[] { "tmp", "imports", "exports" }
+                .Select(d => Path.Combine(root, d) + Path.DirectorySeparatorChar)
+                .ToList();
+
+            return Directory.GetFiles(root, "*", SearchOption.AllDirectories)
+                .Where(p => !scratch.Any(s => p.StartsWith(s, StringComparison.Ordinal)))
+                .ToList();
         }
 
         private sealed class ThrowingStream : Stream

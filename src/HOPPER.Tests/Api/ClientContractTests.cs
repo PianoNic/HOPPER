@@ -8,6 +8,7 @@ using HOPPER.Application.Command.Mods;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HOPPER.Tests.Api
@@ -29,7 +30,8 @@ namespace HOPPER.Tests.Api
             var handler = new UploadModsCommandHandler(
                 db,
                 scope.ServiceProvider.GetRequiredService<IBlobStorage>(),
-                scope.ServiceProvider.GetRequiredService<ICurrentUserService>());
+                scope.ServiceProvider.GetRequiredService<ICurrentUserService>(),
+                scope.ServiceProvider.GetRequiredService<IConfiguration>());
 
             await handler.Handle(
                 new UploadModsCommand(serverId, [new UploadFile(fileName, new MemoryStream(JarBytes))]),
@@ -113,7 +115,8 @@ namespace HOPPER.Tests.Api
             var handler = new UploadModsCommandHandler(
                 db,
                 scope.ServiceProvider.GetRequiredService<IBlobStorage>(),
-                scope.ServiceProvider.GetRequiredService<ICurrentUserService>());
+                scope.ServiceProvider.GetRequiredService<ICurrentUserService>(),
+                scope.ServiceProvider.GetRequiredService<IConfiguration>());
 
             await handler.Handle(
                 new UploadModsCommand(serverId, [new UploadFile(fileName, new MemoryStream(bytes))]),

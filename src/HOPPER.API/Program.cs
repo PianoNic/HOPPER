@@ -5,6 +5,7 @@ using HOPPER.API.OpenApi;
 using HOPPER.Application;
 using HOPPER.Application.Exports;
 using HOPPER.Application.Imports;
+using HOPPER.Application.Maintenance;
 using HOPPER.Application.ModMetadata;
 using HOPPER.Application.Modrinth;
 using HOPPER.Application.Queries.Imports;
@@ -48,6 +49,8 @@ builder.Services.AddHostedService<ModIdBackfillService>();
 builder.Services.AddLocatorJar();
 
 builder.Services.AddPackImports();
+
+builder.Services.AddBlobReclaim();
 
 builder.Services.AddModrinth();
 
@@ -169,10 +172,15 @@ app.Use(async (context, next) =>
         context.Response.StatusCode = StatusCodes.Status400BadRequest;
         await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
-
     catch (LocatorVariantNotAvailableException ex) when (!context.Response.HasStarted)
     {
         context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+
+    catch (ContentTooLargeException ex) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
         await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
     catch (ArgumentException ex) when (!context.Response.HasStarted)

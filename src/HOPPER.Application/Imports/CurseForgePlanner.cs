@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using HOPPER.Application.Exports;
 using HOPPER.Domain.Enums;
 
 namespace HOPPER.Application.Imports
@@ -10,23 +11,25 @@ namespace HOPPER.Application.Imports
         public static async Task<PackPlan> PlanAsync(
             ZipArchive archive,
             string prefix,
+            PackPlanContext context,
             ICurseForgeClient curseForge,
             CancellationToken cancellationToken)
         {
             var manifestEntry = archive.GetEntry(prefix + "manifest.json")
                 ?? throw new PackImportException("manifest.json is missing.");
 
+            var text = ZipEntryText.Read(manifestEntry, context.MaxMetadataBytes)
+                ?? throw new PackImportException(
+                    $"manifest.json is larger than the {context.MaxMetadataBytes} byte limit. Raise Hopper:MaxPackMetadataBytes to accept it.");
+
             JsonDocument document;
-            using (var stream = manifestEntry.Open())
+            try
             {
-                try
-                {
-                    document = JsonDocument.Parse(stream);
-                }
-                catch (JsonException ex)
-                {
-                    throw new PackImportException($"manifest.json is not valid JSON: {ex.Message}");
-                }
+                document = JsonDocument.Parse(text);
+            }
+            catch (JsonException ex)
+            {
+                throw new PackImportException($"manifest.json is not valid JSON: {ex.Message}");
             }
 
             using (document)
@@ -46,6 +49,8 @@ namespace HOPPER.Application.Imports
                     throw new PackImportException($"Unsupported CurseForge manifestVersion {version.GetInt32()}.");
                 }
 
+                var warnings = PackPlatformCheck.Verify(DeclaredPlatform(root), context.Target);
+
                 var overrides = root.TryGetProperty("overrides", out var o) && o.ValueKind == JsonValueKind.String
                     ? o.GetString()
                     : "overrides";
@@ -57,7 +62,7 @@ namespace HOPPER.Application.Imports
                     .ToList();
 
                 var manifestEntries = ReadFileEntries(root);
-                var labels = ReadModListLabels(archive, prefix, manifestEntries.Count);
+                var labels = ReadModListLabels(archive, prefix, manifestEntries.Count, context.MaxMetadataBytes);
                 var pending = new List<PendingSpec>();
 
                 var resolved = curseForge.IsConfigured
@@ -128,8 +133,50 @@ namespace HOPPER.Application.Imports
                     });
                 }
 
-                return new PackPlan { Format = PackFormat.CurseForge, Files = files, Pending = pending };
+                return new PackPlan
+                {
+                    Format = PackFormat.CurseForge,
+                    Files = files,
+                    Pending = pending,
+                    Warnings = warnings,
+                };
             }
+        }
+
+        private static PackPlatform DeclaredPlatform(JsonElement root)
+        {
+            if (!root.TryGetProperty("minecraft", out var minecraft) || minecraft.ValueKind != JsonValueKind.Object)
+                return PackPlatform.Unknown;
+
+            var version = minecraft.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.String
+                ? v.GetString()
+                : null;
+
+            var loader = ModLoader.Unknown;
+
+            if (minecraft.TryGetProperty("modLoaders", out var loaders) && loaders.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var entry in loaders.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.Object
+                        || !entry.TryGetProperty("id", out var id)
+                        || id.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var candidate = LoaderIds.FromCurseForgeId(id.GetString());
+                    if (candidate == ModLoader.Unknown)
+                        continue;
+
+                    loader = candidate;
+
+                    if (entry.TryGetProperty("primary", out var primary) && primary.ValueKind == JsonValueKind.True)
+                        break;
+                }
+            }
+
+            return new PackPlatform(version, loader);
         }
 
         private static List<(int ProjectId, int FileId)> ReadFileEntries(JsonElement root)
@@ -151,16 +198,14 @@ namespace HOPPER.Application.Imports
             return entries;
         }
 
-        private static List<string>? ReadModListLabels(ZipArchive archive, string prefix, int expected)
+        private static List<string>? ReadModListLabels(ZipArchive archive, string prefix, int expected, long maxBytes)
         {
-            var entry = archive.GetEntry(prefix + "modlist.html");
-            if (entry is null || expected == 0)
+            if (expected == 0)
                 return null;
 
-            string html;
-            using (var stream = entry.Open())
-            using (var reader = new StreamReader(stream))
-                html = reader.ReadToEnd();
+            var html = ZipEntryText.Read(archive, prefix + "modlist.html", maxBytes);
+            if (html is null)
+                return null;
 
             var labels = AnchorText().Matches(html)
                 .Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim())

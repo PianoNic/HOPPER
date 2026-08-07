@@ -1,27 +1,29 @@
 using System.IO.Compression;
 using System.Text.Json;
+using HOPPER.Application.Exports;
 using HOPPER.Domain.Enums;
 
 namespace HOPPER.Application.Imports
 {
     public static class ModrinthPlanner
     {
-        public static PackPlan Plan(ZipArchive archive, string prefix)
+        public static PackPlan Plan(ZipArchive archive, string prefix, PackPlanContext context)
         {
             var indexEntry = archive.GetEntry(prefix + "modrinth.index.json")
                 ?? throw new PackImportException("modrinth.index.json is missing.");
 
+            var text = ZipEntryText.Read(indexEntry, context.MaxMetadataBytes)
+                ?? throw new PackImportException(
+                    $"modrinth.index.json is larger than the {context.MaxMetadataBytes} byte limit. Raise Hopper:MaxPackMetadataBytes to accept it.");
+
             JsonDocument document;
-            using (var stream = indexEntry.Open())
+            try
             {
-                try
-                {
-                    document = JsonDocument.Parse(stream);
-                }
-                catch (JsonException ex)
-                {
-                    throw new PackImportException($"modrinth.index.json is not valid JSON: {ex.Message}");
-                }
+                document = JsonDocument.Parse(text);
+            }
+            catch (JsonException ex)
+            {
+                throw new PackImportException($"modrinth.index.json is not valid JSON: {ex.Message}");
             }
 
             using (document)
@@ -41,6 +43,8 @@ namespace HOPPER.Application.Imports
                 {
                     throw new PackImportException($"This .mrpack is for {game.GetString()}, not Minecraft.");
                 }
+
+                var warnings = PackPlatformCheck.Verify(DeclaredPlatform(root), context.Target);
 
                 var files = new List<PlannedFile>();
                 var skipped = 0;
@@ -99,11 +103,55 @@ namespace HOPPER.Application.Imports
                     }
                 }
 
-                files.AddRange(OverrideJars(archive, prefix + "overrides/mods/"));
-                files.AddRange(OverrideJars(archive, prefix + "client-overrides/mods/"));
+                var overrides = new Dictionary<string, PlannedFile>(StringComparer.OrdinalIgnoreCase);
 
-                return new PackPlan { Format = PackFormat.Modrinth, Files = files, Skipped = skipped };
+                foreach (var jar in OverrideJars(archive, prefix + "overrides/mods/"))
+                    overrides[jar.FileName] = jar;
+
+                foreach (var jar in OverrideJars(archive, prefix + "client-overrides/mods/"))
+                    overrides[jar.FileName] = jar;
+
+                files.RemoveAll(f => overrides.ContainsKey(f.FileName));
+                files.AddRange(overrides.Values);
+
+                return new PackPlan
+                {
+                    Format = PackFormat.Modrinth,
+                    Files = files,
+                    Warnings = warnings,
+                    Skipped = skipped,
+                };
             }
+        }
+
+        private static PackPlatform DeclaredPlatform(JsonElement root)
+        {
+            if (!root.TryGetProperty("dependencies", out var dependencies)
+                || dependencies.ValueKind != JsonValueKind.Object)
+            {
+                return PackPlatform.Unknown;
+            }
+
+            string? minecraft = null;
+            var loader = ModLoader.Unknown;
+
+            foreach (var dependency in dependencies.EnumerateObject())
+            {
+                if (dependency.Value.ValueKind != JsonValueKind.String)
+                    continue;
+
+                if (string.Equals(dependency.Name, "minecraft", StringComparison.OrdinalIgnoreCase))
+                {
+                    minecraft = dependency.Value.GetString();
+                    continue;
+                }
+
+                var candidate = LoaderIds.FromMrpackKey(dependency.Name);
+                if (candidate != ModLoader.Unknown)
+                    loader = candidate;
+            }
+
+            return new PackPlatform(minecraft, loader);
         }
 
         private static IEnumerable<PlannedFile> OverrideJars(ZipArchive archive, string folder) =>

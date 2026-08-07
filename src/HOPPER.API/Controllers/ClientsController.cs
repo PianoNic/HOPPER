@@ -13,6 +13,7 @@ namespace HOPPER.API.Controllers
     {
         [HttpPost("report")]
         [Authorize(AuthenticationSchemes = ClientTokenDefaults.AuthenticationScheme)]
+        [RequestSizeLimit(1024 * 1024)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

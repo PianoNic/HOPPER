@@ -5,15 +5,18 @@ using HOPPER.Application.ModMetadata;
 using HOPPER.Domain;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Command.Imports
 {
     public record ResolvePendingModCommand(Guid ServerId, Guid PendingId, string FileName, Stream Content)
         : ICommand<ModDto>;
 
-    public class ResolvePendingModCommandHandler(HopperDbContext db, IBlobStorage blobs, ICurrentUserService currentUser)
+    public class ResolvePendingModCommandHandler(
+        HopperDbContext db, IBlobStorage blobs, ICurrentUserService currentUser, IConfiguration configuration)
         : ICommandHandler<ResolvePendingModCommand, ModDto>
     {
         public async ValueTask<ModDto> Handle(ResolvePendingModCommand command, CancellationToken cancellationToken)
@@ -25,7 +28,9 @@ namespace HOPPER.Application.Command.Imports
             var fileName = ModFileNameValidator.Validate(
                 string.IsNullOrWhiteSpace(pending.FileName) ? command.FileName : pending.FileName);
 
-            if (await db.Mods.AnyAsync(m => m.ServerId == command.ServerId && m.FileName == fileName, cancellationToken))
+            var lowered = fileName.ToLowerInvariant();
+
+            if (await db.Mods.AnyAsync(m => m.ServerId == command.ServerId && m.FileName.ToLower() == lowered, cancellationToken))
                 throw new DuplicateModFileNameException(fileName);
 
             if (!string.IsNullOrWhiteSpace(pending.ExpectedSha1))
@@ -35,24 +40,46 @@ namespace HOPPER.Application.Command.Imports
                     throw new ArgumentException($"This jar is not the file {fileName} asks for: its SHA-1 does not match.");
             }
 
-            var (sha256, size) = await blobs.SaveAsync(command.Content, cancellationToken);
+            var staged = await blobs.StageAsync(command.Content, HopperLimits.MaxModBytes(configuration), cancellationToken);
 
-            var entry = new Mod
+            try
             {
-                ServerId = command.ServerId,
-                FileName = fileName,
-                Sha256 = sha256,
-                Size = size,
-                UploadedBy = currentUser.Name,
+                var entry = new Mod
+                {
+                    ServerId = command.ServerId,
+                    FileName = fileName,
+                    Sha256 = staged.Sha256,
+                    Size = staged.Size,
+                    UploadedBy = currentUser.Name,
 
-                ModIds = ModIdReader.FromBlob(blobs, sha256),
-            };
+                    ModIds = ModIdReader.FromStaged(blobs, staged),
+                };
 
-            db.Mods.Add(entry);
-            db.PendingMods.Remove(pending);
-            await db.SaveChangesAsync(cancellationToken);
+                await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
+                {
+                    db.Mods.Add(entry);
+                    db.PendingMods.Remove(pending);
 
-            return entry.ToDto();
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+                    {
+                        db.Entry(entry).State = EntityState.Detached;
+                        throw new DuplicateModFileNameException(fileName);
+                    }
+
+                    blobs.Promote(staged);
+                    await hold.CommitAsync(cancellationToken);
+                }
+
+                return entry.ToDto();
+            }
+            finally
+            {
+                blobs.Discard(staged);
+            }
         }
 
         private static async Task<string> Sha1Async(Stream content, CancellationToken cancellationToken)

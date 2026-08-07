@@ -215,7 +215,7 @@ const POLL_MS = 2000;
              counters below move on every file, which is the honest signal of life. -->
         <dl class="grid grid-cols-4 gap-2 text-center">
           @for (counter of counters(); track counter.label) {
-            <div class="rounded-md border p-2">
+            <div class="rounded-md border p-2" [title]="counter.hint">
               <dt class="text-muted-foreground text-xs">{{ counter.label }}</dt>
               <dd class="text-lg font-semibold tabular-nums">{{ counter.value }}</dd>
             </div>
@@ -223,7 +223,7 @@ const POLL_MS = 2000;
         </dl>
 
         @if (row.error) {
-          <p class="text-destructive text-xs">{{ row.error }}</p>
+          <p class="text-xs" [class]="noteClass()">{{ row.error }}</p>
         }
 
         @if (watching()) {
@@ -335,6 +335,10 @@ export class ImportPackDialog {
     },
   );
 
+  protected readonly noteClass = computed(() =>
+    this.job()?.status === IMPORT_STATUS.completed ? 'text-muted-foreground' : 'text-destructive',
+  );
+
   protected readonly format = computed(() => {
     const row = this.job();
     return row === null ? '' : packFormatLabel(row.format);
@@ -344,10 +348,26 @@ export class ImportPackDialog {
     const row = this.job();
     if (row === null) return [];
     return [
-      { label: 'Stored', value: toNumber(row.importedCount) },
-      { label: 'Skipped', value: toNumber(row.skippedCount) },
-      { label: 'Pending', value: toNumber(row.pendingCount) },
-      { label: 'Failed', value: toNumber(row.failedCount) },
+      {
+        label: 'Stored',
+        value: toNumber(row.importedCount),
+        hint: 'Jars stored on this server by this import.',
+      },
+      {
+        label: 'Skipped',
+        value: toNumber(row.skippedCount),
+        hint: 'Files the pack listed that were not stored: non-mod files, mods the pack marks as client-unsupported, and names already on this server.',
+      },
+      {
+        label: 'Pending',
+        value: toNumber(row.pendingCount),
+        hint: 'Mods HOPPER could not fetch. Supply the jar by hand to finish them.',
+      },
+      {
+        label: 'Failed',
+        value: toNumber(row.failedCount),
+        hint: 'Files that could not be read or stored. The reason is listed below.',
+      },
     ];
   });
 

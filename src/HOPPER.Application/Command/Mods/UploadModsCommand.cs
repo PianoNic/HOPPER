@@ -5,8 +5,10 @@ using HOPPER.Application.ModMetadata;
 using HOPPER.Domain;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Command.Mods
 {
@@ -14,7 +16,8 @@ namespace HOPPER.Application.Command.Mods
 
     public record UploadModsCommand(Guid ServerId, IReadOnlyList<UploadFile> Files) : ICommand<ModUploadResultDto>;
 
-    public class UploadModsCommandHandler(HopperDbContext db, IBlobStorage blobs, ICurrentUserService currentUser)
+    public class UploadModsCommandHandler(
+        HopperDbContext db, IBlobStorage blobs, ICurrentUserService currentUser, IConfiguration configuration)
         : ICommandHandler<UploadModsCommand, ModUploadResultDto>
     {
         public async ValueTask<ModUploadResultDto> Handle(UploadModsCommand command, CancellationToken cancellationToken)
@@ -42,7 +45,7 @@ namespace HOPPER.Application.Command.Mods
             List<FailedUploadDto> failed,
             CancellationToken cancellationToken)
         {
-            var (source, temp) = await SeekableAsync(file.Content, cancellationToken);
+            var (source, temp) = await SeekableAsync(file.Content, HopperLimits.MaxImportBytes(configuration), cancellationToken);
 
             try
             {
@@ -85,28 +88,46 @@ namespace HOPPER.Application.Command.Mods
             List<FailedUploadDto> failed,
             CancellationToken cancellationToken)
         {
+            StagedBlob? staged = null;
+
             try
             {
                 var validated = ModFileNameValidator.Validate(fileName);
+                var lowered = validated.ToLowerInvariant();
 
-                if (await db.Mods.AnyAsync(m => m.ServerId == serverId && m.FileName == validated, cancellationToken))
+                if (await db.Mods.AnyAsync(m => m.ServerId == serverId && m.FileName.ToLower() == lowered, cancellationToken))
                     throw new DuplicateModFileNameException(validated);
 
-                var (sha256, size) = await blobs.SaveAsync(content, cancellationToken);
+                staged = await blobs.StageAsync(content, HopperLimits.MaxModBytes(configuration), cancellationToken);
 
                 var entry = new Mod
                 {
                     ServerId = serverId,
                     FileName = validated,
-                    Sha256 = sha256,
-                    Size = size,
+                    Sha256 = staged.Sha256,
+                    Size = staged.Size,
                     UploadedBy = currentUser.Name,
 
-                    ModIds = ModIdReader.FromBlob(blobs, sha256),
+                    ModIds = ModIdReader.FromStaged(blobs, staged),
                 };
 
-                db.Mods.Add(entry);
-                await db.SaveChangesAsync(cancellationToken);
+                await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
+                {
+                    db.Mods.Add(entry);
+
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+                    {
+                        db.Entry(entry).State = EntityState.Detached;
+                        throw new DuplicateModFileNameException(validated);
+                    }
+
+                    blobs.Promote(staged);
+                    await hold.CommitAsync(cancellationToken);
+                }
 
                 uploaded.Add(entry.ToDto());
             }
@@ -118,9 +139,15 @@ namespace HOPPER.Application.Command.Mods
             {
                 failed.Add(new FailedUploadDto { FileName = fileName, Error = ex.Message });
             }
+            finally
+            {
+                if (staged is not null)
+                    blobs.Discard(staged);
+            }
         }
 
-        private static async Task<(Stream Stream, IAsyncDisposable? Temp)> SeekableAsync(Stream source, CancellationToken cancellationToken)
+        private static async Task<(Stream Stream, IAsyncDisposable? Temp)> SeekableAsync(
+            Stream source, long maxBytes, CancellationToken cancellationToken)
         {
             if (source.CanSeek)
             {
@@ -133,7 +160,16 @@ namespace HOPPER.Application.Command.Mods
                 FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920,
                 FileOptions.DeleteOnClose | FileOptions.Asynchronous);
 
-            await source.CopyToAsync(temp, cancellationToken);
+            try
+            {
+                await new LimitedStream(source, maxBytes, "The archive").CopyToAsync(temp, cancellationToken);
+            }
+            catch
+            {
+                await temp.DisposeAsync();
+                throw;
+            }
+
             temp.Position = 0;
             return (temp, temp);
         }

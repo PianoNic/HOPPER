@@ -5,6 +5,7 @@ using HOPPER.Domain;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -25,16 +26,6 @@ namespace HOPPER.Application.Imports
         IConfiguration configuration,
         ILogger<PackImporter> logger) : IPackImporter
     {
-        private static readonly string[] DefaultDownloadHosts =
-        [
-            "cdn.modrinth.com",
-            "github.com",
-            "raw.githubusercontent.com",
-            "gitlab.com",
-        ];
-
-        private const long DefaultMaxImportBytes = 2L * 1024 * 1024 * 1024;
-
         public async Task RunAsync(Guid importId, CancellationToken cancellationToken)
         {
             var import = await db.ModImports.FirstOrDefaultAsync(i => i.Id == importId, cancellationToken);
@@ -62,14 +53,20 @@ namespace HOPPER.Application.Imports
                 import.Format = detection.Format;
                 await db.SaveChangesAsync(cancellationToken);
 
+                var context = await PlanContextAsync(import, cancellationToken);
+
                 var plan = detection.Format switch
                 {
-                    PackFormat.Modrinth => ModrinthPlanner.Plan(archive, detection.Prefix),
-                    PackFormat.CurseForge => await CurseForgePlanner.PlanAsync(archive, detection.Prefix, curseForge, cancellationToken),
-                    PackFormat.PrismInstance => PrismPlanner.Plan(archive, detection.Prefix),
+                    PackFormat.Modrinth => ModrinthPlanner.Plan(archive, detection.Prefix, context),
+                    PackFormat.CurseForge => await CurseForgePlanner.PlanAsync(archive, detection.Prefix, context, curseForge, cancellationToken),
+                    PackFormat.PrismInstance => PrismPlanner.Plan(archive, detection.Prefix, context),
                     PackFormat.JarArchive => JarArchivePlanner.Plan(archive),
                     _ => throw new PackImportException("Not a recognised modpack or jar archive."),
                 };
+
+                RefuseOversizedPlan(archive, plan);
+
+                errors.AddRange(plan.Warnings);
 
                 import.SkippedCount += plan.Skipped;
 
@@ -117,9 +114,58 @@ namespace HOPPER.Application.Imports
                 if (errors.Count > 0)
                     import.Error = string.Join("\n", errors.Take(50));
 
-                await db.SaveChangesAsync(CancellationToken.None);
-                staging.Cleanup(import.Id);
+                await RecordTerminalStatusAsync(import);
+
+                try
+                {
+                    staging.Cleanup(import.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Import {ImportId} left staged files behind", import.Id);
+                }
             }
+        }
+
+        private async Task RecordTerminalStatusAsync(ModImport import)
+        {
+            try
+            {
+                db.ChangeTracker.Clear();
+
+                await db.ModImports
+                    .Where(i => i.Id == import.Id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(i => i.Status, import.Status)
+                        .SetProperty(i => i.Format, import.Format)
+                        .SetProperty(i => i.ImportedCount, import.ImportedCount)
+                        .SetProperty(i => i.SkippedCount, import.SkippedCount)
+                        .SetProperty(i => i.PendingCount, import.PendingCount)
+                        .SetProperty(i => i.FailedCount, import.FailedCount)
+                        .SetProperty(i => i.Error, import.Error)
+                        .SetProperty(i => i.CompletedAt, import.CompletedAt)
+                        .SetProperty(i => i.UpdatedAt, DateTime.UtcNow), CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Import {ImportId} could not record its terminal status", import.Id);
+            }
+        }
+
+        private async Task<PackPlanContext> PlanContextAsync(ModImport import, CancellationToken cancellationToken)
+        {
+            var server = await db.Servers.AsNoTracking()
+                .Where(s => s.Id == import.ServerId)
+                .Select(s => new { s.MinecraftVersion, s.Loader })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return new PackPlanContext
+            {
+                Target = server is null
+                    ? PackPlatform.Unknown
+                    : new PackPlatform(server.MinecraftVersion, server.Loader),
+                MaxMetadataBytes = HopperLimits.MaxPackMetadataBytes(configuration),
+            };
         }
 
         private async Task FetchPackAsync(ModImport import, CancellationToken cancellationToken)
@@ -138,6 +184,25 @@ namespace HOPPER.Application.Imports
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             await staging.StageAsync(import.Id, stream, MaxImportBytes, cancellationToken);
+        }
+
+        private void RefuseOversizedPlan(ZipArchive archive, PackPlan plan)
+        {
+            var budget = MaxImportBytes;
+            long declared = 0;
+
+            foreach (var file in plan.Files)
+            {
+                declared += file.ZipEntry is not null
+                    ? archive.GetEntry(file.ZipEntry)?.Length ?? 0
+                    : file.Size ?? 0;
+
+                if (declared > budget)
+                {
+                    throw new PackImportException(
+                        $"This pack declares more than {budget} bytes of mods. Raise Hopper:MaxImportBytes to accept it.");
+                }
+            }
         }
 
         private static ZipArchive OpenArchive(string path)
@@ -210,6 +275,11 @@ namespace HOPPER.Application.Imports
                     lastProblem = ex.Message;
                     TryDelete(tempPath);
                 }
+                catch (ContentTooLargeException ex)
+                {
+                    lastProblem = ex.Message;
+                    TryDelete(tempPath);
+                }
                 catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     lastProblem = "the download timed out";
@@ -235,9 +305,10 @@ namespace HOPPER.Application.Imports
             using var sha512 = IncrementalHash.CreateHash(HashAlgorithmName.SHA512);
             using var sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
 
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var body = await response.Content.ReadAsStreamAsync(cancellationToken))
             await using (var target = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
             {
+                var source = new LimitedStream(body, MaxModBytes, "The download");
                 var buffer = new byte[81920];
                 int read;
                 while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
@@ -264,28 +335,70 @@ namespace HOPPER.Application.Imports
                 return;
             }
 
-            if (await db.Mods.AnyAsync(m => m.ServerId == import.ServerId && m.FileName == validated, cancellationToken))
+            var lowered = validated.ToLowerInvariant();
+
+            if (await db.Mods.AnyAsync(m => m.ServerId == import.ServerId && m.FileName.ToLower() == lowered, cancellationToken))
             {
                 import.SkippedCount++;
                 await db.SaveChangesAsync(cancellationToken);
                 return;
             }
 
-            var (sha256, size) = await blobs.SaveAsync(content, cancellationToken);
-
-            db.Mods.Add(new Mod
+            StagedBlob staged;
+            try
             {
-                ServerId = import.ServerId,
-                FileName = validated,
-                Sha256 = sha256,
-                Size = size,
-                UploadedBy = import.CreatedBy,
+                staged = await blobs.StageAsync(content, MaxModBytes, cancellationToken);
+            }
+            catch (ContentTooLargeException ex)
+            {
+                Fail(import, errors, fileName, ex.Message);
+                await db.SaveChangesAsync(cancellationToken);
+                return;
+            }
 
-                ModIds = ModIdReader.FromBlob(blobs, sha256),
-            });
+            var duplicate = false;
 
-            import.ImportedCount++;
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                var mod = new Mod
+                {
+                    ServerId = import.ServerId,
+                    FileName = validated,
+                    Sha256 = staged.Sha256,
+                    Size = staged.Size,
+                    UploadedBy = import.CreatedBy,
+
+                    ModIds = ModIdReader.FromStaged(blobs, staged),
+                };
+
+                await using var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken);
+
+                db.Mods.Add(mod);
+                import.ImportedCount++;
+
+                try
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                    blobs.Promote(staged);
+                    await hold.CommitAsync(cancellationToken);
+                }
+                catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+                {
+                    db.Entry(mod).State = EntityState.Detached;
+                    import.ImportedCount--;
+                    duplicate = true;
+                }
+            }
+            finally
+            {
+                blobs.Discard(staged);
+            }
+
+            if (duplicate)
+            {
+                import.SkippedCount++;
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
 
         private void Fail(ModImport import, List<string> errors, string fileName, string reason)
@@ -314,14 +427,11 @@ namespace HOPPER.Application.Imports
             await db.SaveChangesAsync(cancellationToken);
         }
 
-        private HashSet<string> AllowedHosts()
-        {
-            var configured = configuration.GetSection("Hopper:PackDownloadHosts").Get<string[]>();
-            var hosts = configured is { Length: > 0 } ? configured : DefaultDownloadHosts;
-            return hosts.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        }
+        private HashSet<string> AllowedHosts() => PackDownloadHosts.Allowed(configuration);
 
-        private long MaxImportBytes => configuration.GetValue("Hopper:MaxImportBytes", DefaultMaxImportBytes);
+        private long MaxImportBytes => HopperLimits.MaxImportBytes(configuration);
+
+        private long MaxModBytes => HopperLimits.MaxModBytes(configuration);
 
         private static void TryDelete(string path)
         {

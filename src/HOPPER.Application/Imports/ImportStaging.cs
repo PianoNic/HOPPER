@@ -1,3 +1,4 @@
+using HOPPER.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Imports
@@ -45,7 +46,7 @@ namespace HOPPER.Application.Imports
                         written += read;
                         if (written > maxBytes)
                         {
-                            throw new ArgumentException(
+                            throw new ContentTooLargeException(
                                 $"The pack is larger than the {maxBytes} byte limit. Raise Hopper:MaxImportBytes to accept it.");
                         }
 

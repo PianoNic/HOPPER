@@ -1,5 +1,6 @@
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,9 +20,7 @@ namespace HOPPER.Application.Command.Mods
                 db.Mods.Remove(entry);
                 await db.SaveChangesAsync(cancellationToken);
 
-                var stillReferenced = await db.Mods.AnyAsync(m => m.Sha256 == entry.Sha256, cancellationToken);
-                if (!stillReferenced)
-                    blobs.Delete(entry.Sha256);
+                await BlobCollector.CollectAsync(db, blobs, entry.Sha256, cancellationToken);
             }
 
             return Unit.Value;
