@@ -15,6 +15,7 @@ import {
   EMPTY,
   filter as rxFilter,
   forkJoin,
+  fromEvent,
   interval,
   Observable,
   switchMap,
@@ -256,6 +257,19 @@ export class ServerClients {
       });
       this.load(id);
     });
+
+    // Pausing while hidden means a tab that comes back is up to POLL_MS stale with nothing saying
+    // so, so becoming visible costs one request rather than a wait.
+    fromEvent(document, 'visibilitychange')
+      .pipe(
+        rxFilter(() => shouldPoll({
+          hidden: document.hidden,
+          hasServer: this.serverId() !== '',
+          failed: this.pollFailed(),
+        })),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => this.load(this.serverId()));
 
     // The request lives inside the interval's own switchMap rather than in a subscription the
     // interval spawns. That is the whole fix: a detached inner subscription dies alone and the

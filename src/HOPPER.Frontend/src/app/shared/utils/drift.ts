@@ -12,8 +12,17 @@ export type ClientDrift = {
 
 export const OFFLINE_AFTER_MS = 24 * 60 * 60 * 1000;
 
-// Kept beside the constant so a tile that names the window in its label cannot drift from the rule.
-export const OFFLINE_AFTER_LABEL = '24h';
+// Derived, not restated: a label written by hand is the same defect one layer up.
+export const OFFLINE_AFTER_LABEL = `${OFFLINE_AFTER_MS / (60 * 60 * 1000)}h`;
+
+// The Overview's two tiles, as one function, because the counting is what #47 found duplicated and
+// an inline derivation in a computed cannot be tested on its own.
+export function countDrift(rows: ReadonlyArray<ClientDrift>): { active: number; drifting: number } {
+  return {
+    active: rows.filter((r) => r.status !== 'offline').length,
+    drifting: rows.filter((r) => r.status === 'drift').length,
+  };
+}
 
 export function diffClient(
   client: ClientDto,

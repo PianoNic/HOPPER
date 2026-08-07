@@ -5,7 +5,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
  * Makes `ng test` work when the checkout path contains a glob metacharacter.
  *
  * `@angular/build:unit-test` discovers the spec files itself and hands Vitest the result as
- * `test.include` — as *absolute* paths. Vitest does not treat that list as literal filenames; it
+ * `test.include` - as *absolute* paths. Vitest does not treat that list as literal filenames; it
  * feeds it to tinyglobby as glob patterns. So every character of the absolute checkout path is
  * parsed as glob syntax, and a directory whose name contains `(`, `)`, `[`, `]`, `{`, `}`, `!` or
  * `*` turns into a group/class that does not match the literal directory. Discovery then finds
