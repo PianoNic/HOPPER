@@ -184,7 +184,7 @@ export class ServerSetup {
   protected readonly serverName = computed(() => this.server()?.name ?? '');
   protected readonly jarName = computed(() => {
     const slug = this.server()?.slug;
-    return slug ? `Download ${slug}-hopper.jar` : 'Download client jar';
+    return slug ? `Download ${slug}-hopper.jar` : 'Download jar';
   });
 
   private readonly manifestUrl = `${window.location.origin}/api/manifest`;
@@ -281,7 +281,7 @@ export class ServerSetup {
         this.building.set(false);
       },
       error: async (err) => {
-        toast.error(await messageFromBlobError(err, 'Failed to build the client jar'));
+        toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
         this.building.set(false);
       },
     });

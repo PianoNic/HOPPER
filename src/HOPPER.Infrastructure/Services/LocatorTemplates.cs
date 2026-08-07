@@ -66,10 +66,10 @@ namespace HOPPER.Infrastructure.Services
     }
 
     public sealed class LocatorLoaderNotConfiguredException()
-        : InvalidOperationException("Set this server's loader before downloading its client jar.");
+        : InvalidOperationException("Set this server's loader before downloading its jar.");
 
     public sealed class LocatorVariantNotAvailableException(string variant, ModLoader loader)
-        : InvalidOperationException($"There is no '{variant}' client jar for a {loader} server. "
+        : InvalidOperationException($"There is no '{variant}' jar for a {loader} server. "
             + "The Quilt plugin jar is Quilt-only and needs -Dloader.experimental.allow_loading_plugins=true; "
             + "without that flag use the default download.");
 }

@@ -41,7 +41,7 @@ const REAL_LOADERS: ReadonlyArray<number> = [
 ];
 
 // "Not set" is offered only when editing. A server without a loader cannot be browsed for, cannot
-// hand out a client jar and has no version list, so it is not a state worth being able to create.
+// hand out a jar and has no version list, so it is not a state worth being able to create.
 // An existing one may already be in it, and opening its dialog must not change that by itself.
 const LOADERS: ReadonlyArray<{ value: number; label: string }> = REAL_LOADERS.map((value) => ({
   value,
