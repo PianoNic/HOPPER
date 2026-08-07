@@ -51,7 +51,9 @@ import { ServerDialogService } from './server-dialog';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-content-header />
+    <app-content-header>
+      <span slot="left" class="truncate text-sm font-medium">Servers</span>
+    </app-content-header>
 
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
