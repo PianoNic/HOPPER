@@ -7,16 +7,16 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
 import { ModLoader } from './modLoader';
+import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 
 
 export interface ServerDto { 
     id: string;
     name: string;
     slug: string;
-    modCount: ModImportDtoImportedCount;
-    clientCount: ModImportDtoImportedCount;
+    modCount: DeleteModsResultDtoDeleted;
+    clientCount: DeleteModsResultDtoDeleted;
     createdAt: string;
     minecraftVersion?: string | null;
     loader: ModLoader;

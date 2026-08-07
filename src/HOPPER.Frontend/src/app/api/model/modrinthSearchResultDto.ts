@@ -7,14 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 import { ModrinthSearchHitDto } from './modrinthSearchHitDto';
 
 
 export interface ModrinthSearchResultDto { 
     hits: Array<ModrinthSearchHitDto>;
-    offset: ModImportDtoImportedCount;
-    limit: ModImportDtoImportedCount;
-    totalHits: ModImportDtoImportedCount;
+    offset: DeleteModsResultDtoDeleted;
+    limit: DeleteModsResultDtoDeleted;
+    totalHits: DeleteModsResultDtoDeleted;
 }
 

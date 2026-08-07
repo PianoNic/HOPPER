@@ -62,6 +62,18 @@ namespace HOPPER.API.Controllers
             return Ok(new SetModSideResultDto { Updated = updated });
         }
 
+        [HttpPost("delete")]
+        [ProducesResponseType(typeof(DeleteModsResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> DeleteMany(Guid id, [FromBody] DeleteModsRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null || request.ModIds is null || request.ModIds.Count == 0)
+                return BadRequest(new { error = "No mods named." });
+
+            var deleted = await mediator.Send(new DeleteModsCommand(id, request.ModIds), cancellationToken);
+            return Ok(new DeleteModsResultDto { Deleted = deleted });
+        }
+
         [HttpDelete("{modId:guid}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> Delete(Guid id, Guid modId, CancellationToken cancellationToken = default)
@@ -72,4 +84,6 @@ namespace HOPPER.API.Controllers
     }
 
     public record SetModSideRequest(IReadOnlyList<Guid> ModIds, ModSide Side);
+
+    public record DeleteModsRequest(IReadOnlyList<Guid> ModIds);
 }

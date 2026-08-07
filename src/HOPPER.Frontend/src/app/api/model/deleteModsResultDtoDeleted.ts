@@ -7,10 +7,8 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 
 
-export interface SetModSideResultDto { 
-    updated: DeleteModsResultDtoDeleted;
+export interface DeleteModsResultDtoDeleted { 
 }
 

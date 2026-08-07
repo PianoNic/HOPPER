@@ -7,13 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 
 
 export interface StringSegment { 
     buffer?: string | null;
-    offset?: ModImportDtoImportedCount;
-    length?: ModImportDtoImportedCount;
+    offset?: DeleteModsResultDtoDeleted;
+    length?: DeleteModsResultDtoDeleted;
     value?: string | null;
     hasValue?: boolean;
 }
