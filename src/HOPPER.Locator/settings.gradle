@@ -1,24 +1,10 @@
 rootProject.name = 'hopper'
 
-// One shared core plus one thin adapter per loader generation. The core is compiled once at
-// Java 8 - Minecraft 1.16.5 and older run on Java 8 - and its class files are embedded verbatim
-// into every adapter jar, because a loader resolves ONE jar out of mods/ and nothing else.
-//
-// Directory name == project name, so ':hopper-neoforge' and hopper-neoforge/ are the same thing
-// and a later agent only ever touches its own directory.
-include 'hopper-core'          // no loader imports at all - the hash check and the path-traversal
-                               // check live here exactly once
-include 'hopper-forge-1122'    // Forge 1.12.x        - IFMLLoadingPlugin coremod, LaunchWrapper
-include 'hopper-forge-1165'    // Forge 1.14.4-1.16.5 - forgespi 1.5.0+, List<IModFile> scanMods()
-                               //                       + findPath + findManifest
-include 'hopper-forge-1182'    // MC 1.17.1-1.18.2    - forgespi 4.0.9+, List<IModFile> scanMods(),
-                               //                       findPath and findManifest removed
-include 'hopper-forge-modern'  // MC 1.19-26.2        - forgespi 6.0.0+, List<ModFileOrException>
-//
-// Three Forge locator modules and not one, because IModLocator has three incompatible shapes
-// across the range - verified with javap against the published forgespi jars, and the exact
-// forgespi each Minecraft version ships is read out of that version's installer version.json.
-// The comment at the top of each module's build.gradle carries that table.
-include 'hopper-neoforge'      // NeoForge 21.1-26.2  - IModFileCandidateLocator
-include 'hopper-fabric'        // Fabric              - preLaunch, degraded, restart required
-include 'hopper-quilt'         // Quilt               - QuiltLoaderPlugin, opt-in JVM flag required
+include 'hopper-core'
+include 'hopper-forge-1122'
+include 'hopper-forge-1165'
+include 'hopper-forge-1182'
+include 'hopper-forge-modern'
+include 'hopper-neoforge'
+include 'hopper-fabric'
+include 'hopper-quilt'

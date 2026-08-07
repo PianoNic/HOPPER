@@ -71,10 +71,6 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 builder.Services.AddHopperHealthChecks();
 builder.Services.AddHopperTelemetry(builder.Configuration);
 
-// One line per request: method, path, status, duration. The framework's own request lines are
-// suppressed by appsettings.json's Microsoft.AspNetCore: Warning, and raising that would bring
-// back a great deal else. Bodies and headers are deliberately not in the set: the client token
-// travels in the Authorization header.
 builder.Services.AddHttpLogging(options =>
 {
     options.LoggingFields = HttpLoggingFields.RequestMethod
@@ -121,9 +117,6 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// One place, so a handled failure is both an answer and a log line. Without this an operator
-// watching the container sees nothing at all: appsettings.json sets Microsoft.AspNetCore to
-// Warning, which suppresses the request lines that would otherwise show the status.
 async Task Answer(HttpContext context, int status, Exception ex)
 {
     app.Logger.Log(status >= 500 ? LogLevel.Error : LogLevel.Information, ex,

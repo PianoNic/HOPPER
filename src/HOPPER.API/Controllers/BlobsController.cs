@@ -31,8 +31,6 @@ namespace HOPPER.API.Controllers
                 .Where(ModSideRules.ReachesExpression(syncSide))
                 .FirstOrDefaultAsync(m => m.ServerId == serverId && m.Sha256 == sha256, cancellationToken);
 
-            // Filtering the manifest while leaving the bytes fetchable by hash would hand a caller
-            // the very jar it was not sent, so the same rule guards both.
             if (mod is null)
                 return NotFound();
 

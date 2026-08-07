@@ -217,8 +217,6 @@ export class Servers {
 
   protected readonly busy = signal<Record<string, boolean>>({});
 
-  // null when there is nothing worth showing, so the template can say "Not set" rather than
-  // rendering an empty cell that looks like a rendering fault.
   protected platform(server: ServerDto): { loader: string; version: string } | null {
     const loader = server.loader === MOD_LOADER.unknown ? '' : modLoaderLabel(server.loader);
     const version = server.minecraftVersion ?? '';
@@ -297,8 +295,7 @@ export class Servers {
           toast.success(`Client token for ${server.name} copied.`);
           return;
         }
-        // The token is fetched on click and appears nowhere else on this page, so the only
-        // recovery left is to put it in the toast.
+
         toast.error(`Could not reach the clipboard. The token is ${result.token}`);
       },
       error: (err) => {

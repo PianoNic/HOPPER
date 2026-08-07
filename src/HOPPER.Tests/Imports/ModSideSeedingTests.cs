@@ -7,10 +7,6 @@ using HOPPER.Domain.Enums;
 
 namespace HOPPER.Tests.Imports
 {
-    /// <summary>
-    /// Setting the side by hand for a 474-mod pack is not a feature, it is a punishment. Every
-    /// format already carries the answer; these pin that HOPPER reads it.
-    /// </summary>
     public class ModSideSeedingTests
     {
         private static ZipArchive ArchiveOf(params (string Path, string Content)[] entries)
@@ -29,8 +25,6 @@ namespace HOPPER.Tests.Imports
             return new ZipArchive(buffer, ZipArchiveMode.Read);
         }
 
-        // ---- the shared vocabulary --------------------------------------------------------
-
         [Test]
         [Arguments("required", "required", ModSide.Both)]
         [Arguments("optional", "optional", ModSide.Both)]
@@ -48,12 +42,8 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task Side_UnsupportedOnBothSidesStaysBoth()
         {
-            // A contradiction the pack has to answer for. Dropping the jar would hide it; Both
-            // keeps it visible in the dashboard where the admin can see it and decide.
             await Assert.That(PackEnv.Side("unsupported", "unsupported")).IsEqualTo(ModSide.Both);
         }
-
-        // ---- mrpack ------------------------------------------------------------------------
 
         [Test]
         public async Task Mrpack_EnvPerFile_BecomesTheSide()
@@ -80,8 +70,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task Mrpack_AClientUnsupportedEntry_IsKeptRatherThanSkipped()
         {
-            // It used to be discarded, because HOPPER only fed game clients. A dedicated server
-            // wants exactly this jar.
             using var archive = ArchiveOf(("modrinth.index.json", """
                 {"formatVersion":1,"game":"minecraft","files":[
                   {"path":"mods/server-side.jar","hashes":{"sha1":"a"},"env":{"client":"unsupported","server":"required"},
@@ -113,8 +101,6 @@ namespace HOPPER.Tests.Imports
             await Assert.That(sides["client.jar"]).IsEqualTo(ModSide.ClientOnly);
             await Assert.That(sides["server.jar"]).IsEqualTo(ModSide.ServerOnly);
         }
-
-        // ---- the jar's own declaration -----------------------------------------------------
 
         [Test]
         [Arguments("client", ModSide.ClientOnly)]

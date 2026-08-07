@@ -44,12 +44,6 @@ final class Migrator {
     static final class Result {
         final Set<String> blocked;
 
-        /**
-         * Names in hopperDir that came out of the player's own mods folder rather than from a
-         * download. The sync drops these from the downloaded ledger, so that when one of them
-         * later leaves the manifest the stale sweep parks it instead of unlinking it: it is the
-         * player's property, and once a mod leaves the manifest nothing else holds a copy.
-         */
         final Set<String> migrated;
 
         final int moved;
@@ -248,11 +242,6 @@ final class Migrator {
                 + jarName + " out of " + modsDir + " by hand.", cause);
     }
 
-    /**
-     * Moves a jar into replaced/ instead of deleting it. Package-private rather than private
-     * because the stale sweep needs the same treatment for a migrated jar that has left the
-     * manifest: it belongs to the player, so it is parked, never unlinked.
-     */
     Path park(Path jar) throws IOException {
         Path dir = hopperDir.resolve(REPLACED);
         Files.createDirectories(dir);

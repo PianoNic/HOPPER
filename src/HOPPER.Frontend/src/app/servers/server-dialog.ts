@@ -40,9 +40,6 @@ const REAL_LOADERS: ReadonlyArray<number> = [
   MOD_LOADER.quilt,
 ];
 
-// "Not set" is offered only when editing. A server without a loader cannot be browsed for, cannot
-// hand out a jar and has no version list, so it is not a state worth being able to create.
-// An existing one may already be in it, and opening its dialog must not change that by itself.
 const LOADERS: ReadonlyArray<{ value: number; label: string }> = REAL_LOADERS.map((value) => ({
   value,
   label: modLoaderLabel(value),
@@ -230,12 +227,6 @@ export class ServerDialog {
       next: (tags) => {
         this.gameVersions.set(tags.gameVersions);
 
-        // The first entry, because Modrinth returns newest first and the API already drops
-        // everything that is not a release. Not the first `major` one: that flag marks 1.20 apart
-        // from 1.20.1 and is false for every current version, so it would find nothing.
-        //
-        // Only on create, and only while the field is untouched. A failed fetch leaves it empty,
-        // which is what it did before, so the dialog still works without Modrinth.
         if (this.creating && this.minecraftVersion() === '') {
           const newest = tags.gameVersions[0]?.version;
           if (newest) this.minecraftVersion.set(newest);
@@ -244,8 +235,6 @@ export class ServerDialog {
       error: () => this.gameVersions.set([]),
     });
 
-    // Refetched whenever the loader or the Minecraft version moves, because the answer depends on
-    // both: a Forge build exists for one Minecraft version and a NeoForge build encodes it.
     toObservable(computed(() => ({ loader: this.loader(), minecraft: this.minecraftVersion() })))
       .pipe(
         switchMap(({ loader, minecraft }) => {
@@ -254,7 +243,6 @@ export class ServerDialog {
 
           return this.loaders$.apiLoadersLoaderVersionsGet(loader, minecraft || undefined).pipe(
             catchError((err: unknown) => {
-              // A state, not a blocker: the text input takes over and the dialog still saves.
               toast.error(messageFrom(err, 'Could not load the list of loader builds'));
               return EMPTY;
             }),
@@ -265,8 +253,6 @@ export class ServerDialog {
       .subscribe((versions) => {
         this.loaderVersions.set(versions);
 
-        // Only when nothing has been chosen yet, or when what was chosen no longer exists for this
-        // combination. Editing a server must not move a build the admin picked on purpose.
         const current = this.loaderVersion();
         if (current !== '' && versions.some((v) => v.version === current)) return;
 

@@ -370,8 +370,6 @@ export class ServerMods {
     const total = list.reduce((sum, m) => sum + toNumber(m.size), 0);
     const base = `· ${list.length} jar${list.length === 1 ? '' : 's'} · ${formatBytes(total)}`;
 
-    // Only worth saying once a side has been set on something. On a server where everything is
-    // Both, both numbers are the jar count and the sentence is noise.
     const clients = list.filter((m) => m.side !== MOD_SIDE.serverOnly).length;
     const servers = list.filter((m) => m.side !== MOD_SIDE.clientOnly).length;
     if (clients === list.length && servers === list.length) return base;
@@ -402,8 +400,6 @@ export class ServerMods {
     this.selected.set(next);
   }
 
-  // Acts on what is on screen, not on everything: with a filter applied, "select all" meaning the
-  // whole server would reclassify rows the admin cannot see.
   protected toggleAllShown(): void {
     const shown = this.filteredMods();
     const next = new Set(this.selected());
@@ -473,8 +469,6 @@ export class ServerMods {
     return formatBytes(toNumber(mod.size));
   }
 
-  // A stored icon can still fail to render: the blob may have been swept, or it may be a format
-  // the browser refuses. Falling back to the same placeholder beats a broken-image glyph.
   protected readonly iconFailed = signal<Record<string, boolean>>({});
 
   protected iconOf(mod: ModDto): string | null {
@@ -492,8 +486,6 @@ export class ServerMods {
     this.filter.set((event.target as HTMLInputElement).value);
   }
 
-  // Every mutation on this page goes through here, so this is the one place the sidebar's count
-  // has to hear about. The initial load calls load() directly and deliberately does not bump.
   protected reload(): void {
     const id = this.serverId();
     if (id === '') return;

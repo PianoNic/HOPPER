@@ -3,7 +3,6 @@ package ch.pianonic.hopper;
 import java.lang.reflect.Field;
 
 public final class LaunchArgs {
-
     private static final String USERNAME = "--username";
 
     private LaunchArgs() {
@@ -21,9 +20,6 @@ public final class LaunchArgs {
         return null;
     }
 
-    // Reflective and addressed by name, so this module still compiles with no loader on its
-    // classpath. It has to be reflective either way: ModLauncher parses the game arguments but
-    // exposes them through no public API, and IEnvironment.Keys carries a UUID and no name.
     public static String[] modLauncherArgs() {
         try {
             Class<?> launcher = Class.forName("cpw.mods.modlauncher.Launcher");
@@ -46,9 +42,6 @@ public final class LaunchArgs {
         }
     }
 
-    // Carries the game arguments only when the launcher put them on the java command line. The
-    // vanilla launcher and CurseForge do; Prism runs org.prismlauncher.EntryPoint and passes them
-    // over stdin, which is why this cannot be the only source.
     public static String[] commandLineArgs() {
         return System.getProperty("sun.java.command", "").split(" ");
     }

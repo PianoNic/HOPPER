@@ -19,8 +19,6 @@ namespace HOPPER.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Get([FromQuery] string? side = null, CancellationToken cancellationToken = default)
         {
-            // A dedicated server quietly receiving the client set is the failure this whole feature
-            // exists to prevent, so an unrecognised value is refused rather than defaulted.
             if (!ModSideRules.TryParse(side, out var syncSide))
                 return BadRequest(new { error = "side must be 'client' or 'server'." });
 

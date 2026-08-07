@@ -165,8 +165,6 @@ namespace HOPPER.Tests.Imports
             var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
             var sides = plan.Files.ToDictionary(f => f.FileName, f => f.Side);
 
-            // server-overrides used to be excluded outright. It is ingested now and the folder name
-            // is taken as the declaration, which is the only thing it can mean.
             await Assert.That(sides.Keys.Order().ToList())
                 .IsEquivalentTo(new[] { "client-only.jar", "custom-thing.jar", "server-only.jar" });
             await Assert.That(sides["custom-thing.jar"]).IsEqualTo(ModSide.Both);
@@ -195,9 +193,6 @@ namespace HOPPER.Tests.Imports
         [Test]
         public async Task ModrinthPlan_ClientUnsupportedEntry_IsKeptAsServerOnly()
         {
-            // It used to be dropped, because HOPPER only ever fed game clients. Now a dedicated
-            // server can ask for the server set, so the honest thing is to keep the jar and record
-            // which side wants it.
             using var archive = ArchiveOf(("modrinth.index.json", """
                 {"formatVersion":1,"game":"minecraft","files":[
                   {"path":"mods/server-side.jar","hashes":{"sha1":"a"},"env":{"client":"unsupported","server":"required"},

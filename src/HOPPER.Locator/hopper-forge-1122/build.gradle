@@ -1,38 +1,17 @@
-// Forge 1.12.x. NOT a locator: legacy FML predates ModLauncher entirely, so this is an
-// IFMLLoadingPlugin coremod loaded by LaunchWrapper, with its own manifest attribute and its own
-// lifecycle.
-//
-// The module targets Forge 1.12.x and nothing older. 1.7.10 has IFMLLoadingPlugin too, but
-// LibraryManager.gatherLegacyCanidates and the --mods blackboard route do not exist there in this
-// form, and that is an unverified claim rather than a supported one.
-//
-// 8: this is where the Java baseline that shapes the whole build actually bites.
 tasks.withType(JavaCompile).configureEach {
     options.release = 8
 }
 
 dependencies {
-    // @jar because the forge pom is <packaging>pom</packaging> with ZERO <dependency> elements -
-    // there is no metadata worth resolving, so ask for the artifact directly.
     compileOnly 'net.minecraftforge:forge:1.12.2-14.23.5.2864:universal@jar'
-    // Launch.blackboard and LaunchClassLoader. From libraries.minecraft.net - this coordinate
-    // 404s on maven.minecraftforge.net.
+
     compileOnly 'net.minecraft:launchwrapper:1.12'
-    // The log4j FML 14.23.5 actually ships.
+
     compileOnly 'org.apache.logging.log4j:log4j-api:2.8.1'
 }
 
 jar {
     manifest.attributes(
-            // The only attribute CoreModManager.discoverCoreMods reads to find us. There is no
-            // services file on 1.12.2 - LaunchWrapper predates ServiceLoader discovery.
             'FMLCorePlugin': 'ch.pianonic.hopper.HopperCoreMod'
-            //
-            // Deliberately absent:
-            //   FMLCorePluginContainsFMLMod - this jar is not an @Mod, and setting it makes FML
-            //                                 log "This is not recommended" on every launch.
-            //   ModType                     - a value not containing FML makes FML skip the jar
-            //                                 outright. Unset is accepted.
-            //   ModSide                     - unset is accepted; BOTH would be equivalent.
     )
 }

@@ -80,8 +80,6 @@ class SyncerTest {
                 Syncer.reportBody("c-1", null, Side.CLIENT, Collections.<Syncer.Mod>emptyList()));
     }
 
-    // A dedicated server has no username and never will, so the side is the only thing that says
-    // what reported.
     @Test
     void aServerSaysSo() {
         assertEquals("{\"clientId\":\"c-1\",\"username\":null,\"side\":\"server\",\"mods\":[]}",
@@ -161,12 +159,6 @@ class SyncerTest {
         }
     }
 
-    /**
-     * Issue #17, the half the first fix missed. A migration and the day that mod leaves the manifest
-     * are almost never the same launch, so knowing what was migrated only within one run is not
-     * enough: on the next run nothing is migrated, the set is empty, and the sweep deletes the
-     * player's own jar. Two separate Syncer instances here on purpose - that is the whole point.
-     */
     @Test
     void aJarMigratedInAnEarlierRunIsParkedNotDeletedWhenItLeavesTheManifest(@TempDir Path game)
             throws Exception {
@@ -185,8 +177,6 @@ class SyncerTest {
             new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
             assertTrue(Files.exists(dir.resolve("appleskin-2.5.1.jar")), "run 1 migrates it in");
 
-            // A later launch. The admin has dropped the mod, so the manifest is empty and this
-            // Syncer knows nothing about the earlier migration except what is on disk.
             stub.manifest("{\"mods\":[]}");
             new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
 
@@ -201,7 +191,6 @@ class SyncerTest {
         }
     }
 
-    /** A jar HOPPER downloaded itself is not the player's, so it stays deletable. */
     @Test
     void aDownloadedJarIsStillDeletedWhenItLeavesTheManifest(@TempDir Path game) throws Exception {
         Path mods = Files.createDirectories(game.resolve("mods"));
@@ -251,9 +240,6 @@ class SyncerTest {
         Path stale = dir.resolve("jei-1.20.1-15.3.0.4.jar");
         Files.write(stale, "the required build".getBytes(StandardCharsets.UTF_8));
 
-        // What a previous launch would have left: HOPPER downloaded that copy, so it may delete it.
-        // Without the claim it would be parked instead, replaced/ here is a regular file, the park
-        // would fail, and the game would start with two copies of JEI.
         Files.write(dir.resolve(Syncer.DOWNLOADED),
                 "jei-1.20.1-15.3.0.4.jar\n".getBytes(StandardCharsets.UTF_8));
 

@@ -150,8 +150,6 @@ describe('countDrift', () => {
 });
 
 describe('diffClient and sides', () => {
-  // Measured against a real dedicated server before this was fixed: it reported 2 of 3 mods, was
-  // marked missing the client-only jar it was deliberately never sent, and showed DRIFT.
   it('does not fault a server for the mods only clients get', () => {
     const required = [
       sidedMod('both.jar', 'aaa', MOD_SIDE.both),
@@ -204,14 +202,11 @@ describe('what the Clients page counts', () => {
   const requiredFor = (side: number) => required.filter((m) => reaches(m, side)).length;
 
   it('counts only what that side is sent as the denominator', () => {
-    // A server showing 2/3 reads as missing one when it has everything it was sent.
     expect(requiredFor(SYNC_SIDE.client)).toBe(2);
     expect(requiredFor(SYNC_SIDE.server)).toBe(2);
   });
 
   it('agrees with the missing badge', () => {
-    // 2/2 next to "1 missing" cannot both be true. The numerator is what the client actually has
-    // of what it should, not how many jars it reported.
     const holder = client(
       [reported('both.jar', 'aaa', true), reported('server-only.jar', 'ccc', true)],
       '2026-08-05T11:59:00Z',

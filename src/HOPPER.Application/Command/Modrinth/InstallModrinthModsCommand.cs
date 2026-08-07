@@ -265,14 +265,8 @@ namespace HOPPER.Application.Command.Modrinth
             mod.ProjectName = project?.Title;
             mod.DownloadUrl = file.Url;
 
-            // Stored beside the download URL, for the same reason: HOPPER did not make this artwork
-            // and cannot re-derive it. It is what the table falls back to when a jar carries no
-            // icon of its own, which is most of what the manager installs.
             mod.IconUrl = project?.IconUrl;
 
-            // Modrinth publishes client_side and server_side on the project, so the manager knows
-            // the side before the jar is stored and the admin never has to set it by hand. Absent
-            // metadata leaves it Both, which is what it would have been anyway.
             mod.Side = project?.Side ?? ModSide.Both;
 
             mod.Sha1 = sha1;
@@ -333,7 +327,6 @@ namespace HOPPER.Application.Command.Modrinth
                 $"{declaring} declares {other} incompatible, and {other} is on this server. Nothing was installed.");
         }
 
-        /// <summary>What HOPPER keeps from a project: its name, and where its icon lives.</summary>
         private sealed record ProjectFacts(string? Title, string? IconUrl, ModSide Side);
 
         private async Task<IReadOnlyDictionary<string, ProjectFacts>> ProjectTitlesAsync(
@@ -358,8 +351,6 @@ namespace HOPPER.Application.Command.Modrinth
             }
             catch (ModrinthApiException)
             {
-                // The install is worth more than its metadata: a name and an icon can be filled in
-                // later, and refusing the jar over them would be the wrong trade.
                 return new Dictionary<string, ProjectFacts>(StringComparer.Ordinal);
             }
         }

@@ -5,14 +5,6 @@ using HOPPER.Infrastructure.Interfaces;
 
 namespace HOPPER.Application.ModMetadata
 {
-    /// <summary>
-    /// The side a jar declares about itself. Only Fabric and Quilt say it - Forge's mods.toml has
-    /// no equivalent field - so this answers for a Fabric mod and shrugs at everything else.
-    ///
-    /// The last resort, used only when nothing better said. A pack index and the Modrinth API both
-    /// know the side before the bytes are stored and are believed over the jar, which can be a
-    /// repackaged copy of something else.
-    /// </summary>
     public static class ModSideReader
     {
         private const long MaxMetadataBytes = 1024 * 1024;
@@ -52,7 +44,6 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
-        /// <summary>fabric.mod.json: "environment" is "client", "server" or "*".</summary>
         public static ModSide FromFabricEnvironment(string text)
         {
             try
@@ -66,15 +57,12 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
-        /// <summary>quilt.mod.json: the same idea under quilt_loader.minecraft.environment.</summary>
         public static ModSide FromQuiltEnvironment(string text)
         {
             try
             {
                 using var document = JsonDocument.Parse(text);
 
-                // TryGetProperty throws rather than returning false when the root is not an object,
-                // and a jar is free to carry a top-level array.
                 if (document.RootElement.ValueKind == JsonValueKind.Object
                     && document.RootElement.TryGetProperty("quilt_loader", out var loader)
                     && loader.ValueKind == JsonValueKind.Object

@@ -30,8 +30,6 @@ export class CopyButton {
   protected readonly copied = signal(false);
 
   protected async copy(): Promise<void> {
-    // Both call sites - a mod's sha256 and the whole application.properties block - are already
-    // rendered next to this button, so pointing at them beats repeating them in a toast.
     if ((await copyText(this.value())) === 'failed') {
       toast.error('Could not reach the clipboard. Select the text and copy it by hand.');
       return;

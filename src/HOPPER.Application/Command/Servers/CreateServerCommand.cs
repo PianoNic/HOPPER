@@ -22,8 +22,6 @@ namespace HOPPER.Application.Command.Servers
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Server name is required.");
 
-            // Derived, never supplied. The slug is a handle rather than a choice, and one an admin
-            // types is one that can disagree with the name, collide, or need correcting later.
             var derived = ServerSlugValidator.Derive(name)
                 ?? throw new ArgumentException($"No slug can be derived from \"{name}\". Give the server a name with letters or digits in it.");
             var slug = await UniqueAsync(derived, cancellationToken);
@@ -31,8 +29,6 @@ namespace HOPPER.Application.Command.Servers
             if (!Enum.IsDefined(command.Loader))
                 throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");
 
-            // Not on update: an existing server may already have none, and requiring one there
-            // would mean a legacy server could not be renamed until its loader was guessed at.
             if (command.Loader == ModLoader.Unknown)
                 throw new ArgumentException("Pick the loader this server runs. Without one HOPPER cannot browse for its mods or build it a jar.");
 

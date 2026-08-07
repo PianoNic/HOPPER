@@ -17,7 +17,6 @@ export const routes: Routes = [
     children: [
       { path: '', component: Servers },
 
-      // Kept so links and bookmarks handed out while /servers was its own path still land.
       { path: 'servers', redirectTo: '', pathMatch: 'full' },
       { path: 'server/:id', component: ServerOverview },
       { path: 'server/:id/mods', component: ServerMods },

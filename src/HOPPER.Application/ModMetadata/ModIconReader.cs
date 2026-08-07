@@ -4,23 +4,12 @@ using System.Text.Json;
 
 namespace HOPPER.Application.ModMetadata
 {
-    /// <summary>
-    /// The icon a mod ships inside its own jar, found through the same metadata files
-    /// <see cref="ModIdReader"/> already reads. Everything not installed from Modrinth has no other
-    /// source: a hand-uploaded jar and a pack import both arrive as bytes and nothing else.
-    /// </summary>
     public static class ModIconReader
     {
-        /// <summary>
-        /// A mod icon is a few kilobytes. This is generous enough for a 512px PNG and small enough
-        /// that a jar claiming its icon is a hundred megabytes is refused rather than read.
-        /// </summary>
         public const int MaxIconBytes = 1024 * 1024;
 
         private const int MaxMetadataBytes = 512 * 1024;
 
-        // The PNG and GIF signatures, and JPEG's SOI. A declared path is a string from a stranger's
-        // archive, so what comes back has to look like an image before it is stored as one.
         private static readonly byte[][] Signatures =
         [
             [0x89, 0x50, 0x4E, 0x47],
@@ -56,7 +45,6 @@ namespace HOPPER.Application.ModMetadata
             return null;
         }
 
-        /// <summary>Every path the jar's own metadata points at, most specific format first.</summary>
         public static IEnumerable<string> DeclaredPaths(ZipArchive archive)
         {
             var toml = Text(archive, "META-INF/neoforge.mods.toml") ?? Text(archive, "META-INF/mods.toml");
@@ -79,7 +67,6 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
-        /// <summary>`"icon": "assets/x/icon.png"`, or an object keyed by pixel size.</summary>
         public static string[] FromFabricJson(string text)
         {
             try
@@ -93,7 +80,6 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
-        /// <summary>Quilt hides it two levels down, under quilt_loader.metadata.</summary>
         public static string[] FromQuiltJson(string text)
         {
             try
@@ -123,7 +109,6 @@ namespace HOPPER.Application.ModMetadata
 
             if (icon.ValueKind != JsonValueKind.Object) return [];
 
-            // Size-keyed. Biggest first: the table scales down cleanly and up badly.
             return icon.EnumerateObject()
                 .Where(p => p.Value.ValueKind == JsonValueKind.String && p.Value.GetString()?.Length > 0)
                 .OrderByDescending(p => int.TryParse(p.Name, out var size) ? size : 0)
@@ -148,8 +133,6 @@ namespace HOPPER.Application.ModMetadata
                 int read;
                 while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
                 {
-                    // Checked against the read rather than the declared length: a zip header can
-                    // claim one size and deliver another.
                     if (buffer.Length + read > MaxIconBytes) return null;
                     buffer.Write(chunk, 0, read);
                 }
@@ -163,10 +146,6 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
-        /// <summary>
-        /// A declared path is untrusted text. Anything absolute, anything walking upwards and
-        /// anything with a backslash is refused rather than resolved.
-        /// </summary>
         public static string? Normalise(string? declared)
         {
             if (string.IsNullOrWhiteSpace(declared)) return null;

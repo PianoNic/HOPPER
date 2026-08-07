@@ -6,8 +6,6 @@ namespace HOPPER.API.Extensions
 {
     public static class TelemetryExtensions
     {
-        // Entirely opt-in. Without Otel:Endpoint nothing is registered at all, rather than an
-        // exporter retrying against a collector that is not there on a self-hosted single instance.
         public static IServiceCollection AddHopperTelemetry(this IServiceCollection services, IConfiguration configuration)
         {
             if (configuration["Otel:Endpoint"] is not { Length: > 0 } endpoint)
@@ -23,8 +21,6 @@ namespace HOPPER.API.Extensions
                 .WithTracing(tracing => tracing
                     .AddAspNetCoreInstrumentation(options =>
                     {
-                        // The probes are the loudest requests an idle instance makes, and a trace
-                        // per probe buries the ones that mean something.
                         options.Filter = context =>
                             !context.Request.Path.StartsWithSegments("/health", StringComparison.Ordinal);
                     })

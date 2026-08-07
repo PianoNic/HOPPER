@@ -104,8 +104,6 @@ export class Sidenav {
   private readonly serverChanged = inject(ServerChanged);
 
   private readonly currentServer = toSignal(
-    // Re-read on a revision as well as on a change of server: adding a mod does not change the
-    // route, so nothing else the sidebar watches would move.
     toObservable(computed(() => ({ id: this.currentServerId(), rev: this.serverChanged.revision() }))).pipe(
       switchMap(({ id }) =>
         id === null
@@ -116,8 +114,6 @@ export class Sidenav {
     { initialValue: null },
   );
 
-  // Undefined while unknown, so the template can leave the badge out rather than flash a 0 that
-  // turns into 18 a moment later.
   protected readonly counts = computed<Record<string, number | undefined>>(() => {
     const server = this.currentServer();
     return {

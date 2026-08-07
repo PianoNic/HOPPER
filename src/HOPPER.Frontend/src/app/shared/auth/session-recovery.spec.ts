@@ -29,9 +29,6 @@ describe('SessionRecovery', () => {
     expect(authorize).toHaveBeenCalledTimes(1);
   });
 
-  // authorize() navigates the document away, so the next 401 arrives at a brand new instance. Only
-  // the stamp survives that, and without it an API that rejects a freshly minted token loops for
-  // ever with nothing on screen: the navigation kills the document before the toast can paint.
   it('does not redirect a second time after signing in did not help', () => {
     recovery().recover();
     expect(authorize).toHaveBeenCalledTimes(1);

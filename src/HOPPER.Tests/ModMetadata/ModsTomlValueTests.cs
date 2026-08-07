@@ -4,8 +4,6 @@ namespace HOPPER.Tests.ModMetadata
 {
     public class ModsTomlValueTests
     {
-        // Copied from a real Jade jar: CRLF endings, and logoFile sitting inside [[mods]] rather
-        // than above it. Both are ordinary and neither was covered before.
         private const string Real =
             "modLoader = \"javafml\"\r\n"
             + "loaderVersion = \"[46,)\"\r\n"

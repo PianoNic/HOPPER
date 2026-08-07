@@ -20,10 +20,8 @@ import java.util.function.Consumer;
 final class Syncer {
     private static final String CLIENT_ID = "client-id";
 
-    /** The list of jars HOPPER downloaded itself, and may therefore delete again. */
     static final String DOWNLOADED = "downloaded";
 
-    /** ModsFolderMirror's own ledger. It lives in hoppermods/ and the sweep must not eat it. */
     static final String MIRROR_LIST = "mods-mirror.txt";
 
     private static final String PART_SUFFIX = ".part";
@@ -89,8 +87,6 @@ final class Syncer {
         Ledger ledger = new Ledger(dir.resolve(DOWNLOADED), DOWNLOADED_HEADER, log);
         Set<String> owned = ledger.read();
 
-        // A jar that just came out of the player's mods folder is theirs from now on, whatever an
-        // older ledger claimed about a download of the same name.
         owned.removeAll(migration.migrated);
 
         for (Entry e : mods) {
@@ -129,8 +125,6 @@ final class Syncer {
         for (Path p : stale) {
             String name = p.getFileName().toString();
 
-            // Ours, so deleting it destroys nothing: the server still has it and the next sync
-            // fetches it again. A leftover .part is a half-finished download of ours as well.
             if (owned.contains(name) || name.endsWith(PART_SUFFIX)) {
                 if (Files.deleteIfExists(p)) {
                     removed++;
@@ -139,9 +133,6 @@ final class Syncer {
                 continue;
             }
 
-            // Not ours. Either the player dropped it in, or it came out of their mods folder. Once
-            // it leaves the manifest no other copy exists, so it is parked, never unlinked.
-            // Deleting a file a person put there is the one thing HOPPER must never do.
             try {
                 Path parked = migrator.park(p);
                 removed++;
@@ -226,9 +217,6 @@ final class Syncer {
         return id;
     }
 
-    // Only the client set has ever been the default, so a client asks for nothing and keeps the
-    // request every shipped jar already makes. The stored manifestUrl is left clean because
-    // reportUrl resolves against it and resolve() would drop a query string.
     static String manifestUrlFor(String manifestUrl, Side side) {
         if (side != Side.SERVER) {
             return manifestUrl;

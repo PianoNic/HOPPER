@@ -9,9 +9,6 @@ import {
   showBootstrapFailure,
 } from './bootstrap-failure';
 
-// The dashboard is served by the same host as the API, so a cold `docker compose up` can hand out
-// index.html a beat before /api/app answers. Three tries over roughly five seconds turn that race
-// into nothing the user ever sees.
 const RETRY_DELAYS_MS = [500, 1500, 3000];
 
 export const authLoaderFactory = (appService: AppService) => {
@@ -20,7 +17,7 @@ export const authLoaderFactory = (appService: AppService) => {
       count: RETRY_DELAYS_MS.length,
       delay: (_, attempt) => timer(RETRY_DELAYS_MS[attempt - 1]),
     }),
-    // After the retry, so an empty config is never mistaken for a transient failure and retried.
+
     tap((app) => {
       const missing = missingOidcSettings(app);
       if (missing.length > 0) throw new UnconfiguredOidcError(missing);
@@ -38,8 +35,7 @@ export const authLoaderFactory = (appService: AppService) => {
 
       secureRoutes: [environment.apiBaseUrl],
     })),
-    // NEVER rather than a rethrow: the static block is already on screen and app-root never
-    // renders over it, which holds whether or not the initializer propagates a loader error.
+
     catchError((err: unknown) => {
       console.error(err);
       if (err instanceof UnconfiguredOidcError) {

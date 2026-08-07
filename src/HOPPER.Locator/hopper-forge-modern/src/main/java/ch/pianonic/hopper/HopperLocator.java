@@ -88,9 +88,6 @@ public final class HopperLocator implements IModLocator {
         return LaunchArgs.username();
     }
 
-    // forgespi has carried Dist.CLIENT and Dist.DEDICATED_SERVER unchanged since 1.5.0, so this is
-    // the same three lines on every Forge generation. Absent means client: that is what the
-    // manifest defaults to and what every jar in the field already receives.
     private static Side side() {
         return env(Environment.Keys.DIST)
                 .map(new java.util.function.Function<Dist, Side>() {

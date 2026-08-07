@@ -34,8 +34,6 @@ namespace HOPPER.API.Auth
 
             if (servers.Count == 0)
             {
-                // Warning, not Debug: a client 401 is invisible otherwise, and the two causes below
-                // are the ones an operator hits after rotating a token or on an empty database.
                 Logger.LogWarning("Rejected a client token from {Remote}: no servers exist yet.",
                     Context.Connection.RemoteIpAddress);
                 return AuthenticateResult.Fail("No servers configured.");
@@ -59,8 +57,6 @@ namespace HOPPER.API.Auth
 
             if (matched is null)
             {
-                // The token itself is never logged. Its length and the request are enough to tell a
-                // rotated token apart from a mangled one without putting a credential in the log.
                 Logger.LogWarning(
                     "Rejected a client token from {Remote} for {Method} {Path}: no server has it (presented {Length} characters, {Servers} server(s) known). Rotated the token without handing out the new jar?",
                     Context.Connection.RemoteIpAddress, Request.Method, Request.Path, presented.Length, servers.Count);

@@ -6,11 +6,6 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace HOPPER.Application.Loaders
 {
-    /// <param name="Recommended">
-    /// The build the loader's own maintainers point people at. For Forge that is a different thing
-    /// from the newest build, and the distinction is the whole reason this exists: promotions_slim
-    /// publishes `1.20.1-recommended` and `1.20.1-latest` separately and they routinely disagree.
-    /// </param>
     public sealed record LoaderVersion(string Version, bool Recommended);
 
     public interface ILoaderVersionClient
@@ -27,8 +22,6 @@ namespace HOPPER.Application.Loaders
     {
         public const string HttpClientName = "hopper-loaders";
 
-        // Long, because these lists move on the order of days and a dialog opens far more often
-        // than a loader ships. Short enough that a fresh build shows up the same afternoon.
         private static readonly TimeSpan CacheFor = TimeSpan.FromHours(6);
 
         private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -54,7 +47,6 @@ namespace HOPPER.Application.Loaders
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or System.Xml.XmlException)
             {
-                // Not cached: a network blip must not lock the dialog out of the list for six hours.
                 throw new LoaderVersionUnavailableException(loader, ex);
             }
 
@@ -62,8 +54,6 @@ namespace HOPPER.Application.Loaders
             return versions;
         }
 
-        // promotions_slim keys builds as "<mc>-recommended" and "<mc>-latest", and carries no other
-        // list, so the recommended build is all this can offer for a given Minecraft version.
         private async Task<IReadOnlyList<LoaderVersion>> ForgeAsync(string? minecraftVersion, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(minecraftVersion)) return [];
@@ -81,8 +71,6 @@ namespace HOPPER.Application.Loaders
             return versions;
         }
 
-        // NeoForge encodes the Minecraft version in the build: 21.1.x is Minecraft 1.21.1. There is
-        // no recommended flag, so the newest stable build is what gets marked.
         private async Task<IReadOnlyList<LoaderVersion>> NeoForgeAsync(string? minecraftVersion, CancellationToken cancellationToken)
         {
             var xml = await GetStringAsync(
@@ -103,7 +91,6 @@ namespace HOPPER.Application.Loaders
             return Mark(matching.Count > 0 ? matching : all);
         }
 
-        /// <summary>1.21.1 to "21.1.", and 1.21 to "21.0." - NeoForge's own scheme.</summary>
         public static string? NeoForgePrefix(string? minecraftVersion)
         {
             if (string.IsNullOrWhiteSpace(minecraftVersion)) return null;
@@ -131,12 +118,9 @@ namespace HOPPER.Application.Loaders
             var entries = await GetJsonAsync<List<QuiltLoader>>(
                 "https://meta.quiltmc.org/v3/versions/loader", cancellationToken) ?? [];
 
-            // Quilt publishes no stable flag and its newest entry is routinely a beta, so the
-            // prereleases go: recommending one would be worse than offering a slightly older build.
             return Mark(entries.Select(e => e.Version).Where(IsStable).ToList());
         }
 
-        /// <summary>Anything carrying a prerelease marker, whatever the loader calls it.</summary>
         public static bool IsStable(string version) =>
             !version.Contains("beta", StringComparison.OrdinalIgnoreCase)
             && !version.Contains("alpha", StringComparison.OrdinalIgnoreCase)

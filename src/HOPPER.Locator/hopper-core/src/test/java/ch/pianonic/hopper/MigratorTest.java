@@ -91,12 +91,6 @@ class MigratorTest {
         return copies;
     }
 
-    /**
-     * Issue #17. A player's own jar that byte-matched the manifest was moved into hoppermods/ as
-     * the winner, and the stale sweep then deleted it once the admin dropped that mod from the
-     * server. It spared only client-id and replaced/, so the last copy of a file the player
-     * installed themselves was unlinked. A migrated jar must be parked, never deleted.
-     */
     @Test
     void aMigratedJarIsRecordedSoTheSweepCanParkItInsteadOfDeletingIt(@TempDir Path game)
             throws Exception {
@@ -112,7 +106,6 @@ class MigratorTest {
                 "the sweep can only spare what the migrator reported, so the name must be here");
     }
 
-    /** A jar HOPPER downloaded itself is not the player's, so it stays deletable. */
     @Test
     void aDownloadedJarIsNotReportedAsMigrated(@TempDir Path game) throws Exception {
         layout(game);

@@ -12,10 +12,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Exports
 {
-    /// <summary>
-    /// A side survives an import and used to be lost on the way back out, so a pack that had been
-    /// classified came home as if nothing ever had been. These go the whole way round.
-    /// </summary>
     public class ExportSideRoundTripTests
     {
         private sealed class TempDir : IDisposable
@@ -56,8 +52,6 @@ namespace HOPPER.Tests.Exports
                     LoaderVersion = "47.4.10",
                 });
 
-                // One linked and one bundled per side: the two take different paths out, files[]
-                // with an env for the linked, an override folder for the bundled.
                 Add("linked-both.jar", ModSource.Modrinth, ModSide.Both, "aaaaaaaa");
                 Add("linked-client.jar", ModSource.Modrinth, ModSide.ClientOnly, "bbbbbbbb");
                 Add("linked-server.jar", ModSource.Modrinth, ModSide.ServerOnly, "cccccccc");
@@ -147,8 +141,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task Exported_ThenReimported_KeepsEverySide()
         {
-            // The whole point. Before this, everything came back Both and the classification was
-            // gone with nothing reporting it.
             using var fixture = new Fixture();
             using var archive = await ExportAsync(fixture);
 
@@ -172,8 +164,6 @@ namespace HOPPER.Tests.Exports
         [Arguments(ModSide.ServerOnly)]
         public async Task WireAndSide_AreInverses(ModSide side)
         {
-            // The reader and the writer live in one file so they are edited together; this is what
-            // proves they still agree.
             var (client, server) = PackEnv.Wire(side);
 
             await Assert.That(PackEnv.Side(client, server)).IsEqualTo(side);

@@ -10,12 +10,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * A plain-text list of filenames HOPPER claims. It is what tells a file HOPPER put somewhere apart
- * from a file a person put there, which is the whole difference between deleting and parking.
- * Missing, unreadable or partly illegal reads as "claims nothing", because forgetting the claim
- * only ever makes HOPPER more careful.
- */
 final class Ledger {
     private static final char COMMENT = '#';
 

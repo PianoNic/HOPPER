@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class LaunchArgsTest {
-
     @Test
     void readsTheNameThatFollowsTheFlag() {
         String[] args = {"--version", "1.20.1", "--username", "Steve", "--uuid", "abc"};
@@ -44,15 +43,11 @@ class LaunchArgsTest {
         assertEquals("First", LaunchArgs.username(new String[]{"--username", "First", "--username", "Second"}));
     }
 
-    // Prism runs org.prismlauncher.EntryPoint and hands the game arguments over stdin, so the
-    // property carries no name at all. This is the shape that made every Prism client nameless.
     @Test
     void thePrismCommandLineCarriesNoName() {
         assertNull(LaunchArgs.username(new String[]{"org.prismlauncher.EntryPoint"}));
     }
 
-    // Off a real launch: no ModLauncher on the test classpath, so the reflective lookup has to
-    // return null rather than throw.
     @Test
     void modLauncherLookupIsNullWithoutModLauncher() {
         assertNull(LaunchArgs.modLauncherArgs());

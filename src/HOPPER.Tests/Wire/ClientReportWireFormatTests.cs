@@ -79,9 +79,7 @@ namespace HOPPER.Tests.Wire
             await Assert.That(dto.Username).IsNull();
             await Assert.That(dto.Mods[0].File).IsEqualTo("jei-1.20.1-15.2.0.27.jar");
         }
-    
-        // The side is new and optional. Every jar shipped before it exists sends no side, and those
-        // are all clients, so absent has to mean client - the same rule the manifest follows.
+
         [Test]
         public async Task Deserialize_NoSide_MeansClient()
         {
@@ -109,8 +107,6 @@ namespace HOPPER.Tests.Wire
         [Test]
         public async Task Deserialize_AnUnknownSide_StillLeavesTheModListReadable()
         {
-            // This arrives from a jar on a machine nobody controls. Losing the whole report over one
-            // unrecognised field would be the wrong trade, so the handler falls back to client.
             const string body = """
                 {"clientId":"c-1","username":null,"side":"weird","mods":[{"file":"a.jar","sha256":"abc"}]}
                 """;

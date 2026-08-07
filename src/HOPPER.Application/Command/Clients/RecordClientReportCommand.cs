@@ -35,9 +35,6 @@ namespace HOPPER.Application.Command.Clients
             if (username is { Length: > HopperLimits.MaxUsernameLength })
                 username = username[..HopperLimits.MaxUsernameLength];
 
-            // An unrecognised value is client rather than a 400: this arrives from a jar on a
-            // machine nobody controls, and refusing the whole report over one field would lose the
-            // mod list too.
             ModSideRules.TryParse(body.Side, out var side);
 
             var client = await db.Clients.FirstOrDefaultAsync(

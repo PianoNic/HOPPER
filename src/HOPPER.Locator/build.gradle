@@ -1,7 +1,3 @@
-// The root project builds nothing. It carries the three rules that must be identical in every
-// module: where artifacts are resolved from, how warnings are treated, and how the core gets
-// physically into each adapter jar.
-
 subprojects {
     apply plugin: 'java-library'
 
@@ -14,53 +10,22 @@ subprojects {
         maven { url = 'https://maven.neoforged.net/releases' }
         maven { url = 'https://maven.fabricmc.net/' }
         maven { url = 'https://maven.quiltmc.org/repository/release/' }
-        // launchwrapper 1.12 is NOT on maven.minecraftforge.net - it 404s there. It is here.
+
         maven { url = 'https://libraries.minecraft.net/' }
     }
 
-    // --release rather than a toolchain: it pins both the bytecode and the visible JDK API while
-    // letting the build run on whatever JDK the machine already has. A toolchain would instead
-    // demand six exact JDKs be installed and fail outright when they are not.
-    //
-    // Each module sets its own options.release - see that module's build.gradle for why.
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
-        // A locator runs before the loader has loaded anything and a mistake here is a launch that
-        // silently does nothing, so warnings are not advisory. Two lint categories are off, and
-        // both were measured rather than guessed:
-        //
-        // -options : javac 22 emits "source value 8 is obsolete", "target value 8 is obsolete" and
-        //            a third line pointing at this very flag. With -Werror that is a hard build
-        //            failure on every Java 8 module - verified: 3 warnings, 1 error, on an empty
-        //            class. Suppressing the category is the only way to keep -Werror AND --release 8.
-        // -path    : forge-1.12.2-14.23.5.2864-universal.jar's manifest carries a Class-Path
-        //            pointing into an installer tree that does not exist in a Gradle cache; javac
-        //            follows it and warns once per entry.
+
         options.compilerArgs << '-Xlint:all,-options,-path' << '-Werror'
     }
 
-    // Two clean builds of the same sources must produce the same bytes, or "the template did not
-    // change" is not a checkable statement. Gradle stamps every zip entry with the source file's
-    // mtime and emits entries in filesystem order; both are wall-clock and machine noise. Here
-    // rather than in the adapter-only block below, because that one skips hopper-core.
-    //
-    // The guarantee is "same sources, same JDK, same OS" - a different javac writes different class
-    // files, and permission bits differ between a Windows host and the Docker JDK stage.
     tasks.withType(Jar).configureEach {
         preserveFileTimestamps = false
         reproducibleFileOrder = true
     }
 }
 
-// ---- every adapter embeds the core ----
-//
-// The loader resolves ONE jar out of mods/ and nothing else. A jar that merely referenced a
-// separate core jar would die at runtime with NoClassDefFoundError, so the core class files are
-// copied into each adapter jar.
-//
-// compileOnly rather than implementation, on purpose: it makes this copy the ONLY mechanism that
-// puts the core anywhere, so nobody can accidentally start relying on a Gradle runtime classpath
-// that does not exist inside Minecraft.
 configure(subprojects.findAll { it.name != 'hopper-core' }) {
     evaluationDependsOn(':hopper-core')
 
@@ -70,25 +35,11 @@ configure(subprojects.findAll { it.name != 'hopper-core' }) {
     }
 
     tasks.named('jar', Jar) {
-        // sourceSets output rather than zipTree(coreJar): it carries its own task dependency, it
-        // brings no second META-INF/MANIFEST.MF to merge away, and the class files keep the
-        // release-8 bytecode the core compiled them to - copying never recompiles.
         from project(':hopper-core').sourceSets.main.output
         manifest.attributes('Implementation-Version': project.version)
     }
 }
 
-// ---- the directory the API serves from ----
-//
-// HOPPER picks a template by loader and Minecraft version (LocatorTemplates.For) and addresses it
-// by an unversioned name, so a version bump here never needs a matching edit in C#. This task is
-// what makes those names exist, and it is the ONLY place the module-to-filename mapping lives -
-// the Dockerfile and a local `dotnet run` both consume its output rather than restating it.
-//
-// hopper-quilt ships under a name that is not its module name, so this is a map rather than a list.
-// It is shipped but never the default: a Quilt server is served hopper-fabric.jar unless the
-// download explicitly asks for the quilt-plugin variant, because this jar throws a ParseException
-// unless the player adds a JVM argument. See hopper-quilt/build.gradle.
 def shippedTemplates = [
         'hopper-forge-1122'  : 'hopper-forge-1122.jar',
         'hopper-forge-1165'  : 'hopper-forge-1165.jar',
@@ -106,8 +57,7 @@ tasks.register('templates', Copy) {
     into layout.buildDirectory.dir('templates')
 
     shippedTemplates.each { module, fileName ->
-        // from(task) rather than from(file): it carries the dependency on that module's jar task, so
-        // `./gradlew templates` builds what it needs instead of silently copying nothing.
+
         from(project(":$module").tasks.named('jar')) {
             rename '.*\\.jar', fileName
         }

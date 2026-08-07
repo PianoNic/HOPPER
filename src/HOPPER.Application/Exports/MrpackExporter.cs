@@ -42,9 +42,6 @@ namespace HOPPER.Application.Exports
             }
         }
 
-        // The folder names are the declaration a pack carries for a bundled jar, and the same ones
-        // ModrinthPlanner reads back. Writing everything to the shared folder is what threw the
-        // classification away.
         private static string OverrideFolder(ModSide side) => side switch
         {
             ModSide.ClientOnly => "client-overrides/mods",

@@ -14,9 +14,6 @@ namespace HOPPER.Application.Queries.Manifest
         {
             var baseUrl = query.BaseUrl.TrimEnd('/');
 
-            // The blob endpoint is scoped by side too, and the client fetches these URLs verbatim -
-            // it never appends anything of its own. So the side has to be baked in here, or a
-            // dedicated server is handed a link to a jar it is then refused.
             var sideQuery = query.Side == SyncSide.Server ? "?side=server" : string.Empty;
 
             var rows = await db.Mods.AsNoTracking()

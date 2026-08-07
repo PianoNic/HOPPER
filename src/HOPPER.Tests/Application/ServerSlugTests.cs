@@ -23,8 +23,6 @@ namespace HOPPER.Tests.Application
             await Assert.That(server.Slug).IsEqualTo("survival-smp");
         }
 
-        // Two people naming their server "Survival" is ordinary, and the second must not be met
-        // with a conflict they cannot act on: they never chose the slug in the first place.
         [Test]
         public async Task Create_GivesASecondServerOfTheSameNameItsOwnSlug()
         {
@@ -39,8 +37,6 @@ namespace HOPPER.Tests.Application
             await Assert.That(second.Slug).StartsWith("survival");
         }
 
-        // The slug names the generated jar and is the readable half of a URL an admin may already
-        // have handed out. A rename must not move it.
         [Test]
         public async Task Update_LeavesTheSlugWhereItWas()
         {
@@ -55,8 +51,6 @@ namespace HOPPER.Tests.Application
             await Assert.That(renamed.Slug).IsEqualTo("survival-smp");
         }
 
-        // Without one the browse page cannot search, the jar endpoint 400s and the loader version
-        // list has nothing to go on: a server that cannot do the thing HOPPER is for.
         [Test]
         public async Task Create_RefusesAServerWithNoLoader()
         {
@@ -68,8 +62,6 @@ namespace HOPPER.Tests.Application
                 .Throws<ArgumentException>();
         }
 
-        // Update deliberately still accepts it, or a server created before the rule could not be
-        // renamed until someone guessed at its loader.
         [Test]
         public async Task Update_StillAcceptsAServerThatHasNoLoader()
         {

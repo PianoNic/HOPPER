@@ -410,8 +410,6 @@ export class ModrinthPlanDialog {
 
   private readonly replacing = signal<ReadonlyArray<string>>([]);
 
-  // A retry does not change the tick list, and toObservable only emits on a change, so the retry
-  // counter has to be part of the key rather than a re-set of `ticked`.
   private readonly replanKey = computed(() => ({
     optional: this.ticked(),
     tick: this.retryTick(),
@@ -477,8 +475,6 @@ export class ModrinthPlanDialog {
               optionalVersionIds: [...optional],
             })
             .pipe(
-              // EMPTY keeps the outer subscription alive so a later key still replans; `failed`
-              // is what stops the dialog sitting empty once the toast has gone.
               catchError((err: unknown) => {
                 toast.error(messageFrom(err, 'Failed to resolve the dependencies of this mod'));
                 this.failed.set(true);
@@ -502,8 +498,6 @@ export class ModrinthPlanDialog {
   }
 
   protected retry(): void {
-    // Here rather than only in the debounced projection, which is 300ms away: without it the click
-    // leaves the failure panel on screen unacknowledged and a second click looks like a dead button.
     this.failed.set(false);
     this.loading.set(true);
     this.retryTick.update((tick) => tick + 1);
@@ -621,11 +615,6 @@ export class ModrinthPlanDialogService {
   private readonly dialog = inject(HlmDialogService);
   private readonly api = inject(ServerModrinthService);
 
-  /**
-   * Plans first and opens the dialog only when the admin is actually being asked something. In the
-   * ordinary case - one mod, its requirements, nothing optional and nothing to report - the dialog
-   * would show a list nobody can change and ask for a click with one possible answer.
-   */
   async add(context: ModrinthPlanDialogContext): Promise<ModrinthInstallResultDto | null> {
     let plan: ModrinthInstallPlanDto;
     try {
@@ -636,8 +625,6 @@ export class ModrinthPlanDialogService {
         }),
       );
     } catch (err: unknown) {
-      // The plan is what turns Add into a decision rather than a guess, so a failed plan is a
-      // failed Add and has to say so rather than falling through to the dialog with nothing in it.
       toast.error(messageFrom(err, 'Failed to resolve the dependencies of this mod'));
       return null;
     }
@@ -669,11 +656,6 @@ export class ModrinthPlanDialogService {
   }
 }
 
-/**
- * Anything the admin could answer differently, or anything they should see before it happens. The
- * bar is deliberately low: a replace, an embedded jar or a warning is worth a dialog, and only a
- * plan that is purely "these are the files, all of them new" is worth skipping it for.
- */
 export function needsADecision(plan: ModrinthInstallPlanDto): boolean {
   return (
     plan.blocked

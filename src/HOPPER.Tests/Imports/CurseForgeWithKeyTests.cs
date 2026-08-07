@@ -5,11 +5,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Tests.Imports
 {
-    /// <summary>
-    /// The half of <see cref="CurseForgePlanner"/> that only runs once CurseForge:ApiKey is set.
-    /// Everything here drives the real <see cref="CurseForgeClient"/> over a canned transport, so
-    /// no live key and no network are involved.
-    /// </summary>
     public class CurseForgeWithKeyTests
     {
         private const string Sha1 = "c5043f862be7db76892c7c0c95d02fa3f8332af0";
