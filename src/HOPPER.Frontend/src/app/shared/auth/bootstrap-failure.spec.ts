@@ -14,7 +14,6 @@ function app(overrides: Partial<AppDto>): AppDto {
   };
 }
 
-// Mirrors index.html. Kept here rather than imported so a change to one without the other fails.
 const MARKUP = `
   <div id="bootstrap-failure" hidden>
     <h1>HOPPER could not start</h1>

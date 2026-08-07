@@ -64,8 +64,6 @@ namespace HOPPER.Application.Imports
                             continue;
                         }
 
-                        // env is read rather than used only to discard. A jar the client cannot
-                        // load is not a jar to throw away now that a dedicated server may want it.
                         var side = PackEnv.SideOf(file);
 
                         var downloads = new List<Uri>();
@@ -107,8 +105,6 @@ namespace HOPPER.Application.Imports
                 foreach (var jar in OverrideJars(archive, prefix + "client-overrides/mods/", ModSide.ClientOnly))
                     overrides[jar.FileName] = jar;
 
-                // Ingested now, as ServerOnly. It used to be skipped outright because HOPPER only
-                // fed game clients, which stopped being true.
                 foreach (var jar in OverrideJars(archive, prefix + "server-overrides/mods/", ModSide.ServerOnly))
                     overrides[jar.FileName] = jar;
 

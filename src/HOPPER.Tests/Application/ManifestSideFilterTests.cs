@@ -58,8 +58,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task NoSideGiven_IsTheClientSet()
         {
-            // Every jar already in the field sends no side and must keep receiving exactly what it
-            // receives today.
             await using var db = await WithOneOfEach();
 
             var result = await new GetManifestQueryHandler(db)
@@ -72,8 +70,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task EveryModIsBoth_BothSidesSeeAllOfThem()
         {
-            // The upgrade path. Every row that predates the column is Both, so a server that has
-            // never classified anything behaves exactly as it did before.
             await using var db = NewDb();
             db.Mods.AddRange(Row("a.jar", 'a', ModSide.Both), Row("b.jar", 'b', ModSide.Both));
             await db.SaveChangesAsync();
@@ -85,8 +81,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task TheEntryShapeIsIdenticalOnBothSides()
         {
-            // The fixed wire contract. Filtering which entries appear is allowed; the entry object
-            // is not permitted to differ by so much as a key order between the two sides.
             await using var db = NewDb();
             db.Mods.Add(new Mod
             {
@@ -114,9 +108,6 @@ namespace HOPPER.Tests.Application
             var clientShape = Shape(client);
             var serverShape = Shape(server);
 
-            // The shape, not the bytes. The url VALUE has always differed per deployment - it
-            // embeds the base URL - and now carries the side as well, so comparing serialised JSON
-            // would pin something that was never the contract.
             await Assert.That(clientShape.Keys).IsEquivalentTo(serverShape.Keys);
             await Assert.That(clientShape.Kinds).IsEquivalentTo(serverShape.Kinds);
             await Assert.That(clientShape.Keys).IsEquivalentTo(new[] { "file", "url", "sha256", "size", "modIds" });
@@ -126,10 +117,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Server_BlobUrlsCarryTheSide()
         {
-            // Caught by a real Forge dedicated server, not by a unit test: the manifest handed it
-            // the ServerOnly jar and a plain blob URL, the blob endpoint defaulted that request to
-            // client, and the download 404d. The client fetches these URLs verbatim, so the side
-            // has to be in them.
             await using var db = await WithOneOfEach();
 
             var result = await new GetManifestQueryHandler(db)
@@ -141,8 +128,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Client_BlobUrlsAreUnchanged()
         {
-            // Every jar in the field already follows these URLs. Adding anything here would point
-            // them somewhere new.
             await using var db = await WithOneOfEach();
 
             var result = await new GetManifestQueryHandler(db)
@@ -150,8 +135,6 @@ namespace HOPPER.Tests.Application
 
             await Assert.That(result.Mods.All(m => !m.Url.Contains('?'))).IsTrue();
         }
-
-        // ---- the rule itself ------------------------------------------------------------------
 
         [Test]
         [Arguments(ModSide.Both, SyncSide.Client, true)]
@@ -186,8 +169,6 @@ namespace HOPPER.Tests.Application
         [Arguments("clientt")]
         public async Task TryParse_AnythingElseIsRefused(string value)
         {
-            // Not defaulted to client. A dedicated server that asked for the wrong thing has to be
-            // told, or it silently installs the client set.
             await Assert.That(ModSideRules.TryParse(value, out _)).IsFalse();
         }
     }

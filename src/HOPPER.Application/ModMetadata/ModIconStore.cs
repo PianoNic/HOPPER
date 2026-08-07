@@ -2,13 +2,8 @@ using HOPPER.Infrastructure.Interfaces;
 
 namespace HOPPER.Application.ModMetadata
 {
-    /// <summary>
-    /// Puts a mod icon into the same content-addressed store the jars live in, so the same icon
-    /// shared by twenty servers costs one copy and the reclaim sweep can account for it.
-    /// </summary>
     public static class ModIconStore
     {
-        /// <summary>Null rather than throwing: a missing icon is a placeholder, never a failed upload.</summary>
         public static async Task<string?> FromStagedJarAsync(
             IBlobStorage blobs, StagedBlob staged, CancellationToken cancellationToken)
         {
@@ -57,8 +52,6 @@ namespace HOPPER.Application.ModMetadata
                 using var source = new MemoryStream(icon);
                 var staged = await blobs.StageAsync(source, ModIconReader.MaxIconBytes, cancellationToken);
 
-                // Promoted before the row that references it is written. The other order would lose
-                // the icon on a retry, and an orphan here is exactly what the reclaim sweep is for.
                 blobs.Promote(staged);
                 return staged.Sha256;
             }

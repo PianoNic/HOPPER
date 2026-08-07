@@ -1,50 +1,17 @@
-// Forge on Minecraft 1.19 through 26.2 (the newest, 26.2-65.1.0, as of 2026-08-06).
-//
-// NOT 1.17/1.18: those ship forgespi 4.0.x, whose IModLocator has no IModProvider supertype and
-// returns List<IModFile> from scanMods(). That is a separate module rather than a widening of this
-// one, and it now exists: hopper-forge-1182. Do not try to lower the floor here to reach it - the
-// two interfaces cannot be implemented by one class.
-//
-// 17, not 21: Minecraft 1.19 runs on Java 17 and it is the floor of this range. Forge 26.x runs on
-// Java 25, which loads classfile 61 without complaint.
 tasks.withType(JavaCompile).configureEach {
     options.release = 17
 }
 
-// The floor is the default, so an ordinary build is the one that proves the floor still holds.
-// Re-prove the ceiling when a new Forge ships:
-//   ./gradlew :hopper-forge-modern:compileJava --rerun-tasks \
-//       -PforgespiVersion=8.0.0 -PmodlauncherCoordinate=net.minecraftforge:modlauncher:10.2.6
-//
-// modlauncher is a whole GAV rather than a bare version, and that is not tidiness: the groupId
-// changed from cpw.mods to net.minecraftforge at 10.1.1 (Forge 1.20.4). cpw.mods:modlauncher stops
-// at 10.0.9, so a version-only knob cannot reach the ceiling at all - it resolves nothing and the
-// check fails for the wrong reason. The Java package is cpw.mods.modlauncher in both.
 def forgespiVersion = findProperty('forgespiVersion') ?: '6.0.0'
 def modlauncherCoordinate = findProperty('modlauncherCoordinate') ?: 'cpw.mods:modlauncher:10.0.1'
 
 dependencies {
-    // 6.0.0 is the OLDEST forgespi whose scanMods() returns List<ModFileOrException>; it first
-    // shipped in Forge 1.19-41.1.0. Its IModProvider, IModDirectoryLocatorFactory,
-    // ModFileOrException and Environment$Keys are byte-identical to 8.0.0's - the whole locating
-    // package has a zero diff between 7.0.1 and 8.0.0.
-    //
-    // Minecraft 1.20.1 (forgespi 7.0.1) therefore sits in the MIDDLE of this range, not at an
-    // edge, and cannot regress without both the floor and the ceiling regressing with it.
     compileOnly "net.minecraftforge:forgespi:${forgespiVersion}"
-    // The signatures this module touches - Launcher.INSTANCE, environment(),
-    // IEnvironment$Keys.GAMEDIR - are byte-identical between 10.0.1 and 10.2.6.
+
     compileOnly modlauncherCoordinate
     compileOnly 'org.apache.logging.log4j:log4j-api:2.19.0'
-
-    // All compileOnly: every one of these is already on the SERVICE layer when the locator runs.
-    // No ForgeGradle and no reobf - a locator never touches a Minecraft class, so there is
-    // nothing to remap.
 }
 
 jar {
-    // Required here, unlike on 1.16.5. SecureJar derives the SERVICE-layer module name from it and
-    // ModDirTransformerDiscoverer reads `provides` off that derived descriptor. Without it the
-    // name comes from the filename, which breaks the moment someone renames the jar.
     manifest.attributes('Automatic-Module-Name': 'hopper')
 }

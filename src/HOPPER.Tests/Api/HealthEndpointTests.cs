@@ -25,9 +25,6 @@ namespace HOPPER.Tests.Api
             await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         }
 
-        // In production the fallback answers 200 with index.html for anything unmatched, so a probe
-        // pointed one character off would report a wedged instance as healthy. Only the two exact
-        // paths may answer 200.
         [Test]
         public async Task AMisspeltProbePath_IsNotAnswered200()
         {

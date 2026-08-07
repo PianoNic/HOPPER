@@ -5,11 +5,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SideTest {
-
     private static final String URL = "https://hopper.example.com/api/manifest";
 
-    // A client asks for nothing, so the request is byte-identical to the one every jar in the
-    // field already makes. Changing this would re-point every shipped client at a new URL.
     @Test
     void aClientAsksForTheSameUrlItAlwaysHas() {
         assertEquals(URL, Syncer.manifestUrlFor(URL, Side.CLIENT));
@@ -37,9 +34,6 @@ class SideTest {
         assertEquals("server", Side.SERVER.wire());
     }
 
-    // The report posts to a path resolved against the manifest URL, and resolve() drops a query
-    // string. Appending the side to the stored URL would have silently broken reporting, which is
-    // why manifestUrlFor builds the fetch URL separately.
     @Test
     void theReportUrlIsUnaffectedByTheSide() {
         assertEquals("https://hopper.example.com/api/clients/report",

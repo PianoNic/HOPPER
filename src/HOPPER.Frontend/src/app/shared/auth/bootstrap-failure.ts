@@ -3,8 +3,6 @@ import { environment } from '../environments/environment';
 
 export type BootstrapFailureKind = 'unreachable' | 'unconfigured' | 'unknown';
 
-// The names the operator actually sets, not the JSON keys the API answers with. Someone reading
-// this message is in a shell next to a compose file, not in the browser devtools.
 const SETTING_VARIABLES = [
   ['authority', 'Oidc__Authority'],
   ['clientId', 'Oidc__ClientId'],
@@ -18,9 +16,6 @@ export class UnconfiguredOidcError extends Error {
   }
 }
 
-// compose.yml defaults every Oidc__* variable to an empty string, and auth.config.ts coerces a
-// null to one too, so a fully reachable API can hand back a config that can never authenticate.
-// That is a different job from a dead API and needs its own instructions.
 export function missingOidcSettings(app: AppDto): ReadonlyArray<string> {
   return SETTING_VARIABLES.filter(([key]) => (app[key] ?? '') === '').map(([, name]) => name);
 }
@@ -52,9 +47,6 @@ export function bootstrapFailureMessage(
   );
 }
 
-// The one failure surface in the dashboard that is not a toast, because hlm-toaster is mounted
-// inside the routed shell and none of it exists yet when this runs. The markup it unhides lives in
-// index.html. Idempotent: the retry ladder can reach this more than once.
 export function showBootstrapFailure(
   kind: BootstrapFailureKind,
   missing: ReadonlyArray<string> = [],

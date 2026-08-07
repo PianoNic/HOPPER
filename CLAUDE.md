@@ -135,8 +135,16 @@ The API migrates at boot, so `dotnet ef database update` is never needed.
   restart-loops with nothing ever listening.
 - **`.gitattributes` pins `gradlew` to LF.** Under `core.autocrlf` a CRLF shebang makes the Docker
   locator stage fail with `./gradlew: not found`.
+- **`docs/locator.md` holds the locator build's reasoning**, which the `build.gradle` files used to
+  carry as comments: the version floor and ceiling of every adapter, checked against real loader
+  artifacts, what each one may and may not touch, why `--release` rather than a toolchain, and why
+  `-Werror` runs with exactly two lint categories off. Read it before changing anything under
+  `src/HOPPER.Locator/`, and put what you learn back into it rather than into a comment.
 - **Comments:** keep them to an absolute minimum in every language. Prefer naming and structure. The
-  bullets above exist so the code does not have to carry them.
+  bullets above, `docs/locator.md` and the rest of `docs/` exist so the code does not have to carry
+  them. Generated trees are out of scope and stay as their generator writes them:
+  `src/HOPPER.Frontend/libs/` (Spartan), `src/HOPPER.Frontend/src/app/api/` (`bun run apigen`) and
+  `src/HOPPER.Infrastructure/Migrations/` (`dotnet ef`).
 
 ## Before you claim it works
 

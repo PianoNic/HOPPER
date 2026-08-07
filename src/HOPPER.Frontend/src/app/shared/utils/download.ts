@@ -1,8 +1,3 @@
-// A blob URL has to outlive the click. `click()` only queues the download; the browser resolves
-// the URL after the current task ends, so revoking on the next line can detach it first and the
-// download silently does nothing. There is no completion event to wait on and no error to catch -
-// the caller has already reported success - so the URL is held for a minute instead. The anchor is
-// in the document for the same reason: a detached one has had its `download` attribute ignored.
 const REVOKE_AFTER_MS = 60_000;
 
 export function downloadBlob(blob: Blob, fileName: string): void {

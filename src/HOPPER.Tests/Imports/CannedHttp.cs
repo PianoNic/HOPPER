@@ -4,10 +4,6 @@ using System.Text;
 
 namespace HOPPER.Tests.Imports
 {
-    /// <summary>
-    /// A canned transport for the pack importers. The CurseForge path is unreachable without an
-    /// API key, so the only way to exercise it is to fake the wire rather than the interface.
-    /// </summary>
     internal sealed class CannedHttp(Func<string, string, HttpResponseMessage> respond)
         : HttpMessageHandler, IHttpClientFactory
     {
@@ -29,9 +25,6 @@ namespace HOPPER.Tests.Imports
             return respond(url, body);
         }
 
-        // A fresh client per call sharing this handler, and disposeHandler: false - CurseForgeClient
-        // does `using var http` twice in one plan (ResolveAsync then FindOnModrinthBySha1Async), so a
-        // handler disposed with the first client would take the second call down with it.
         public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 
         public static HttpResponseMessage Json(HttpStatusCode code, string body) =>

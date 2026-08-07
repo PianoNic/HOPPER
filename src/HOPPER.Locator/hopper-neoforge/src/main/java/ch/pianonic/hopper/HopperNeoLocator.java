@@ -89,7 +89,6 @@ public final class HopperNeoLocator implements IModFileCandidateLocator {
         return Paths.get(".");
     }
 
-
     @Override
     public String toString() {
         return "{HOPPER locator}";

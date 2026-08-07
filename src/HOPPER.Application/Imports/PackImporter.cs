@@ -368,9 +368,6 @@ namespace HOPPER.Application.Imports
                     Size = staged.Size,
                     UploadedBy = import.CreatedBy,
 
-                    // The pack is believed over the jar. Only when the index said nothing does the
-                    // jar's own declaration get a say, which is the whole story for a Prism or
-                    // CurseForge import - neither format carries a side.
                     Side = side != ModSide.Both ? side : ModSideReader.FromStaged(blobs, staged),
 
                     ModIds = ModIdReader.FromStaged(blobs, staged),

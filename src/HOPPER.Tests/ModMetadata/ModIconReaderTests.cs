@@ -37,8 +37,6 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(ModIconReader.Read(jar)).IsEquivalentTo(Png);
         }
 
-        // Exactly how a real Forge mod writes it: spaces around the equals, and the key at the
-        // root above [[mods]] rather than inside it.
         [Test]
         public async Task Reads_ALogoDeclaredTheWayForgeModsActuallyWriteIt()
         {
@@ -67,8 +65,6 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(ModIconReader.Read(jar)).IsEquivalentTo(Png);
         }
 
-        // Fabric allows an object keyed by pixel size. The table scales down cleanly and up badly,
-        // so the biggest is the one worth taking.
         [Test]
         public async Task Reads_TheBiggestOfASizeKeyedFabricIcon()
         {
@@ -104,7 +100,6 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(ModIconReader.Read(jar)).IsNull();
         }
 
-        // The declared path is a string from a stranger's archive.
         [Test]
         [Arguments("../../../etc/passwd")]
         [Arguments("C:/Windows/win.ini")]
@@ -117,9 +112,6 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(ModIconReader.Normalise(declared)).IsNull();
         }
 
-        // A leading slash is dropped rather than refused, and that is safe: what comes back is an
-        // entry name looked up inside the archive, never a path on disk. "/etc/passwd" resolves to
-        // the archive entry "etc/passwd" and to nothing else.
         [Test]
         public async Task Normalise_KeepsAnOrdinaryPathAndDropsALeadingSlashOnly()
         {
@@ -128,7 +120,6 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(ModIconReader.Normalise("/etc/passwd")).IsEqualTo("etc/passwd");
         }
 
-        // A jar can declare anything as its icon, including a jar.
         [Test]
         public async Task Returns_NothingWhenTheDeclaredFileIsNotAnImage()
         {

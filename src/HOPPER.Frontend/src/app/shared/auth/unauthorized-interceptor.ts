@@ -4,32 +4,23 @@ import { catchError, tap, throwError } from 'rxjs';
 import { environment } from '../environments/environment';
 import { SessionRecovery } from './session-recovery';
 
-// autoLoginPartialRoutesGuard only fires on navigation, so a session that dies while the user sits
-// on one page never reaches it. This covers the in-place XHR case and nothing else.
 export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
-  // Hoisted deliberately: inject() inside catchError runs outside the injection context and throws.
   const recovery = inject(SessionRecovery);
 
   return next(req).pipe(
     tap((event) => {
-      // The API answering at all is the only proof the token it was handed is accepted, which is
-      // what lets the next expiry redirect again instead of reporting a broken provider.
       if (event instanceof HttpResponse && isApiRequest(req.url)) recovery.clear();
     }),
     catchError((err: unknown) => {
       if (err instanceof HttpErrorResponse && err.status === 401 && isApiRequest(req.url)) {
         recovery.recover();
       }
-      // Rethrown so the page's own toast still fires once for the request that was in flight.
+
       return throwError(() => err);
     }),
   );
 };
 
-// A 401 from the identity provider's own token endpoint is the library's to handle; treating it as
-// a dead session would start a redirect fight with it. The path matters and not just the origin:
-// in production apiBaseUrl is window.location.origin, and an IdP reverse-proxied onto that same
-// origin would otherwise match every one of the library's own token requests.
 export function isApiRequest(url: string): boolean {
   return url.startsWith(`${environment.apiBaseUrl.replace(/\/+$/, '')}/api/`);
 }

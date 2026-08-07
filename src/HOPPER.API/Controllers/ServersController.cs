@@ -99,7 +99,6 @@ namespace HOPPER.API.Controllers
         }
     }
 
-    // No slug: it is derived from the name and never accepted from a caller.
     public record CreateServerRequest(
         string Name,
         string? MinecraftVersion = null,

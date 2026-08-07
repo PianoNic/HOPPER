@@ -230,8 +230,6 @@ export class ServerClients {
     const now = this.now();
     const rows = this.clients().map((client) => diffClient(client, required, now));
 
-    // Servers first. There is at most a handful of them against any number of players, and burying
-    // the one machine the whole group depends on somewhere in the list helps nobody.
     return [...rows].sort((a, b) => Number(this.isServer(b)) - Number(this.isServer(a)));
   });
 
@@ -239,15 +237,10 @@ export class ServerClients {
     return row.client.side === SYNC_SIDE.server;
   }
 
-  // The whole mod list is the wrong denominator once sides exist: a server showing 2/3 reads as
-  // missing one when it has everything it was sent.
   protected requiredFor(row: ClientDrift): number {
     return this.requiredMods().filter((m) => reaches(m, row.client.side)).length;
   }
 
-  // How many of the required mods the client actually has, not how many it reported. Those differ
-  // when it holds something it should not, and reporting the raw count next to a "1 missing" badge
-  // read as a contradiction: 2/2 and one missing cannot both be true.
   protected matchedFor(row: ClientDrift): number {
     return this.requiredFor(row) - row.missing.length;
   }
@@ -263,8 +256,6 @@ export class ServerClients {
     );
   });
 
-  // The paused poll has to stay visible after the toast expires, and a relabelled control that
-  // already existed says so without an inline error message.
   protected readonly refreshLabel = computed(() => {
     if (this.loading()) return 'Loading';
     return this.pollFailed() ? 'Reconnect' : 'Refresh';
@@ -290,8 +281,6 @@ export class ServerClients {
       this.load(id);
     });
 
-    // Pausing while hidden means a tab that comes back is up to POLL_MS stale with nothing saying
-    // so, so becoming visible costs one request rather than a wait.
     fromEvent(document, 'visibilitychange')
       .pipe(
         rxFilter(() => shouldPoll({
@@ -303,9 +292,6 @@ export class ServerClients {
       )
       .subscribe(() => this.load(this.serverId()));
 
-    // The request lives inside the interval's own switchMap rather than in a subscription the
-    // interval spawns. That is the whole fix: a detached inner subscription dies alone and the
-    // interval never learns it failed, so it can neither stop nor stop toasting.
     interval(POLL_MS)
       .pipe(
         rxFilter(() =>
@@ -359,13 +345,11 @@ export class ServerClients {
     this.clients.set(snapshot.clients);
     this.requiredMods.set(snapshot.mods);
     this.now.set(Date.now());
-    // Any success clears the streak, so a successful Reconnect both fills the table and restarts
-    // the poll. There is no second recovery mechanism.
+
     this.pollFailed.set(false);
     this.loading.set(false);
   }
 
-  // The user asked for this one, so it toasts every time. The poll does not.
   private load(id: string): void {
     this.loading.set(true);
 

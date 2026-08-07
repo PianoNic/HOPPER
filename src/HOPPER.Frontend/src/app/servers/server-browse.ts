@@ -68,12 +68,8 @@ import { ModrinthPlanDialogService } from './modrinth-plan-dialog';
 
 const PAGE_SIZE = 50;
 
-// How far past the end of the list the next page is fetched, in viewports. Three is enough that a
-// steady scroll never reaches the bottom, without pulling the whole catalogue for one glance.
 const LOOKAHEAD_VIEWPORTS = 3;
 
-// Matched on the host rather than anywhere in the URL, or a repository called "github-mirror" on
-// some other forge would wear the wrong mark.
 const SOURCE_HOSTS: ReadonlyArray<{ matches: (url: string) => boolean; icon: string; title: string }> =
   (
     [
@@ -548,8 +544,6 @@ export class ServerBrowse {
     retry: this.detailRetry(),
   }));
 
-  // Modrinth allows 300 requests a minute and a browse page can burn that clicking back and forth,
-  // so a project is fetched once and kept for as long as the page lives.
   private readonly detailCache = new Map<string, ModrinthProjectDto>();
 
   protected readonly body = computed(() => {
@@ -600,12 +594,8 @@ export class ServerBrowse {
       if (id !== '') this.load(id);
     });
 
-    // afterNextRender rather than the constructor: there is no IntersectionObserver on the server,
-    // and the sentinel does not exist until the results have rendered at least once.
     afterNextRender(() => this.observe());
 
-    // Re-observes when the sentinel is replaced by a new search, and stops once there is nothing
-    // left to fetch, so an idle page at the end of the results costs nothing.
     effect(() => {
       this.sentinel();
       if (this.hasMore()) this.observe();
@@ -614,8 +604,6 @@ export class ServerBrowse {
 
     this.destroyRef.onDestroy(() => this.disconnect());
 
-    // switchMap so clicking a second card before the first answers drops the first: the pane must
-    // never fill in with the project the reader has already moved on from.
     toObservable(this.detailKey)
       .pipe(
         switchMap(({ hit }) => {
@@ -634,8 +622,6 @@ export class ServerBrowse {
           this.detailFailed.set(false);
           this.detailLoading.set(true);
           return this.api.apiModrinthProjectsIdOrSlugGet(hit.slug ?? hit.projectId).pipe(
-            // EMPTY keeps the outer subscription alive so the next card still fetches; failed is
-            // what stops the pane sitting empty once the toast has gone.
             catchError((err: unknown) => {
               toast.error(messageFrom(err, 'Failed to load this mod from Modrinth'));
               this.detailLoading.set(false);
@@ -738,8 +724,6 @@ export class ServerBrowse {
     this.selected.set(this.selected()?.projectId === hit.projectId ? null : hit);
   }
 
-  // A counter rather than re-setting the selection: a signal set to null and back in one tick
-  // coalesces to no change at all, so the switchMap would never see a second value.
   protected retryDetail(): void {
     this.detailRetry.update((tick) => tick + 1);
   }
@@ -761,13 +745,8 @@ export class ServerBrowse {
     const target = this.sentinel()?.nativeElement;
     if (!target) return;
 
-    // Reconnected rather than reused when the sentinel is recreated: it lives inside the @if that
-    // the empty and error states replace, so the node identity does not survive a new search.
     this.observer?.disconnect();
 
-    // root is the scrolling box, not the viewport. An IntersectionObserver intersects the root
-    // clipped by every scrolling ancestor, so against the viewport a rootMargin would be cut back
-    // to this box anyway and the fetch would only start once the end was nearly on screen.
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) this.loadMore();
@@ -839,8 +818,6 @@ export class ServerBrowse {
 
     const added = result.installed.length + result.adopted.length + result.replaced.length;
     if (added > 0) {
-      // Names the mod, because add() may have skipped the dialog entirely and four files arriving
-      // after one click with no feedback is worse than the extra click it replaced.
       const extra = added - 1;
       toast.success(
         extra > 0
@@ -849,9 +826,6 @@ export class ServerBrowse {
       );
     }
 
-    // Marked here rather than re-queried. A refresh restarts at offset 0, which the subscription
-    // treats as a replacement, so everything scrolled since would be thrown away and the reader
-    // dropped back at the top. The one thing the refresh was for is this flag.
     this.markInstalled(projectId);
     this.serverChanged.changed();
   }

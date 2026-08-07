@@ -10,7 +10,6 @@ namespace HOPPER.Tests.ModMetadata
     {
         private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 7, 7, 7];
 
-        // The shape a real Forge jar has: CRLF, and logoFile inside [[mods]].
         private const string RealToml =
             "modLoader = \"javafml\"\r\nloaderVersion = \"[46,)\"\r\n\r\n[[mods]]\r\nmodId = \"jade\"\r\nlogoFile = \"icon.png\"\r\n";
 
@@ -48,8 +47,6 @@ namespace HOPPER.Tests.ModMetadata
             return buffer;
         }
 
-        // The whole production path: a jar already in the blob store, read back and its icon
-        // stored as its own blob. This is what the backfill does for every existing row.
         [Test]
         public async Task FromJarAsync_StoresTheIconOfAJarAlreadyInTheStore()
         {
@@ -86,8 +83,6 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(blobs.Exists(icon!)).IsTrue();
         }
 
-        // Twice over, because the store is content-addressed and twenty servers sharing one icon
-        // must cost one copy.
         [Test]
         public async Task FromJarAsync_GivesTheSameShaForTheSameIcon()
         {

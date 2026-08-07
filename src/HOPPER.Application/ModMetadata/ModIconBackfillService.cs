@@ -10,8 +10,6 @@ namespace HOPPER.Application.ModMetadata
     public sealed class ModIconBackfillService(IServiceScopeFactory scopes, ILogger<ModIconBackfillService> log)
         : BackgroundService
     {
-        // Smaller than the mod id backfill's: each row here reads a whole jar into memory to find
-        // one small file inside it, where reading ids only touches a few metadata entries.
         private const int BatchSize = 50;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

@@ -26,7 +26,6 @@ namespace HOPPER.Application
 
             return slug.Length == 0 ? null : slug;
         }
-
     }
 
     public sealed class ServerNotFoundException(Guid id)

@@ -3,14 +3,6 @@ using HOPPER.Domain.Enums;
 
 namespace HOPPER.Application.Imports
 {
-    /// <summary>
-    /// Reads the side a pack declares. Modrinth spells it two ways for the same idea - an
-    /// <c>env</c> object per file in an .mrpack index, and <c>client_side</c>/<c>server_side</c> on
-    /// a project from the API - and both use the same vocabulary, so one reader serves both.
-    ///
-    /// Absent or unrecognised is Both, which is what a mod with no declaration got before the side
-    /// existed. Guessing narrower would silently withhold a jar somebody needs.
-    /// </summary>
     public static class PackEnv
     {
         private const string Unsupported = "unsupported";
@@ -20,9 +12,6 @@ namespace HOPPER.Application.Imports
             var clientOut = string.Equals(client, Unsupported, StringComparison.OrdinalIgnoreCase);
             var serverOut = string.Equals(server, Unsupported, StringComparison.OrdinalIgnoreCase);
 
-            // Unsupported on both sides is a contradiction the pack has to answer for, not
-            // something to resolve by dropping the jar. Both keeps it visible in the dashboard,
-            // where the admin can see it and decide.
             if (clientOut && serverOut)
                 return ModSide.Both;
 
@@ -35,9 +24,6 @@ namespace HOPPER.Application.Imports
             return ModSide.Both;
         }
 
-        /// <summary>The inverse, for writing a pack. Kept beside the reader so the two are edited
-        /// together: an export that disagrees with the import silently flattens the classification
-        /// on a round trip.</summary>
         public static (string Client, string Server) Wire(ModSide side) => side switch
         {
             ModSide.ClientOnly => ("required", Unsupported),
@@ -45,7 +31,6 @@ namespace HOPPER.Application.Imports
             _ => ("required", "required"),
         };
 
-        /// <summary>Reads the <c>env</c> object of one .mrpack files[] entry.</summary>
         public static ModSide SideOf(JsonElement file)
         {
             if (!file.TryGetProperty("env", out var env) || env.ValueKind != JsonValueKind.Object)

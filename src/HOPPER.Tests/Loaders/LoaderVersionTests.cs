@@ -4,8 +4,6 @@ namespace HOPPER.Tests.Loaders
 {
     public class LoaderVersionTests
     {
-        // NeoForge encodes the Minecraft version in its own build number, so getting this wrong
-        // offers a 1.21.1 server the builds of a different Minecraft entirely.
         [Test]
         [Arguments("1.21.1", "21.1.")]
         [Arguments("1.21", "21.0.")]
@@ -24,8 +22,6 @@ namespace HOPPER.Tests.Loaders
             await Assert.That(LoaderVersionClient.NeoForgePrefix(minecraft)).IsNull();
         }
 
-        // Quilt's newest published entry is routinely a beta, and recommending one is worse than
-        // offering a slightly older build.
         [Test]
         [Arguments("0.30.1-beta.2", false)]
         [Arguments("0.30.0", true)]

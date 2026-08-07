@@ -1,18 +1,3 @@
-// Fabric. DEGRADED ON PURPOSE, and the adapter has to say so in its log line.
-//
-// Fabric exposes no pre-discovery hook. Knot.init runs loader.load() - all discovery and
-// resolution - then loader.freeze(), then Mixin bootstrap, then the transformers, and only then
-// invokeEntrypoints("preLaunch", ...). By the time HOPPER runs, the loader is frozen and
-// additional mods throw IllegalStateException. There is no ordering trick that changes this.
-//
-// The one lever is the fabric.addMods system property, read INSIDE discoverMods, so setting it
-// from preLaunch is far too late; setting it early enough means a JVM command-line argument, which
-// is a launcher setting HOPPER refuses to need.
-//
-// So: sync in preLaunch, and when something changed, tell the player a restart is required.
-//
-// 8: fabric-loader's own classes are classfile 52, and Fabric spans Minecraft 1.14 (Java 8) to
-// 1.21+ (Java 21). Nothing here needs more than 8.
 tasks.withType(JavaCompile).configureEach {
     options.release = 8
 }
@@ -23,32 +8,10 @@ test {
 }
 
 dependencies {
-    // The one place in this project that writes into a directory the player owns, so it is the one
-    // adapter that carries its own tests rather than leaning on hopper-core's.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     compileOnly 'net.fabricmc:fabric-loader:0.19.3'
-    // Minecraft has shipped log4j in every version Fabric supports, and Knot unlocks the game
-    // classpath one line before it invokes preLaunch, so log4j-api is reachable there.
+
     compileOnly 'org.apache.logging.log4j:log4j-api:2.15.0'
 }
-
-// Declaration: src/main/resources/fabric.mod.json, NOT a services file. Knot invokes the literal
-// key "preLaunch":
-//   { "schemaVersion": 1, "id": "hopper", "version": "1.0.0", "environment": "*",
-//     "entrypoints": { "preLaunch": ["ch.pianonic.hopper.HopperPreLaunch"] } }
-//
-// Manifest: nothing beyond Implementation-Version.
-//
-// Syncing into hopper/ alone is useless on Fabric - nothing scans that directory, so a restart
-// would change nothing. This adapter, and ONLY this adapter, therefore also reconciles mods/:
-// the core still syncs hopper/ with no mods/ write in it, and a ModsFolderMirror owns exactly the
-// filenames it records in hopper/mods-mirror.txt. A file in mods/ that is not in that list is
-// never touched.
-//
-// And it is OPT-IN. Writing into a directory the player owns is the one thing in this project that
-// can destroy something of theirs, so it needs a human to have said yes: fabricMirrorMods=true in
-// config/hopper.properties, read from the player's file and never from the server-written
-// properties embedded in the jar. Off, this adapter still syncs hopper/ and then states plainly
-// that nothing will load and which line to add. See Config.mirrorMods().

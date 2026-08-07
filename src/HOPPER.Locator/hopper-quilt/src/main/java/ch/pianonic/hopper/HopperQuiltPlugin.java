@@ -53,5 +53,4 @@ public final class HopperQuiltPlugin implements QuiltLoaderPlugin {
         }
         return Paths.get(".");
     }
-
 }

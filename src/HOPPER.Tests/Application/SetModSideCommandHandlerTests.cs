@@ -55,8 +55,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_ModOnAnotherServer_IsNotTouched()
         {
-            // The tenant boundary. An id from another server has to match nothing rather than be
-            // reassigned across it.
             await using var db = NewDb();
             var mine = NewMod(ServerA, "jei.jar");
             var theirs = NewMod(ServerB, "jade.jar");
@@ -115,8 +113,6 @@ namespace HOPPER.Tests.Application
         [Test]
         public async Task Handle_SideOutsideTheEnum_IsRejected()
         {
-            // Mapped to 400 by the ArgumentException arm. A cast integer arriving from the wire
-            // must not be written to the column as-is.
             await using var db = NewDb();
             var mod = NewMod(ServerA, "jei.jar");
             db.Mods.Add(mod);

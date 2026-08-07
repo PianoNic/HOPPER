@@ -28,9 +28,6 @@ namespace HOPPER.Application.Command.Servers
             if (!Enum.IsDefined(command.Loader))
                 throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");
 
-            // The slug is deliberately left alone on a rename: it is the readable half of a URL an
-            // admin may already have handed out, and a handle that moves silently is worse than an
-            // ugly one.
             server.Name = name;
 
             server.MinecraftVersion = ServerPlatform.NormaliseVersion(command.MinecraftVersion, "Minecraft version");

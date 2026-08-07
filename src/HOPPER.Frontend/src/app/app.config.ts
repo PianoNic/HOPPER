@@ -26,12 +26,11 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    // Ours first, so its catchError sees the errors of everything downstream of it.
+
     provideHttpClient(withInterceptors([unauthorizedInterceptor, authInterceptor()])),
     provideApi(environment.apiBaseUrl),
     provideAuth({ loader: authLoaderProvider }, withAppInitializerAuthCheck()),
-    // Covers the case the interceptor cannot: an idle user firing no requests at all, whose
-    // refresh token quietly dies. Same latch, so a renewal failure racing a 401 is one redirect.
+
     provideAppInitializer(() => {
       const events = inject(PublicEventsService);
       const recovery = inject(SessionRecovery);

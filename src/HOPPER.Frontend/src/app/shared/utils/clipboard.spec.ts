@@ -15,7 +15,6 @@ describe('copyText', () => {
   let execCommand: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    // jsdom implements neither, which is also the shape of the browsers this fallback exists for.
     execCommand = vi.fn(() => true);
     document.execCommand = execCommand as unknown as typeof document.execCommand;
   });

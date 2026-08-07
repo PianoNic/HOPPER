@@ -14,8 +14,6 @@ namespace HOPPER.Application.Imports
                 .Where(e => e.Name.Equals("instance.cfg", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            // Zipping the instances/ folder rather than one instance is an ordinary mistake, and
-            // taking the first of several would import one instance's mods and report success.
             if (instanceCfgs.Count > 1)
             {
                 var names = instanceCfgs

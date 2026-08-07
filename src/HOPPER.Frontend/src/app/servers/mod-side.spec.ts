@@ -8,14 +8,11 @@ describe('modSideLabel', () => {
     expect(modSideLabel(MOD_SIDE.serverOnly)).toBe('Server only');
   });
 
-  // A value the dashboard does not know about is a server that has moved on, not a crash. Reading
-  // it as Both matches what the backend does with an unrecognised side.
   it('falls back to Both for anything unknown', () => {
     expect(modSideLabel(99)).toBe('Both');
   });
 });
 
-// The counts in the header, extracted so the arithmetic is testable without a component harness.
 export function sideCounts(sides: ReadonlyArray<number>): { clients: number; servers: number } {
   return {
     clients: sides.filter((s) => s !== MOD_SIDE.serverOnly).length,

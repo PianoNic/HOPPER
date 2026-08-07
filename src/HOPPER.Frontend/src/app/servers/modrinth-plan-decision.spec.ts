@@ -39,7 +39,6 @@ describe('needsADecision', () => {
     expect(needsADecision({ ...plan(), optional: [node()] })).toBe(true);
   });
 
-  // Not optional, and the one case where Add must refuse rather than proceed silently.
   it('asks when the plan is blocked by an incompatibility', () => {
     expect(needsADecision({ ...plan(), blocked: true })).toBe(true);
   });

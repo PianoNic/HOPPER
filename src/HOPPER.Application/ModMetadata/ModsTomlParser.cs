@@ -85,11 +85,6 @@ namespace HOPPER.Application.ModMetadata
             return [.. ids];
         }
 
-        /// <summary>
-        /// The first value of a bare key, wherever it sits. Enough for logoFile, which mods.toml
-        /// puts at the root on some mods and inside [[mods]] on others, and not enough for anything
-        /// that needs to know which table it came from.
-        /// </summary>
         public static string? Value(string text, string key)
         {
             if (string.IsNullOrEmpty(text)) return null;

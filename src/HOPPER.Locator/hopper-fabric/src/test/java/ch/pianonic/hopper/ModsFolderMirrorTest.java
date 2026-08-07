@@ -31,14 +31,6 @@ class ModsFolderMirrorTest {
         assertEquals(0, mirror.unresolved());
     }
 
-    /**
-     * A copy that dies halfway must not leave a truncated zip under a name the loader scans: Fabric
-     * would fail the launch before preLaunch could run and repair it, and on a first copy the name
-     * is not in the ledger yet, so the repair pass would never even consider it.
-     *
-     * <p>The failure is forced by parking a non-empty directory on the staging name, which is the
-     * one way to make Files.copy throw that behaves the same on every OS.
-     */
     @Test
     void aFailedCopyLeavesNothingBehindUnderTheJarName(@TempDir Path game) throws Exception {
         Path mods = Files.createDirectories(game.resolve("mods"));
