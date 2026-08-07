@@ -16,6 +16,12 @@ namespace HOPPER.Domain
 
         public ModSource Source { get; set; } = ModSource.Manual;
 
+        /// <summary>
+        /// Which side this jar belongs on. Both is 0 so every row that predates the column keeps
+        /// going everywhere, which is what HOPPER did before there was a side at all.
+        /// </summary>
+        public ModSide Side { get; set; } = ModSide.Both;
+
         public string? ProjectId { get; set; }
 
         public string? VersionId { get; set; }

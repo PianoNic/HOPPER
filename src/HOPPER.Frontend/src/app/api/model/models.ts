@@ -41,5 +41,7 @@ export * from './pendingModDtoProjectId';
 export * from './problemDetails';
 export * from './serverDto';
 export * from './serverTokenDto';
+export * from './setModSideRequest';
+export * from './setModSideResultDto';
 export * from './stringSegment';
 export * from './updateServerRequest';

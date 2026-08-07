@@ -4,6 +4,12 @@ export const MOD_SOURCE = {
   curseForge: 2,
 } as const;
 
+export const MOD_SIDE = {
+  both: 0,
+  clientOnly: 1,
+  serverOnly: 2,
+} as const;
+
 export const MOD_LOADER = {
   unknown: 0,
   forge: 1,

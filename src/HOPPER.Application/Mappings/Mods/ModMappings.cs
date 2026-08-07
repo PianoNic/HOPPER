@@ -14,6 +14,7 @@ namespace HOPPER.Application.Mappings.Mods
             UploadedBy = m.UploadedBy,
             CreatedAt = m.CreatedAt,
             Source = m.Source,
+            Side = m.Side,
             ProjectId = m.ProjectId,
             VersionId = m.VersionId,
             ProjectName = m.ProjectName,

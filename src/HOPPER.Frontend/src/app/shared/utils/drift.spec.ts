@@ -3,7 +3,7 @@ import { countDrift, diffClient, OFFLINE_AFTER_LABEL, OFFLINE_AFTER_MS } from '.
 import { ClientDto } from '../../api/model/clientDto';
 import { ClientModDto } from '../../api/model/clientModDto';
 import { ModDto } from '../../api/model/modDto';
-import { MOD_SOURCE } from '../../servers/mod-labels';
+import { MOD_SIDE, MOD_SOURCE } from '../../servers/mod-labels';
 
 const NOW = Date.parse('2026-08-05T12:00:00Z');
 
@@ -16,6 +16,7 @@ function mod(fileName: string, sha256: string): ModDto {
     uploadedBy: null,
     createdAt: '2026-08-01T00:00:00Z',
     source: MOD_SOURCE.manual,
+    side: MOD_SIDE.both,
   };
 }
 
