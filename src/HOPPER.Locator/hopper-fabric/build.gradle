@@ -17,7 +17,17 @@ tasks.withType(JavaCompile).configureEach {
     options.release = 8
 }
 
+test {
+    useJUnitPlatform()
+    testLogging.events 'passed', 'failed', 'skipped'
+}
+
 dependencies {
+    // The one place in this project that writes into a directory the player owns, so it is the one
+    // adapter that carries its own tests rather than leaning on hopper-core's.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
     compileOnly 'net.fabricmc:fabric-loader:0.19.3'
     // Minecraft has shipped log4j in every version Fabric supports, and Knot unlocks the game
     // classpath one line before it invokes preLaunch, so log4j-api is reachable there.

@@ -48,4 +48,10 @@ COPY --from=frontend-build /artifacts/frontend/browser ./wwwroot
 RUN mkdir -p /data && chown -R app:app /data /app
 USER app
 
+# Here rather than in compose.yml, so `docker run` and every orchestrator get it too; compose
+# inherits it. start-period covers the migrations that run at boot. curl ships in the base image.
+# Note that Docker does not restart an unhealthy container on its own - this reports, it does not
+# repair.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3     CMD curl -fsS http://localhost:8080/health/ready || exit 1
+
 ENTRYPOINT ["dotnet", "HOPPER.API.dll"]

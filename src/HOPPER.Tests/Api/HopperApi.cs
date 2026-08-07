@@ -48,6 +48,13 @@ namespace HOPPER.Tests.Api
 
             Environment.SetEnvironmentVariable("Hopper__BootstrapClientToken", ClientToken);
 
+            // Pinned rather than inherited: unset, the readiness check reports "not configured" and
+            // pointed at a stale build directory it reports unhealthy, so the same suite would say
+            // different things on CI and on a developer's machine.
+            var templates = Directory.CreateDirectory(Path.Combine(state, "locator")).FullName;
+            File.WriteAllBytes(Path.Combine(templates, "hopper-forge-modern.jar"), [0x50, 0x4B, 0x05, 0x06]);
+            Environment.SetEnvironmentVariable("Hopper__LocatorTemplateDirectory", templates);
+
             Environment.SetEnvironmentVariable("Oidc__Authority", null);
             Environment.SetEnvironmentVariable("Oidc__InternalAuthority", null);
 

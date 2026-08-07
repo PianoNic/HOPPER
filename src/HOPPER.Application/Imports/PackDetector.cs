@@ -10,12 +10,27 @@ namespace HOPPER.Application.Imports
             if (DetectAt(archive, string.Empty) is { } atRoot)
                 return atRoot;
 
-            var instanceCfg = archive.Entries
-                .FirstOrDefault(e => e.Name.Equals("instance.cfg", StringComparison.OrdinalIgnoreCase));
+            var instanceCfgs = archive.Entries
+                .Where(e => e.Name.Equals("instance.cfg", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-            if (instanceCfg is not null)
+            // Zipping the instances/ folder rather than one instance is an ordinary mistake, and
+            // taking the first of several would import one instance's mods and report success.
+            if (instanceCfgs.Count > 1)
             {
-                var prefix = DirectoryOf(instanceCfg.FullName);
+                var names = instanceCfgs
+                    .Select(e => DirectoryOf(e.FullName).TrimEnd('/'))
+                    .Select(d => d.Length == 0 ? "(the archive root)" : d)
+                    .Order(StringComparer.OrdinalIgnoreCase);
+
+                throw new PackImportException(
+                    $"This archive holds {instanceCfgs.Count} Prism instances: {string.Join(", ", names)}. "
+                    + "Export the one you want on its own, or zip a single instance folder rather than the folder holding them.");
+            }
+
+            if (instanceCfgs.Count == 1)
+            {
+                var prefix = DirectoryOf(instanceCfgs[0].FullName);
                 return DetectAt(archive, prefix) ?? new PackDetection(PackFormat.PrismInstance, prefix);
             }
 

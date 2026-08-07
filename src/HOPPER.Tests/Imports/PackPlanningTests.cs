@@ -74,6 +74,22 @@ namespace HOPPER.Tests.Imports
         }
 
         [Test]
+        public async Task Detect_APrismArchiveHoldingSeveralInstances_SaysSoRatherThanImportingTheFirst()
+        {
+            using var archive = ArchiveOf(
+                ("instances/A/instance.cfg", "[General]\nname=A\n"),
+                ("instances/A/minecraft/mods/a.jar", "PK a"),
+                ("instances/B/instance.cfg", "[General]\nname=B\n"),
+                ("instances/B/minecraft/mods/b.jar", "PK b"));
+
+            var ex = Assert.Throws<PackImportException>(() => PackDetector.Detect(archive));
+
+            await Assert.That(ex!.Message).Contains("2 Prism instances");
+            await Assert.That(ex.Message).Contains("instances/A");
+            await Assert.That(ex.Message).Contains("instances/B");
+        }
+
+        [Test]
         public async Task Detect_PrismZipWrappingAnMrpack_DelegatesToModrinth()
         {
             using var archive = ArchiveOf(
