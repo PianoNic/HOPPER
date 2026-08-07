@@ -108,6 +108,8 @@ namespace HOPPER.Application.Command.Mods
                     Size = staged.Size,
                     UploadedBy = currentUser.Name,
 
+                    Side = ModSideReader.FromStaged(blobs, staged),
+
                     ModIds = ModIdReader.FromStaged(blobs, staged),
                     IconSha256 = await ModIconStore.FromStagedJarAsync(blobs, staged, cancellationToken),
                 };
