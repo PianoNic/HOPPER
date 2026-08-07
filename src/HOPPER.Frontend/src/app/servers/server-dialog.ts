@@ -51,8 +51,8 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
           A server owns its own mod list, its own clients and its own client token. Jars shared with
           another server are stored once, so a second server costs nothing in disk.
         } @else {
-          The slug names the generated jar, so changing it changes the filename players download
-          next. Tokens and mods are untouched.
+          Tokens, mods and the slug are untouched. The slug is what names the generated jar, so it
+          stays put even when the server is renamed.
         }
       </p>
     </hlm-dialog-header>
@@ -69,25 +69,6 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
           [disabled]="saving()"
           (input)="onName($event)"
         />
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <label hlmLabel for="server-slug">Slug</label>
-        <input
-          hlmInput
-          id="server-slug"
-          class="w-full font-mono"
-          [placeholder]="slugPlaceholder()"
-          [value]="slug()"
-          [disabled]="saving()"
-          (input)="onSlug($event)"
-        />
-        <p class="text-muted-foreground text-xs">
-          Lowercase letters, digits and dashes. Used as <code class="font-mono">&lt;slug&gt;-hopper.jar</code>.
-          @if (creating) {
-            Leave it empty to derive one from the name.
-          }
-        </p>
       </div>
 
       <!-- What this server runs. All three are optional and leaving them unset changes nothing
@@ -170,7 +151,6 @@ export class ServerDialog {
   protected readonly loaders = LOADERS;
 
   protected readonly name = signal(this.ctx.mode === 'rename' ? this.ctx.server.name : '');
-  protected readonly slug = signal(this.ctx.mode === 'rename' ? this.ctx.server.slug : '');
   protected readonly saving = signal(false);
 
   protected readonly minecraftVersion = signal(
@@ -189,29 +169,28 @@ export class ServerDialog {
 
   constructor() {
     this.modrinth.apiModrinthTagsGet().subscribe({
-      next: (tags) => this.gameVersions.set(tags.gameVersions),
+      next: (tags) => {
+        this.gameVersions.set(tags.gameVersions);
+
+        // The first entry, because Modrinth returns newest first and the API already drops
+        // everything that is not a release. Not the first `major` one: that flag marks 1.20 apart
+        // from 1.20.1 and is false for every current version, so it would find nothing.
+        //
+        // Only on create, and only while the field is untouched. A failed fetch leaves it empty,
+        // which is what it did before, so the dialog still works without Modrinth.
+        if (this.creating && this.minecraftVersion() === '') {
+          const newest = tags.gameVersions[0]?.version;
+          if (newest) this.minecraftVersion.set(newest);
+        }
+      },
       error: () => this.gameVersions.set([]),
     });
   }
 
-  protected readonly slugPlaceholder = computed(() => {
-    const derived = this.name()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    return derived === '' ? 'survival-1-20-1' : derived;
-  });
-
-  protected readonly canSave = computed(
-    () => this.name().trim() !== '' && (this.creating || this.slug().trim() !== ''),
-  );
+  protected readonly canSave = computed(() => this.name().trim() !== '');
 
   protected onName(event: Event): void {
     this.name.set((event.target as HTMLInputElement).value);
-  }
-
-  protected onSlug(event: Event): void {
-    this.slug.set((event.target as HTMLInputElement).value);
   }
 
   protected onMinecraftVersion(value: unknown): void {
@@ -232,7 +211,6 @@ export class ServerDialog {
     this.saving.set(true);
 
     const name = this.name().trim();
-    const slug = this.slug().trim();
 
     const minecraftVersion = this.minecraftVersion().trim() || null;
     const loaderVersion = this.loaderVersion().trim() || null;
@@ -242,14 +220,12 @@ export class ServerDialog {
       this.ctx.mode === 'create'
         ? this.api.apiServersPost({
             name,
-            slug: slug === '' ? null : slug,
             minecraftVersion,
             loader,
             loaderVersion,
           })
         : this.api.apiServersIdPut(this.ctx.server.id, {
             name,
-            slug,
             minecraftVersion,
             loader,
             loaderVersion,

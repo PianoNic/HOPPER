@@ -36,7 +36,7 @@ namespace HOPPER.API.Controllers
         public async Task<IActionResult> Create([FromBody] CreateServerRequest body, CancellationToken cancellationToken = default)
         {
             var result = await mediator.Send(
-                new CreateServerCommand(body.Name, body.Slug, body.MinecraftVersion, body.Loader, body.LoaderVersion),
+                new CreateServerCommand(body.Name, body.MinecraftVersion, body.Loader, body.LoaderVersion),
                 cancellationToken);
             return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
         }
@@ -49,7 +49,7 @@ namespace HOPPER.API.Controllers
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateServerRequest body, CancellationToken cancellationToken = default)
         {
             var result = await mediator.Send(
-                new UpdateServerCommand(id, body.Name, body.Slug, body.MinecraftVersion, body.Loader, body.LoaderVersion),
+                new UpdateServerCommand(id, body.Name, body.MinecraftVersion, body.Loader, body.LoaderVersion),
                 cancellationToken);
             return Ok(result);
         }
@@ -99,16 +99,15 @@ namespace HOPPER.API.Controllers
         }
     }
 
+    // No slug: it is derived from the name and never accepted from a caller.
     public record CreateServerRequest(
         string Name,
-        string? Slug,
         string? MinecraftVersion = null,
         ModLoader Loader = ModLoader.Unknown,
         string? LoaderVersion = null);
 
     public record UpdateServerRequest(
         string Name,
-        string Slug,
         string? MinecraftVersion = null,
         ModLoader Loader = ModLoader.Unknown,
         string? LoaderVersion = null);

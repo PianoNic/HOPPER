@@ -15,5 +15,6 @@ export interface ManifestModDto {
     url: string;
     sha256: string;
     size: ManifestModDtoSize;
+    modIds?: Array<string> | null;
 }
 

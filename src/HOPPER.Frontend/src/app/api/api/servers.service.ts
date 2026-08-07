@@ -221,17 +221,29 @@ export class ServersService extends BaseService {
     /**
      * @endpoint get /api/servers/{id}/jar
      * @param id 
+     * @param variant 
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public apiServersIdJarGet(id: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<FileResult>;
-    public apiServersIdJarGet(id: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FileResult>>;
-    public apiServersIdJarGet(id: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FileResult>>;
-    public apiServersIdJarGet(id: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public apiServersIdJarGet(id: string, variant?: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<FileResult>;
+    public apiServersIdJarGet(id: string, variant?: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FileResult>>;
+    public apiServersIdJarGet(id: string, variant?: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FileResult>>;
+    public apiServersIdJarGet(id: string, variant?: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/java-archive', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (id === null || id === undefined) {
             throw new Error('Required parameter id was null or undefined when calling apiServersIdJarGet.');
         }
+
+        let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'variant',
+            <any>variant,
+            QueryParamStyle.Form,
+            true,
+        );
+
 
         let localVarHeaders = this.defaultHeaders;
 
@@ -266,6 +278,7 @@ export class ServersService extends BaseService {
         return this.httpClient.request<FileResult>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
+                params: localVarQueryParameters.toHttpParams(),
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
