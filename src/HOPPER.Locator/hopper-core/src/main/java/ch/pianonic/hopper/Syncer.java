@@ -54,8 +54,16 @@ final class Syncer {
     private int migrated;
     private int deferred;
 
+    private final Side side;
+
     Syncer(String manifestUrl, String token, Path dir, Path modsDir, Consumer<String> progress,
             HopperLog log) {
+        this(manifestUrl, token, dir, modsDir, progress, log, Side.CLIENT);
+    }
+
+    Syncer(String manifestUrl, String token, Path dir, Path modsDir, Consumer<String> progress,
+            HopperLog log, Side side) {
+        this.side = side == null ? Side.CLIENT : side;
         this.manifestUrl = manifestUrl;
         this.dir = dir;
         this.modsDir = modsDir;
@@ -216,8 +224,18 @@ final class Syncer {
         return id;
     }
 
+    // Only the client set has ever been the default, so a client asks for nothing and keeps the
+    // request every shipped jar already makes. The stored manifestUrl is left clean because
+    // reportUrl resolves against it and resolve() would drop a query string.
+    static String manifestUrlFor(String manifestUrl, Side side) {
+        if (side != Side.SERVER) {
+            return manifestUrl;
+        }
+        return manifestUrl + (manifestUrl.indexOf('?') < 0 ? "?" : "&") + "side=" + side.wire();
+    }
+
     private List<Entry> fetchManifest() throws IOException {
-        return parseManifest(http.get(manifestUrl, CONNECT_MS, MANIFEST_READ_MS, "manifest",
+        return parseManifest(http.get(manifestUrlFor(manifestUrl, side), CONNECT_MS, MANIFEST_READ_MS, "manifest",
                 new Http.Sink<String>() {
                     @Override
                     public String read(InputStream in) throws IOException {

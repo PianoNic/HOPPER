@@ -3,6 +3,7 @@ package ch.pianonic.hopper;
 import cpw.mods.modlauncher.Launcher;
 import cpw.mods.modlauncher.api.IEnvironment;
 import cpw.mods.modlauncher.api.TypesafeMap;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.forgespi.Environment;
 import net.minecraftforge.forgespi.locating.IModFile;
 import net.minecraftforge.forgespi.locating.IModLocator;
@@ -60,7 +61,7 @@ public final class HopperLocator1182 implements IModLocator {
     public void initArguments(final Map<String, ?> arguments) {
         Path gameDir = env(IEnvironment.Keys.GAMEDIR).orElseGet(() -> Path.of("."));
 
-        Hopper.Result result = Hopper.run(gameDir, username(arguments), LOG, HopperLocator1182::progress);
+        Hopper.Result result = Hopper.run(gameDir, username(arguments), LOG, HopperLocator1182::progress, true, side());
         wanted = result.wanted;
 
         delegate = env(Environment.Keys.MODDIRECTORYFACTORY)
@@ -103,6 +104,20 @@ public final class HopperLocator1182 implements IModLocator {
             return s;
         }
         return LaunchArgs.username();
+    }
+
+    // forgespi has carried Dist.CLIENT and Dist.DEDICATED_SERVER unchanged since 1.5.0, so this is
+    // the same three lines on every Forge generation. Absent means client: that is what the
+    // manifest defaults to and what every jar in the field already receives.
+    private static Side side() {
+        return env(Environment.Keys.DIST)
+                .map(new java.util.function.Function<Dist, Side>() {
+                    @Override
+                    public Side apply(Dist dist) {
+                        return dist == Dist.DEDICATED_SERVER ? Side.SERVER : Side.CLIENT;
+                    }
+                })
+                .orElse(Side.CLIENT);
     }
 
     private static <T> Optional<T> env(Supplier<TypesafeMap.Key<T>> key) {
