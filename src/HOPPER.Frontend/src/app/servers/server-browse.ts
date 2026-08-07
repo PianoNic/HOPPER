@@ -267,11 +267,21 @@ type SearchKey = {
           <ul class="flex flex-col gap-2 py-3">
             @for (h of hits(); track h.projectId) {
               <li
-                class="hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+                class="hover:bg-accent/40 relative flex items-start gap-3 rounded-md border p-3"
                 [class.border-primary]="selected()?.projectId === h.projectId"
                 [class.bg-accent/40]="selected()?.projectId === h.projectId"
-                (click)="select(h)"
               >
+                <!-- Stretched over the card rather than wrapped around it: the title is a link and
+                     the actions are buttons, and neither may be nested inside a button. This gives
+                     the card one tab stop and a keyboard way into the pane, and everything
+                     interactive is raised above it. -->
+                <button
+                  type="button"
+                  class="absolute inset-0 rounded-md"
+                  [attr.aria-label]="'Details for ' + h.title"
+                  [attr.aria-pressed]="selected()?.projectId === h.projectId"
+                  (click)="select(h)"
+                ></button>
                 @if (h.iconUrl) {
                   <img
                     [src]="h.iconUrl"
@@ -293,11 +303,10 @@ type SearchKey = {
                          the pane, so the click must not do both. -->
                     @if (projectUrl(h); as url) {
                       <a
-                        class="truncate text-sm font-medium hover:underline"
+                        class="relative truncate text-sm font-medium hover:underline"
                         [href]="url"
                         target="_blank"
                         rel="noopener noreferrer"
-                        (click)="$event.stopPropagation()"
                         >{{ h.title }}</a
                       >
                     } @else {
@@ -324,7 +333,7 @@ type SearchKey = {
                 <!-- stopPropagation, because the card itself opens the pane and a click on Add
                      is not a click on the card. The Modrinth link is not here: it lives in the
                      pane, which is where someone reading about a mod already is. -->
-                <div class="flex shrink-0 items-center gap-1" (click)="$event.stopPropagation()">
+                <div class="relative flex shrink-0 items-center gap-1">
                   <button hlmBtn variant="outline" size="sm" type="button" (click)="versions(h)">
                     Versions
                   </button>
