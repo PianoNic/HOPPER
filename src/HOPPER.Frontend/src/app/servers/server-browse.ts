@@ -404,9 +404,6 @@ type SearchKey = {
               @if (sel.author) {
                 <span class="text-muted-foreground text-xs">by {{ sel.author }}</span>
               }
-              @if (sel.installed) {
-                <span class="text-muted-foreground text-xs">Added to this server</span>
-              }
             </div>
             <button
               hlmBtn
