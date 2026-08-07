@@ -1,6 +1,7 @@
 import { ClientDto } from '../../api/model/clientDto';
 import { ModDto } from '../../api/model/modDto';
 import { MOD_SIDE, SYNC_SIDE } from '../../servers/mod-labels';
+import { toNumber } from './format';
 
 export type ClientDrift = {
   client: ClientDto;
@@ -32,6 +33,34 @@ export function reaches(mod: ModDto, side: number): boolean {
   if (mod.side === MOD_SIDE.clientOnly) return side === SYNC_SIDE.client;
   if (mod.side === MOD_SIDE.serverOnly) return side === SYNC_SIDE.server;
   return true;
+}
+
+// Three figures rather than one, because a mod with a side is not downloaded by everyone. Each is
+// deduplicated by hash: the client fetches blobs, so two mods sharing a sha256 are one download.
+export function downloadSizes(mods: ReadonlyArray<ModDto>): {
+  stored: number;
+  client: number;
+  server: number;
+} {
+  const sum = (kept: ReadonlyArray<ModDto>): number => {
+    const seen = new Set<string>();
+    let total = 0;
+
+    for (const mod of kept) {
+      if (seen.has(mod.sha256)) continue;
+
+      seen.add(mod.sha256);
+      total += toNumber(mod.size);
+    }
+
+    return total;
+  };
+
+  return {
+    stored: sum(mods),
+    client: sum(mods.filter((m) => reaches(m, SYNC_SIDE.client))),
+    server: sum(mods.filter((m) => reaches(m, SYNC_SIDE.server))),
+  };
 }
 
 export function diffClient(

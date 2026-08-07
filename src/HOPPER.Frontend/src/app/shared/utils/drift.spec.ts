@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countDrift,
   diffClient,
+  downloadSizes,
   OFFLINE_AFTER_LABEL,
   OFFLINE_AFTER_MS,
   reaches,
@@ -49,6 +50,10 @@ function client(
 
 function sidedMod(fileName: string, sha256: string, side: number): ModDto {
   return { ...mod(fileName, sha256), side };
+}
+
+function sizedMod(fileName: string, sha256: string, side: number, size: number): ModDto {
+  return { ...sidedMod(fileName, sha256, side), size: size as unknown as object };
 }
 
 describe('diffClient', () => {
@@ -218,5 +223,39 @@ describe('what the Clients page counts', () => {
 
     expect(drift.missing.map((m) => m.fileName)).toEqual(['client-only.jar']);
     expect(matched).toBe(1);
+  });
+});
+
+describe('downloadSizes', () => {
+  it('gives both sides the whole set when nothing is one-sided', () => {
+    const sizes = downloadSizes([
+      sizedMod('jade.jar', 'aa', MOD_SIDE.both, 1000),
+      sizedMod('sodium.jar', 'bb', MOD_SIDE.both, 500),
+    ]);
+
+    expect(sizes).toEqual({ stored: 1500, client: 1500, server: 1500 });
+  });
+
+  it('leaves a one-sided mod out of the other side', () => {
+    const sizes = downloadSizes([
+      sizedMod('jade.jar', 'aa', MOD_SIDE.both, 1000),
+      sizedMod('jei.jar', 'bb', MOD_SIDE.clientOnly, 300),
+      sizedMod('appleskin.jar', 'cc', MOD_SIDE.serverOnly, 70),
+    ]);
+
+    expect(sizes).toEqual({ stored: 1370, client: 1300, server: 1070 });
+  });
+
+  it('counts a hash once however many mods share it', () => {
+    const sizes = downloadSizes([
+      sizedMod('jade.jar', 'aa', MOD_SIDE.both, 1000),
+      sizedMod('jade-copy.jar', 'aa', MOD_SIDE.both, 1000),
+    ]);
+
+    expect(sizes).toEqual({ stored: 1000, client: 1000, server: 1000 });
+  });
+
+  it('is zero everywhere for a server with no mods', () => {
+    expect(downloadSizes([])).toEqual({ stored: 0, client: 0, server: 0 });
   });
 });
