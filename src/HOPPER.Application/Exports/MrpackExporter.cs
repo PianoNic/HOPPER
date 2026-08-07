@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using HOPPER.Application.Exports.Schema;
+using HOPPER.Application.Imports;
 using HOPPER.Domain;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
@@ -29,7 +30,7 @@ namespace HOPPER.Application.Exports
                     WriteJsonEntry(archive, "modrinth.index.json", BuildIndex(context, linked));
 
                     foreach (var mod in bundled)
-                        WriteBlobEntry(archive, "overrides/mods", mod, warnings);
+                        WriteBlobEntry(archive, OverrideFolder(mod.Side), mod, warnings);
                 }
 
                 return Finish(scratch, FileNameFor(context, "mrpack"), "application/x-modrinth-modpack+zip", warnings);
@@ -39,6 +40,22 @@ namespace HOPPER.Application.Exports
                 await scratch.DisposeAsync();
                 throw;
             }
+        }
+
+        // The folder names are the declaration a pack carries for a bundled jar, and the same ones
+        // ModrinthPlanner reads back. Writing everything to the shared folder is what threw the
+        // classification away.
+        private static string OverrideFolder(ModSide side) => side switch
+        {
+            ModSide.ClientOnly => "client-overrides/mods",
+            ModSide.ServerOnly => "server-overrides/mods",
+            _ => "overrides/mods",
+        };
+
+        private static MrpackEnv EnvFor(ModSide side)
+        {
+            var (client, server) = PackEnv.Wire(side);
+            return new MrpackEnv { Client = client, Server = server };
         }
 
         private static MrpackIndex BuildIndex(ExportContext context, IReadOnlyList<Mod> linked) => new()
@@ -65,7 +82,7 @@ namespace HOPPER.Application.Exports
                     ["sha512"] = m.Sha512!,
                 },
 
-                Env = new MrpackEnv(),
+                Env = EnvFor(m.Side),
                 Downloads = [m.DownloadUrl!],
                 FileSize = m.Size,
             }).ToList(),

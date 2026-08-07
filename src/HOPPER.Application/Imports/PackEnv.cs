@@ -35,6 +35,16 @@ namespace HOPPER.Application.Imports
             return ModSide.Both;
         }
 
+        /// <summary>The inverse, for writing a pack. Kept beside the reader so the two are edited
+        /// together: an export that disagrees with the import silently flattens the classification
+        /// on a round trip.</summary>
+        public static (string Client, string Server) Wire(ModSide side) => side switch
+        {
+            ModSide.ClientOnly => ("required", Unsupported),
+            ModSide.ServerOnly => (Unsupported, "required"),
+            _ => ("required", "required"),
+        };
+
         /// <summary>Reads the <c>env</c> object of one .mrpack files[] entry.</summary>
         public static ModSide SideOf(JsonElement file)
         {
