@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=$BUILDPLATFORM oven/bun:1.3.14 AS frontend-build
+ARG BUN_VERSION=1.3.14
+FROM --platform=$BUILDPLATFORM oven/bun:${BUN_VERSION} AS frontend-build
 WORKDIR /src/frontend
 COPY src/HOPPER.Frontend/package.json src/HOPPER.Frontend/bun.lock ./
 RUN bun install --frozen-lockfile

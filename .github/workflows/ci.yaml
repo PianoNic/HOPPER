@@ -41,9 +41,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - id: bun
+        name: Read the Bun version out of package.json
+        run: |
+          version=$(grep -o '"packageManager": *"bun@[^"]*"' package.json | cut -d@ -f2 | tr -d '"')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.3.14'
+          bun-version: ${{ steps.bun.outputs.version }}
+
+      - name: Reject a Dockerfile on a different Bun
+        run: |
+          image=$(grep -m1 '^ARG BUN_VERSION=' ../../src/HOPPER.API/Dockerfile | cut -d= -f2)
+          if [ "$image" != "${{ steps.bun.outputs.version }}" ]; then
+            echo "::error::Dockerfile is on Bun $image, package.json declares ${{ steps.bun.outputs.version }}."
+            exit 1
+          fi
 
       - run: bun install --frozen-lockfile
 
