@@ -28,7 +28,7 @@ import { serverIdSignal } from './server-route';
 
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
-        <h2 class="text-sm font-medium">Client setup</h2>
+        <h2 class="text-sm font-medium">Setup</h2>
       </header>
 
       <div class="min-h-0 flex-1 overflow-auto p-4">
@@ -43,6 +43,12 @@ import { serverIdSignal } from './server-route';
                 <code class="font-mono">mods/</code> folder and launch; there is nothing to
                 configure. It runs before Forge scans for mods, so it can add and remove jars before
                 the game sees them.
+              </p>
+              <p hlmCardDescription class="text-xs">
+                The same file goes on a dedicated server. There is no separate server download - the
+                jar asks the loader which side it is running on and requests the matching set, so a
+                mod marked <strong>Client only</strong> never reaches the server and one marked
+                <strong>Server only</strong> never reaches a player.
               </p>
             </div>
             <div hlmCardContent>
@@ -150,9 +156,10 @@ import { serverIdSignal } from './server-route';
               </p>
               <p>
                 <strong class="text-foreground">503 on the jar download</strong> - the deployment
-                has no locator template. Build it with
-                <code class="font-mono">cd locator &amp;&amp; ./gradlew build</code> and point
-                <code class="font-mono">Hopper:LocatorTemplatePath</code> at the result.
+                has no locator template for this server's loader. Build them with
+                <code class="font-mono">cd src/HOPPER.Locator &amp;&amp; ./gradlew templates</code>
+                and point <code class="font-mono">Hopper:LocatorTemplateDirectory</code> at the
+                directory it writes. The error names the file it wanted.
               </p>
             </div>
           </section>

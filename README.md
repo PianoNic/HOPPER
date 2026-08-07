@@ -19,6 +19,8 @@
 
 HOPPER keeps every player's mods in sync with one list you control on the server. Add a mod in the dashboard, and it is on every client the next time they launch - no zip files in Discord, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
 
+The same jar goes on your dedicated server, which stays in sync from the same list. Mods that belong on only one of them - a minimap on a server, a permissions plugin on a client - are marked as such and sent only where they belong.
+
 ## Screenshots
 
 <p align="center">
@@ -47,6 +49,7 @@ HOPPER keeps every player's mods in sync with one list you control on the server
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.
 - **Leaves your own mods alone**: downloads land in `hoppermods/`, never in `mods/`. A required mod already installed by hand is moved over rather than downloaded again, and a jar HOPPER did not download is parked, never deleted.
+- **The server too**: the same jar keeps a dedicated server in sync from the same list, and marks which mods belong to which side so a client-only mod never reaches it.
 - **Multiple servers**: each with its own mod list, token and jar; a client only ever sees its own.
 - **Browse and import**: search Modrinth with dependency resolution, or import a Modrinth, CurseForge or Prism pack by file or URL.
 - **Verified downloads**: every jar is checked against its SHA-256 before it is installed.

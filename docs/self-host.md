@@ -73,7 +73,7 @@ cd HOPPER
 docker compose -f compose.yml -f compose.demo.yml up -d --build
 ```
 
-Dashboard on `:58722`, the mock IdP on `:58538`. A server named `Default` exists immediately, so you can download a client jar without configuring anything. Its client token is generated at first boot and shown on the server's setup page - nothing in this repository knows it.
+Dashboard on `:58722`, the mock IdP on `:58538`. A server named `Default` exists immediately, so you can download its jar without configuring anything. Its client token is generated at first boot and shown on the server's setup page - nothing in this repository knows it.
 
 ## `.env` overrides everything
 
@@ -90,6 +90,24 @@ HOPPER requires the `hopper-admin` role on the admin surface, so pointing it at 
 3. Sign in. A token without the role gets a 403, not a 401, so a rejection here is a role problem rather than a login problem.
 
 Rename the role with `Oidc__AdminRole`, or set it empty to accept any authenticated user - reasonable only when HOPPER is the realm's only client.
+
+## Installing on a dedicated server
+
+The dedicated server takes the **same jar** the players do. There is no separate server download: the adapter asks its loader whether it is a client or a server and requests the matching mod set. Drop `<slug>-hopper.jar` into the server's `mods/` folder next to the loader's own files, exactly as on a client, and start it.
+
+What you should see in the server log, before the world loads:
+
+```
+[HOPPER] syncing from https://hopper.example.com/api/manifest (server <id>)
+[HOPPER] downloading appleskin-forge-mc1.20.1-2.5.1.jar (46 KiB)
+[HOPPER] 2 mod(s) ready
+```
+
+It uses the same per-server token as the players, so nothing extra needs configuring. On the Clients page it appears as **Dedicated server** rather than as a nameless player - a server has no username to report, so the side is its identity.
+
+**Set the side on anything that only belongs on one of them.** A client-only mod on a dedicated server is at best pointless and at worst a crash on boot, which is what the Side column on the Mods page exists for. HOPPER fills it in automatically when the pack or Modrinth says, so in practice you are correcting a handful rather than classifying everything. See [how it works](how-it-works.md#sides).
+
+Forge, NeoForge and Fabric dedicated servers are all supported. The Fabric caveat about restarts applies to clients only - a dedicated server has no in-launch discovery hook to miss, because it is restarted deliberately.
 
 ## Two credentials, no overlap
 

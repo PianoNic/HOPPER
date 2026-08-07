@@ -78,18 +78,36 @@ None of the three client endpoints carries a server segment, and that is deliber
 
 Every loader that exposes a hook running *before* mod discovery can do the no-restart trick. The hook is different in each of them, so one jar cannot serve them all:
 
-| Loader | Same launch | Hook |
-| --- | --- | --- |
-| Forge 1.16.x | yes | `forgespi.locating.IModLocator` (SPI 3.2/4.0), `scanMods()` returns `List<IModFile>` |
-| Forge 1.17 to 1.20.1 | yes | same class name, SPI 7.0, `scanMods()` returns `List<ModFileOrException>` |
-| NeoForge 1.20.2+ | yes | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
-| Quilt | opt-in | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
-| Fabric | **no** | see below |
-| Forge 1.12.2 and older | yes | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
+| Loader | Same launch | Side detected from | Hook |
+| --- | --- | --- | --- |
+| Forge 1.16.x | yes | `Environment.Keys.DIST` | `forgespi.locating.IModLocator` (SPI 3.2/4.0), `scanMods()` returns `List<IModFile>` |
+| Forge 1.17 to 1.20.1 | yes | `Environment.Keys.DIST` | same class name, SPI 7.0, `scanMods()` returns `List<ModFileOrException>` |
+| NeoForge 1.20.2+ | yes | `FMLEnvironment.dist` | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
+| Quilt | opt-in | `MinecraftQuiltLoader.getEnvironmentType()` | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
+| Fabric | **no** | `FabricLoader.getEnvironmentType()` | see below |
+| Forge 1.12.2 and older | yes | `FMLLaunchHandler.side()` | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
 
 Forge keeps the same class name across generations while changing the signature, so those two are binary incompatible with each other: a single class cannot implement both. Supporting more loaders means a shared core plus one thin adapter each.
 
 Only the adapter is loader-specific. `Syncer` imports nothing from any loader, which is what makes this cheap.
+
+## Sides
+
+The same jar runs on a player's machine and on a dedicated server. There is no separate server download: the adapter asks its loader which side it is, and requests the matching set.
+
+Every mod carries one of three values, and `Both` is the default, so a server that has never classified anything behaves exactly as it did before sides existed:
+
+| Side | Goes to players | Goes to the dedicated server |
+| --- | --- | --- |
+| `Both` | yes | yes |
+| `Client only` | yes | no |
+| `Server only` | no | yes |
+
+That matters because a client-only mod on a dedicated server is at best pointless and at worst a crash on boot - JEI, Xaero's Minimap, Sodium and Iris all have no business there.
+
+Mechanically it is one query parameter. A client asks for `/api/manifest`, exactly as every jar shipped before this did, and gets `Both` plus `Client only`. A dedicated server asks for `/api/manifest?side=server` and gets `Both` plus `Server only`. The blob endpoint applies the same rule, so a jar cannot be fetched by hash by a side it was not sent to, and the manifest bakes the side into the download URLs it hands out.
+
+HOPPER fills the side in for you wherever the source knows it: the `env` object on an `.mrpack` entry, the `client-overrides/` and `server-overrides/` folders, Modrinth's `client_side` and `server_side`, and failing all of those the `environment` field in a jar's own `fabric.mod.json` or `quilt.mod.json`. A Prism or CurseForge pack carries no side, so those fall back to the jar. Anything with no signal at all stays `Both`, and the Mods page is where you correct it - select any number of rows and set them at once.
 
 ### Fabric
 
