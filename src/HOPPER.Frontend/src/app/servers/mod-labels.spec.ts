@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatCount, isReplaceable, modLoaderFacet, modLoaderFromFacet, modLoaderLabel, modSourceLabel, modrinthProjectUrl, planNodeKindLabel, planNodeStatusDetail, planNodeStatusLabel, versionTypeLabel } from './mod-labels';
+import { formatCount, isReplaceable, modIconUrl, modLoaderFacet, modLoaderFromFacet, modLoaderLabel, modSourceLabel, modrinthProjectUrl, planNodeKindLabel, planNodeStatusDetail, planNodeStatusLabel, versionTypeLabel } from './mod-labels';
+import { ModDto } from '../api/model/modDto';
 import { ModLoader } from '../api/model/modLoader';
 import { ModSource } from '../api/model/modSource';
 import { PlanNodeKind } from '../api/model/planNodeKind';
@@ -125,5 +126,39 @@ describe('formatCount', () => {
     expect(formatCount(999)).toBe('999');
     expect(formatCount(1500)).toBe('1.5K');
     expect(formatCount(67_575_746)).toBe('68M');
+  });
+});
+
+
+describe('modIconUrl', () => {
+  const mod = (over: Partial<ModDto>): ModDto =>
+    ({ id: 'm', fileName: 'a.jar', sha256: 'a', iconSha256: null, iconUrl: null, ...over }) as ModDto;
+
+  it('asks the API for a stored icon, not the page it is served from', () => {
+    // The whole defect: a bare /api/icons/... resolves against the dashboard origin, which under the
+    // split dev setup answers index.html with a 200 and renders as a broken image.
+    expect(modIconUrl(mod({ iconSha256: 'abc' }), 'http://localhost:5170')).toBe(
+      'http://localhost:5170/api/icons/abc',
+    );
+  });
+
+  it('stays origin-relative when the API shares the origin', () => {
+    expect(modIconUrl(mod({ iconSha256: 'abc' }), '')).toBe('/api/icons/abc');
+  });
+
+  it('falls back to the remote icon when nothing is stored', () => {
+    expect(modIconUrl(mod({ iconUrl: 'https://cdn.modrinth.com/i.png' }), 'http://x')).toBe(
+      'https://cdn.modrinth.com/i.png',
+    );
+  });
+
+  it('prefers the stored icon over the remote one', () => {
+    expect(
+      modIconUrl(mod({ iconSha256: 'abc', iconUrl: 'https://cdn.modrinth.com/i.png' }), 'http://x'),
+    ).toBe('http://x/api/icons/abc');
+  });
+
+  it('is null when there is no icon at all', () => {
+    expect(modIconUrl(mod({}), 'http://x')).toBeNull();
   });
 });

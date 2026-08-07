@@ -38,7 +38,8 @@ import { ServerDto } from '../api/model/serverDto';
 import { WhenPipe } from '../shared/utils/when';
 import { ServerChanged } from '../shared/services/server-changed';
 import { serverIdSignal } from './server-route';
-import { modSideLabel, modSourceLabel, modrinthProjectUrl } from './mod-labels';
+import { modIconUrl, modSideLabel, modSourceLabel, modrinthProjectUrl } from './mod-labels';
+import { BASE_PATH } from '../api/variables';
 import { ModSide } from '../api/model/modSide';
 import { ExportPackDialogService } from './export-pack-dialog';
 import { ImportPackDialogService } from './import-pack-dialog';
@@ -325,6 +326,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
 })
 export class ServerMods {
   private readonly route = inject(ActivatedRoute);
+  private readonly apiBaseUrl = inject(BASE_PATH, { optional: true }) ?? '';
   private readonly serverChanged = inject(ServerChanged);
   private readonly api = inject(ServerModsService);
   private readonly serversApi = inject(ServersService);
@@ -474,9 +476,8 @@ export class ServerMods {
 
   protected iconOf(mod: ModDto): string | null {
     if (this.iconFailed()[mod.id]) return null;
-    if (mod.iconSha256) return `/api/icons/${mod.iconSha256}`;
 
-    return mod.iconUrl ?? null;
+    return modIconUrl(mod, this.apiBaseUrl);
   }
 
   protected onIconError(modId: string): void {
