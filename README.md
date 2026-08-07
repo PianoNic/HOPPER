@@ -35,7 +35,7 @@ HOPPER keeps every player's mods in sync with one list you control on the server
 
 <p align="center">
   <img src="assets/screenshots/setup.png" width="49%" alt="Client setup: download the jar, or configure by hand" />
-  <img src="assets/screenshots/home.png" width="49%" alt="Overview across every server" />
+  <img src="assets/screenshots/overview.png" width="49%" alt="One server's overview, with drift against the manifest" />
 </p>
 
 </details>
