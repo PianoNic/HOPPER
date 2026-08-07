@@ -26,7 +26,13 @@ namespace HOPPER.Application.Exports
                     WriteTextEntry(archive, "instance.cfg", BuildInstanceCfg(context));
                     WriteJsonEntry(archive, "mmc-pack.json", BuildPack(context));
 
-                    foreach (var mod in context.Mods)
+                    var withheld = context.Mods.Count(m => !ModSideRules.Reaches(m.Side, SyncSide.Client));
+                    if (withheld > 0)
+                    {
+                        warnings.Add($"Left out {withheld} server-only jar{(withheld == 1 ? "" : "s")}. A Prism instance is a client game directory, so a jar marked Server only would be loaded there.");
+                    }
+
+                    foreach (var mod in context.Mods.Where(m => ModSideRules.Reaches(m.Side, SyncSide.Client)))
                         WriteBlobEntry(archive, "minecraft/mods", mod, warnings);
                 }
 

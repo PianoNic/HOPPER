@@ -109,6 +109,8 @@ Mechanically it is one query parameter. A client asks for `/api/manifest`, exact
 
 HOPPER fills the side in for you wherever the source knows it: the `env` object on an `.mrpack` entry, the `client-overrides/` and `server-overrides/` folders, Modrinth's `client_side` and `server_side`, and failing all of those the `environment` field in a jar's own `fabric.mod.json` or `quilt.mod.json`. A Prism or CurseForge pack carries no side, so those fall back to the jar. Anything with no signal at all stays `Both`, and the Mods page is where you correct it - select any number of rows and set them at once.
 
+Exporting reverses the same knowledge, and the three formats differ because they are different things. An `.mrpack` records a side per file, so a side survives a round trip through it unchanged. A CurseForge pack carries no side and is a distributable a server operator installs too, so it ships both sets together. A Prism instance is one machine's game directory rather than a distributable, and in practice a client one, so it gets the jars a player gets and the export dialog names what it left out.
+
 ### Fabric
 
 Fabric has no public pre-discovery hook. Its only lever is the `fabric.addMods` system property, read by `ArgumentModCandidateFinder` during discovery, and a system property means a JVM argument, which means a launcher setting. That is exactly what HOPPER avoids, because the CurseForge app does not expose one.

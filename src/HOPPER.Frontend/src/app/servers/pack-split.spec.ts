@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ModDto } from '../api/model/modDto';
 import { ManifestModDtoSize } from '../api/model/manifestModDtoSize';
+import { ModSide } from '../api/model/modSide';
 import { PackFormat } from '../api/model/packFormat';
 import { ModSource } from '../api/model/modSource';
 import { linksToCurseForge, linksToModrinth, packSplit } from './pack-split';
@@ -69,6 +70,7 @@ describe('packSplit', () => {
       manifestEntries: 2,
       bundledFiles: 1,
       bundledBytes: 4_000_000,
+      withheld: 0,
     });
   });
 
@@ -77,6 +79,7 @@ describe('packSplit', () => {
       manifestEntries: 0,
       bundledFiles: 3,
       bundledBytes: 6_000_000,
+      withheld: 0,
     });
   });
 
@@ -85,6 +88,7 @@ describe('packSplit', () => {
       manifestEntries: 0,
       bundledFiles: 3,
       bundledBytes: 6_000_000,
+      withheld: 0,
     });
   });
 
@@ -97,6 +101,46 @@ describe('packSplit', () => {
       manifestEntries: 0,
       bundledFiles: 0,
       bundledBytes: 0,
+      withheld: 0,
     });
+  });
+});
+
+
+describe('packSplit and one-sided mods', () => {
+  const sided = [
+    mod({ id: 'both', fileName: 'jade.jar', size: 1_000 }),
+    mod({ id: 'client', fileName: 'jei.jar', size: 300, side: ModSide.ClientOnly }),
+    mod({ id: 'server', fileName: 'appleskin.jar', size: 70, side: ModSide.ServerOnly }),
+  ];
+
+  it('keeps a server-only jar out of a Prism instance and says how many', () => {
+    // A Prism instance is a client game directory, so a server-only jar there is one the game loads
+    // and should not. It is withheld rather than silently counted.
+    const split = packSplit(sided, PackFormat.PrismInstance);
+
+    expect(split.withheld).toBe(1);
+    expect(split.bundledFiles).toBe(2);
+    expect(split.bundledBytes).toBe(1_300);
+  });
+
+  it('ships both sides in a CurseForge pack, which a server operator also installs', () => {
+    const split = packSplit(sided, PackFormat.CurseForge);
+
+    expect(split.withheld).toBe(0);
+    expect(split.bundledFiles).toBe(3);
+  });
+
+  it('ships both sides in a mrpack, which records the side per file itself', () => {
+    const split = packSplit(sided, PackFormat.Modrinth);
+
+    expect(split.withheld).toBe(0);
+    expect(split.bundledFiles).toBe(3);
+  });
+
+  it('withholds nothing when no mod is one-sided', () => {
+    const split = packSplit([mod({ id: 'both', fileName: 'jade.jar' })], PackFormat.PrismInstance);
+
+    expect(split.withheld).toBe(0);
   });
 });
