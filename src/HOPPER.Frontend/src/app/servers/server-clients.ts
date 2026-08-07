@@ -21,7 +21,7 @@ import {
 } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
-import { lucideRefreshCw, lucideSearch, lucideUsers } from '@ng-icons/lucide';
+import { lucideRefreshCw, lucideSearch, lucideServer, lucideUsers } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
@@ -29,7 +29,8 @@ import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { formatAge, messageFrom } from '../shared/utils/format';
-import { ClientDrift, diffClient } from '../shared/utils/drift';
+import { ClientDrift, diffClient, reaches } from '../shared/utils/drift';
+import { SYNC_SIDE } from './mod-labels';
 import { ServersService } from '../api/api/servers.service';
 import { ServerClientsService } from '../api/api/serverClients.service';
 import { ServerModsService } from '../api/api/serverMods.service';
@@ -60,7 +61,7 @@ const POLL_MS = 10000;
     HlmInputImports,
     HlmTableImports,
   ],
-  providers: [provideIcons({ lucideRefreshCw, lucideSearch, lucideUsers })],
+  providers: [provideIcons({ lucideRefreshCw, lucideSearch, lucideServer, lucideUsers })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-content-header>
@@ -136,8 +137,15 @@ const POLL_MS = 10000;
             <tbody hlmTableBody>
               @for (row of filteredRows(); track row.client.id) {
                 <tr hlmTableRow class="cursor-pointer" (click)="openDetails(row)">
+                  <!-- A dedicated server has no username and never will, so the side is its
+                       identity rather than a blank where a name should be. -->
                   <td hlmTableCell class="font-medium">
-                    @if (row.client.username) {
+                    @if (isServer(row)) {
+                      <span class="inline-flex items-center gap-1.5">
+                        <ng-icon name="lucideServer" size="14" class="text-muted-foreground" />
+                        Dedicated server
+                      </span>
+                    } @else if (row.client.username) {
                       {{ row.client.username }}
                     } @else {
                       <span class="text-muted-foreground italic">no username</span>
@@ -154,7 +162,7 @@ const POLL_MS = 10000;
                     {{ age(row.client.lastSeenAt) }}
                   </td>
                   <td hlmTableCell class="text-right font-mono text-xs">
-                    {{ row.client.mods.length }}/{{ requiredCount() }}
+                    {{ matchedFor(row) }}/{{ requiredFor(row) }}
                   </td>
                   <td hlmTableCell>
                     <span class="flex flex-wrap items-center gap-1">
@@ -221,8 +229,29 @@ export class ServerClients {
   protected readonly rows = computed<ReadonlyArray<ClientDrift>>(() => {
     const required = this.requiredMods();
     const now = this.now();
-    return this.clients().map((client) => diffClient(client, required, now));
+    const rows = this.clients().map((client) => diffClient(client, required, now));
+
+    // Servers first. There is at most a handful of them against any number of players, and burying
+    // the one machine the whole group depends on somewhere in the list helps nobody.
+    return [...rows].sort((a, b) => Number(this.isServer(b)) - Number(this.isServer(a)));
   });
+
+  protected isServer(row: ClientDrift): boolean {
+    return row.client.side === SYNC_SIDE.server;
+  }
+
+  // The whole mod list is the wrong denominator once sides exist: a server showing 2/3 reads as
+  // missing one when it has everything it was sent.
+  protected requiredFor(row: ClientDrift): number {
+    return this.requiredMods().filter((m) => reaches(m, row.client.side)).length;
+  }
+
+  // How many of the required mods the client actually has, not how many it reported. Those differ
+  // when it holds something it should not, and reporting the raw count next to a "1 missing" badge
+  // read as a contradiction: 2/2 and one missing cannot both be true.
+  protected matchedFor(row: ClientDrift): number {
+    return this.requiredFor(row) - row.missing.length;
+  }
 
   protected readonly filteredRows = computed(() => {
     const q = this.filter().trim().toLowerCase();
@@ -230,7 +259,8 @@ export class ServerClients {
     return this.rows().filter(
       (r) =>
         (r.client.username ?? '').toLowerCase().includes(q) ||
-        r.client.clientId.toLowerCase().includes(q),
+        r.client.clientId.toLowerCase().includes(q) ||
+        (this.isServer(r) && 'dedicated server'.includes(q)),
     );
   });
 
