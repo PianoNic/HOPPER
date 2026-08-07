@@ -24,6 +24,7 @@ import { simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
+import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { CopyButton } from '../shared/components/copy-button/copy-button';
@@ -37,7 +38,7 @@ import { ServerDto } from '../api/model/serverDto';
 import { WhenPipe } from '../shared/utils/when';
 import { ServerChanged } from '../shared/services/server-changed';
 import { serverIdSignal } from './server-route';
-import { modSourceLabel, modrinthProjectUrl } from './mod-labels';
+import { MOD_SIDE, modSideLabel, modSourceLabel, modrinthProjectUrl } from './mod-labels';
 import { ExportPackDialogService } from './export-pack-dialog';
 import { ImportPackDialogService } from './import-pack-dialog';
 import { UploadModsDialogService } from './upload-mods-dialog';
@@ -54,6 +55,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
     ButtonLoading,
     HlmInputImports,
     HlmTableImports,
+    HlmBadgeImports,
   ],
   providers: [
     provideIcons({
@@ -145,6 +147,30 @@ import { UploadModsDialogService } from './upload-mods-dialog';
         </div>
       </header>
 
+      <!-- Its own strip rather than more buttons in the header: the header is already five
+           controls wide and wraps on a narrow window, and this appears and disappears. -->
+      @if (selectedCount() > 0) {
+        <div class="bg-muted/40 flex flex-wrap items-center gap-2 border-b px-4 py-2">
+          <span class="text-sm font-medium">{{ selectedCount() }} selected</span>
+          <span class="text-muted-foreground text-xs">Set side to</span>
+          @for (choice of sideChoices; track choice.side) {
+            <button
+              hlmBtn
+              variant="outline"
+              size="sm"
+              type="button"
+              [disabled]="settingSide()"
+              (click)="setSide(choice.side)"
+            >
+              {{ choice.label }}
+            </button>
+          }
+          <button hlmBtn variant="ghost" size="sm" type="button" (click)="clearSelection()">
+            Clear
+          </button>
+        </div>
+      }
+
       <div class="min-h-0 flex-1 overflow-auto px-4">
         @if (filteredMods().length === 0 && !loading()) {
           @if (mods().length === 0) {
@@ -166,8 +192,19 @@ import { UploadModsDialogService } from './upload-mods-dialog';
           <table hlmTable>
             <thead hlmTableHeader>
               <tr hlmTableRow>
+                <th hlmTableHead class="w-8">
+                  <input
+                    type="checkbox"
+                    class="size-3.5 align-middle"
+                    aria-label="Select every mod shown"
+                    [checked]="allShownSelected()"
+                    [indeterminate]="someShownSelected()"
+                    (change)="toggleAllShown()"
+                  />
+                </th>
                 <th hlmTableHead class="w-10"><span class="sr-only">Icon</span></th>
                 <th hlmTableHead>File</th>
+                <th hlmTableHead>Side</th>
                 <th hlmTableHead>Source</th>
                 <th hlmTableHead>SHA-256</th>
                 <th hlmTableHead class="text-right">Size</th>
@@ -179,6 +216,15 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             <tbody hlmTableBody>
               @for (m of filteredMods(); track m.id) {
                 <tr hlmTableRow>
+                  <td hlmTableCell>
+                    <input
+                      type="checkbox"
+                      class="size-3.5 align-middle"
+                      [attr.aria-label]="'Select ' + m.fileName"
+                      [checked]="isSelected(m.id)"
+                      (change)="toggle(m.id)"
+                    />
+                  </td>
                   <td hlmTableCell>
                     <!-- The placeholder keeps the column from collapsing on a server whose jars
                          carry no icon, which is every hand-built pack until the backfill runs. -->
@@ -202,6 +248,15 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                     }
                   </td>
                   <td hlmTableCell class="font-medium">{{ m.fileName }}</td>
+                  <!-- Quiet for Both, which is nearly every row. Only the exceptions should draw
+                       the eye, because those are the ones somebody decided. -->
+                  <td hlmTableCell class="text-sm">
+                    @if (m.side === MOD_SIDE.both) {
+                      <span class="text-muted-foreground text-xs">Both</span>
+                    } @else {
+                      <span hlmBadge variant="secondary" class="text-xs">{{ sideLabel(m.side) }}</span>
+                    }
+                  </td>
                   <!-- Where the jar came from, and where it goes in an exported pack: a mod with
                        Modrinth provenance becomes a manifest entry with its real CDN URL, and
                        anything else ships as bytes in overrides/. -->
@@ -286,6 +341,17 @@ export class ServerMods {
   protected readonly loading = signal(false);
   protected readonly filter = signal('');
   protected readonly deleting = signal<Record<string, boolean>>({});
+  protected readonly selected = signal<ReadonlySet<string>>(new Set());
+  protected readonly settingSide = signal(false);
+
+  protected readonly MOD_SIDE = MOD_SIDE;
+  protected readonly sideLabel = modSideLabel;
+
+  protected readonly sideChoices = [
+    { side: MOD_SIDE.both, label: 'Both' },
+    { side: MOD_SIDE.clientOnly, label: 'Client only' },
+    { side: MOD_SIDE.serverOnly, label: 'Server only' },
+  ] as const;
   protected readonly pendingCount = signal(0);
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
@@ -302,8 +368,79 @@ export class ServerMods {
     const list = this.mods();
     if (list.length === 0) return '';
     const total = list.reduce((sum, m) => sum + toNumber(m.size), 0);
-    return `· ${list.length} jar${list.length === 1 ? '' : 's'} · ${formatBytes(total)}`;
+    const base = `· ${list.length} jar${list.length === 1 ? '' : 's'} · ${formatBytes(total)}`;
+
+    // Only worth saying once a side has been set on something. On a server where everything is
+    // Both, both numbers are the jar count and the sentence is noise.
+    const clients = list.filter((m) => m.side !== MOD_SIDE.serverOnly).length;
+    const servers = list.filter((m) => m.side !== MOD_SIDE.clientOnly).length;
+    if (clients === list.length && servers === list.length) return base;
+
+    return `${base} · ${clients} to clients · ${servers} to the server`;
   });
+
+  protected readonly selectedCount = computed(() => this.selected().size);
+
+  protected readonly allShownSelected = computed(() => {
+    const shown = this.filteredMods();
+    return shown.length > 0 && shown.every((m) => this.selected().has(m.id));
+  });
+
+  protected readonly someShownSelected = computed(() => {
+    const shown = this.filteredMods();
+    const picked = shown.filter((m) => this.selected().has(m.id)).length;
+    return picked > 0 && picked < shown.length;
+  });
+
+  protected isSelected(id: string): boolean {
+    return this.selected().has(id);
+  }
+
+  protected toggle(id: string): void {
+    const next = new Set(this.selected());
+    if (!next.delete(id)) next.add(id);
+    this.selected.set(next);
+  }
+
+  // Acts on what is on screen, not on everything: with a filter applied, "select all" meaning the
+  // whole server would reclassify rows the admin cannot see.
+  protected toggleAllShown(): void {
+    const shown = this.filteredMods();
+    const next = new Set(this.selected());
+    if (this.allShownSelected()) {
+      shown.forEach((m) => next.delete(m.id));
+    } else {
+      shown.forEach((m) => next.add(m.id));
+    }
+    this.selected.set(next);
+  }
+
+  protected clearSelection(): void {
+    this.selected.set(new Set());
+  }
+
+  protected setSide(side: number): void {
+    const ids = [...this.selected()];
+    if (ids.length === 0) return;
+
+    this.settingSide.set(true);
+    this.api
+      .apiServersIdModsSidePatch(this.serverId(), { modIds: ids, side })
+      .subscribe({
+        next: (result) => {
+          this.settingSide.set(false);
+          this.clearSelection();
+          toast.success(
+            `${result.updated} mod${result.updated === 1 ? '' : 's'} set to ${modSideLabel(side)}.`,
+          );
+          this.reload();
+        },
+        error: () => {
+          this.settingSide.set(false);
+          toast.error('Could not change the side.');
+        },
+      });
+  }
 
   constructor() {
     effect(() => {

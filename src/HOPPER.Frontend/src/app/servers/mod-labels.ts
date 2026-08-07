@@ -44,6 +44,17 @@ export const SEARCH_INDEX = {
   updated: 4,
 } as const;
 
+export function modSideLabel(side: number): string {
+  switch (side) {
+    case MOD_SIDE.clientOnly:
+      return 'Client only';
+    case MOD_SIDE.serverOnly:
+      return 'Server only';
+    default:
+      return 'Both';
+  }
+}
+
 export function modSourceLabel(source: number): string {
   switch (source) {
     case MOD_SOURCE.manual:
