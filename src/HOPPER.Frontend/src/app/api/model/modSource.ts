@@ -10,9 +10,9 @@
 
 
 export const ModSource = {
-    Manual: 0,
-    Modrinth: 1,
-    CurseForge: 2
+    Manual: 'Manual',
+    Modrinth: 'Modrinth',
+    CurseForge: 'CurseForge'
 } as const;
 export type ModSource = typeof ModSource[keyof typeof ModSource];
 

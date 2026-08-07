@@ -4,7 +4,7 @@ import { ModSource } from '../api/model/modSource';
 import { PlanNodeKind } from '../api/model/planNodeKind';
 import { PlanNodeStatus } from '../api/model/planNodeStatus';
 
-export function modSideLabel(side: number): string {
+export function modSideLabel(side: ModSide): string {
   switch (side) {
     case ModSide.ClientOnly:
       return 'Client only';
@@ -15,7 +15,7 @@ export function modSideLabel(side: number): string {
   }
 }
 
-export function modSourceLabel(source: number): string {
+export function modSourceLabel(source: ModSource): string {
   switch (source) {
     case ModSource.Manual:
       return 'Uploaded';
@@ -28,7 +28,7 @@ export function modSourceLabel(source: number): string {
   }
 }
 
-export function modLoaderLabel(loader: number): string {
+export function modLoaderLabel(loader: ModLoader): string {
   switch (loader) {
     case ModLoader.Forge:
       return 'Forge';
@@ -45,7 +45,7 @@ export function modLoaderLabel(loader: number): string {
   }
 }
 
-export function modLoaderFacet(loader: number): string | null {
+export function modLoaderFacet(loader: ModLoader): string | null {
   switch (loader) {
     case ModLoader.Forge:
       return 'forge';
@@ -60,7 +60,7 @@ export function modLoaderFacet(loader: number): string | null {
   }
 }
 
-export function modLoaderFromFacet(name: string): number {
+export function modLoaderFromFacet(name: string): ModLoader {
   switch (name.toLowerCase()) {
     case 'forge':
       return ModLoader.Forge;
@@ -75,7 +75,7 @@ export function modLoaderFromFacet(name: string): number {
   }
 }
 
-export function planNodeKindLabel(kind: number): string {
+export function planNodeKindLabel(kind: PlanNodeKind): string {
   switch (kind) {
     case PlanNodeKind.Root:
       return 'Selected';
@@ -88,7 +88,7 @@ export function planNodeKindLabel(kind: number): string {
   }
 }
 
-export function planNodeStatusLabel(status: number): string {
+export function planNodeStatusLabel(status: PlanNodeStatus): string {
   switch (status) {
     case PlanNodeStatus.New:
       return 'New';
@@ -103,7 +103,7 @@ export function planNodeStatusLabel(status: number): string {
   }
 }
 
-export function planNodeStatusDetail(status: number): string {
+export function planNodeStatusDetail(status: PlanNodeStatus): string {
   switch (status) {
     case PlanNodeStatus.AlreadyInstalled:
       return 'This exact version is already on this server, so it is not downloaded again.';
@@ -116,7 +116,7 @@ export function planNodeStatusDetail(status: number): string {
   }
 }
 
-export function isReplaceable(status: number): boolean {
+export function isReplaceable(status: PlanNodeStatus): boolean {
   return (
     status === PlanNodeStatus.OtherVersionInstalled || status === PlanNodeStatus.FileNameTaken
   );

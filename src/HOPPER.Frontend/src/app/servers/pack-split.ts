@@ -26,7 +26,7 @@ export function linksToCurseForge(mod: ModDto): boolean {
   );
 }
 
-export function packSplit(mods: ReadonlyArray<ModDto>, format: number): PackSplit {
+export function packSplit(mods: ReadonlyArray<ModDto>, format: PackFormat): PackSplit {
   let manifestEntries = 0;
   let bundledFiles = 0;
   let bundledBytes = 0;
@@ -43,7 +43,7 @@ export function packSplit(mods: ReadonlyArray<ModDto>, format: number): PackSpli
   return { manifestEntries, bundledFiles, bundledBytes };
 }
 
-function linksInFormat(mod: ModDto, format: number): boolean {
+function linksInFormat(mod: ModDto, format: PackFormat): boolean {
   switch (format) {
     case PackFormat.Modrinth:
       return linksToModrinth(mod);

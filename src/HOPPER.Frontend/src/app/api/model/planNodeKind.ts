@@ -10,9 +10,9 @@
 
 
 export const PlanNodeKind = {
-    Root: 0,
-    Required: 1,
-    Optional: 2
+    Root: 'Root',
+    Required: 'Required',
+    Optional: 'Optional'
 } as const;
 export type PlanNodeKind = typeof PlanNodeKind[keyof typeof PlanNodeKind];
 

@@ -12,6 +12,7 @@ import { ServersService } from '../api/api/servers.service';
 import { ServerImportsService } from '../api/api/serverImports.service';
 import { ModImportDto } from '../api/model/modImportDto';
 import { PendingModDto } from '../api/model/pendingModDto';
+import { PackFormat } from '../api/model/packFormat';
 import { ServerDto } from '../api/model/serverDto';
 import { WhenPipe } from '../shared/utils/when';
 import { serverIdSignal } from './server-route';
@@ -133,7 +134,7 @@ export class ServerPending {
     });
   }
 
-  protected format(value: number): string {
+  protected format(value: PackFormat): string {
     return packFormatLabel(value);
   }
 

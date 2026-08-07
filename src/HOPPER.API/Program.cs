@@ -18,6 +18,7 @@ using HOPPER.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,19 +33,17 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddSpaStaticFiles(options => { options.RootPath = "wwwroot"; });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 
-builder.Services.AddOpenApi(options =>
-{
-    options.AddDocumentTransformer<SecuritySchemeTransformer>();
-    options.AddSchemaTransformer<EnumSchemaTransformer>();
-    options.CreateSchemaReferenceId = EnumSchemaTransformer.ReferenceId;
-});
+builder.Services.AddOpenApi(options => { options.AddDocumentTransformer<SecuritySchemeTransformer>(); });
 
 builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifetime.Scoped; });
 

@@ -10,10 +10,10 @@
 
 
 export const PendingReason = {
-    NoApiKey: 0,
-    Blocked: 1,
-    DownloadFailed: 2,
-    HashMismatch: 3
+    NoApiKey: 'NoApiKey',
+    Blocked: 'Blocked',
+    DownloadFailed: 'DownloadFailed',
+    HashMismatch: 'HashMismatch'
 } as const;
 export type PendingReason = typeof PendingReason[keyof typeof PendingReason];
 

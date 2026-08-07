@@ -6,7 +6,7 @@ export interface PendingGroup {
   readonly importId: string;
 
   readonly sourceName: string;
-  readonly format: number;
+  readonly format: PackFormat;
 
   readonly createdAt: string | null;
   readonly entries: ReadonlyArray<PendingModDto>;

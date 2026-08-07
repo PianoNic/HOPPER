@@ -13,7 +13,7 @@ describe('modSourceLabel', () => {
   });
 
   it('does not fall back to the first case', () => {
-    expect(modSourceLabel(99)).toBe('Unknown');
+    expect(modSourceLabel('Gitea' as ModSource)).toBe('Unknown');
   });
 });
 
@@ -24,7 +24,7 @@ describe('modLoaderLabel', () => {
     expect(modLoaderLabel(ModLoader.NeoForge)).toBe('NeoForge');
     expect(modLoaderLabel(ModLoader.Fabric)).toBe('Fabric');
     expect(modLoaderLabel(ModLoader.Quilt)).toBe('Quilt');
-    expect(modLoaderLabel(7)).toBe('Unknown');
+    expect(modLoaderLabel('Rift' as ModLoader)).toBe('Unknown');
   });
 });
 
@@ -38,7 +38,7 @@ describe('modLoaderFacet', () => {
 
   it('is null for an unset loader', () => {
     expect(modLoaderFacet(ModLoader.Unknown)).toBeNull();
-    expect(modLoaderFacet(42)).toBeNull();
+    expect(modLoaderFacet('Rift' as ModLoader)).toBeNull();
   });
 });
 
@@ -65,7 +65,7 @@ describe('plan node labels', () => {
     expect(planNodeKindLabel(PlanNodeKind.Root)).toBe('Selected');
     expect(planNodeKindLabel(PlanNodeKind.Required)).toBe('Required');
     expect(planNodeKindLabel(PlanNodeKind.Optional)).toBe('Optional');
-    expect(planNodeKindLabel(9)).toBe('Unknown');
+    expect(planNodeKindLabel('Suggested' as PlanNodeKind)).toBe('Unknown');
   });
 
   it('names every status', () => {
@@ -75,7 +75,7 @@ describe('plan node labels', () => {
       'Other version installed',
     );
     expect(planNodeStatusLabel(PlanNodeStatus.FileNameTaken)).toBe('Filename taken');
-    expect(planNodeStatusLabel(9)).toBe('Unknown');
+    expect(planNodeStatusLabel('Withdrawn' as PlanNodeStatus)).toBe('Unknown');
   });
 
   it('explains only the statuses that are not New', () => {
