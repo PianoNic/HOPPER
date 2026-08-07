@@ -30,6 +30,7 @@ final class Migrator {
     private final HopperLog log;
 
     private final Set<String> blocked = new LinkedHashSet<String>();
+    private final Set<String> migrated = new LinkedHashSet<String>();
     private int moved;
     private int parked;
     private int deferred;
@@ -43,12 +44,20 @@ final class Migrator {
     static final class Result {
         final Set<String> blocked;
 
+        /**
+         * Names in hopperDir that came out of the player's own mods folder rather than from a
+         * download. The stale sweep parks these instead of unlinking them: they are the player's
+         * property, and once a mod leaves the manifest nothing else holds a copy.
+         */
+        final Set<String> migrated;
+
         final int moved;
         final int parked;
         final int deferred;
 
-        Result(Set<String> blocked, int moved, int parked, int deferred) {
+        Result(Set<String> blocked, Set<String> migrated, int moved, int parked, int deferred) {
             this.blocked = Collections.unmodifiableSet(blocked);
+            this.migrated = Collections.unmodifiableSet(migrated);
             this.moved = moved;
             this.parked = parked;
             this.deferred = deferred;
@@ -68,7 +77,7 @@ final class Migrator {
                     + parked + ", deferred " + deferred);
         }
 
-        return new Result(blocked, moved, parked, deferred);
+        return new Result(blocked, migrated, moved, parked, deferred);
     }
 
     private void migrate(List<Syncer.Entry> manifest) throws IOException {
@@ -216,6 +225,7 @@ final class Migrator {
 
         try {
             Files.move(winner, hopperDir.resolve(target), StandardCopyOption.REPLACE_EXISTING);
+            migrated.add(target);
             moved++;
             log.info("[HOPPER] " + winner.getFileName() + " in " + modsDir + " is already the"
                     + " required build of " + describe(e) + "; moved it into " + hopperDir + " as "
@@ -237,7 +247,12 @@ final class Migrator {
                 + jarName + " out of " + modsDir + " by hand.", cause);
     }
 
-    private Path park(Path jar) throws IOException {
+    /**
+     * Moves a jar into replaced/ instead of deleting it. Package-private rather than private
+     * because the stale sweep needs the same treatment for a migrated jar that has left the
+     * manifest: it belongs to the player, so it is parked, never unlinked.
+     */
+    Path park(Path jar) throws IOException {
         Path dir = hopperDir.resolve(REPLACED);
         Files.createDirectories(dir);
         writeReadme(dir);

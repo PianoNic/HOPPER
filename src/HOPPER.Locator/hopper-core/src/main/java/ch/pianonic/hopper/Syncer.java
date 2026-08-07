@@ -57,7 +57,8 @@ final class Syncer {
         added = 0;
         removed = 0;
 
-        Migrator.Result migration = new Migrator(modsDir, dir, log).run(mods);
+        Migrator migrator = new Migrator(modsDir, dir, log);
+        Migrator.Result migration = migrator.run(mods);
         migrated = migration.moved;
         deferred = migration.deferred;
 
@@ -94,9 +95,28 @@ final class Syncer {
             listing.close();
         }
         for (Path p : stale) {
+            String name = p.getFileName().toString();
+
+            // A jar that came out of the player's mods folder is theirs, not ours. Once it leaves
+            // the manifest no other copy exists, so it is parked rather than unlinked. Deleting it
+            // would destroy a file the player installed themselves, which HOPPER must never do.
+            if (migration.migrated.contains(name)) {
+                try {
+                    Path parked = migrator.park(p);
+                    removed++;
+                    log.info("[HOPPER] " + name + " is no longer required; it came from " + modsDir
+                            + ", so it was moved to " + parked + " rather than deleted");
+                } catch (IOException ex) {
+                    log.warn("[HOPPER] could not move " + name + " to "
+                            + dir.resolve(Migrator.REPLACED) + "; leaving it in place rather than"
+                            + " deleting a file that is not ours", ex);
+                }
+                continue;
+            }
+
             if (Files.deleteIfExists(p)) {
                 removed++;
-                log.info("[HOPPER] removed " + p.getFileName());
+                log.info("[HOPPER] removed " + name);
             }
         }
 
