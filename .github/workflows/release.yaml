@@ -65,10 +65,35 @@ jobs:
         with:
           ref: main
 
-      - name: Prepare repository name
+      - name: Prepare image names
         id: prep
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           echo "repository_lowercase=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
+          # Docker Hub rejects uppercase repository names, and this repo is called HOPPER. Lowercase
+          # both halves rather than using github.event.repository.name verbatim, or the push fails
+          # with "repository name must be lowercase" after the whole image has already been built.
+          IMAGES="ghcr.io/${GITHUB_REPOSITORY,,}"
+
+          # Only add Docker Hub when it is actually configured. An unset secret would otherwise
+          # produce an entry beginning with a slash, which likewise only fails at push time and
+          # throws away the entire build.
+          if [ -n "$DOCKERHUB_USERNAME" ]; then
+            IMAGES="$IMAGES"$'\n'"docker.io/${DOCKERHUB_USERNAME,,}/${GITHUB_REPOSITORY##*/}"
+            IMAGES="${IMAGES,,}"
+            echo "dockerhub=true" >> $GITHUB_OUTPUT
+          else
+            echo "dockerhub=false" >> $GITHUB_OUTPUT
+            echo "DOCKERHUB_USERNAME is not set; pushing to ghcr only."
+          fi
+
+          {
+            echo "images<<EOF"
+            echo "$IMAGES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -83,11 +108,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Not continue-on-error: if Docker Hub is configured but the credentials are wrong, that is a
+      # broken release and should say so here, not silently ship to one registry out of two.
+      - name: Log in to Docker Hub
+        if: steps.prep.outputs.dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.prep.outputs.images }}
           tags: |
             type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
             type=semver,pattern={{major}}.{{minor}},value=${{ github.event.release.tag_name }}
