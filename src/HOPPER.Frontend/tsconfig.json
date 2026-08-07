@@ -32,7 +32,8 @@
       "@spartan-ng/helm/sonner": ["./libs/ui/sonner/src/index.ts"],
       "@spartan-ng/helm/select": ["./libs/ui/select/src/index.ts"],
       "@spartan-ng/helm/checkbox": ["./libs/ui/checkbox/src/index.ts"],
-      "@spartan-ng/helm/resizable": ["./libs/ui/resizable/src/index.ts"]
+      "@spartan-ng/helm/resizable": ["./libs/ui/resizable/src/index.ts"],
+      "@spartan-ng/helm/spinner": ["./libs/ui/spinner/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

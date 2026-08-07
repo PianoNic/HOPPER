@@ -37,6 +37,7 @@ import {
 } from '@ng-icons/simple-icons';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmSpinnerImports } from '@spartan-ng/helm/spinner';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmResizableImports } from '@spartan-ng/helm/resizable';
@@ -123,6 +124,7 @@ type SearchKey = {
     RouterLink,
     HlmBadgeImports,
     HlmButtonImports,
+    HlmSpinnerImports,
     ButtonLoading,
     HlmInputImports,
     HlmResizableImports,
@@ -362,7 +364,7 @@ type SearchKey = {
                intersects, and then it is the only way on. -->
           <div #sentinel class="flex justify-center pb-6">
             @if (loading()) {
-              <p class="text-muted-foreground text-xs">Loading…</p>
+              <hlm-spinner aria-label="Loading more results" />
             } @else if (hasMore()) {
               <button hlmBtn variant="outline" size="sm" type="button" (click)="loadMore()">
                 Load more
@@ -425,7 +427,10 @@ type SearchKey = {
           </div>
 
           @if (detailLoading()) {
-            <p class="text-muted-foreground p-4 text-xs">Loading details…</p>
+            <p class="text-muted-foreground flex items-center gap-2 p-4 text-xs">
+              <hlm-spinner aria-label="Loading details" />
+              Loading details
+            </p>
           } @else if (detailFailed()) {
             <!-- A state, not a message: the failure itself was the toast, and a toast is gone in
                  seconds while an empty pane is not. -->
