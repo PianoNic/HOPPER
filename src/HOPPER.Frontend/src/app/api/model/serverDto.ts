@@ -21,6 +21,7 @@ export interface ServerDto {
     minecraftVersion?: string | null;
     loader: ModLoader;
     loaderVersion?: string | null;
+    iconSha256?: string | null;
 }
 export namespace ServerDto {
 }

@@ -45,6 +45,7 @@ The same jar goes on your dedicated server, which stays in sync from the same li
 ## Features
 
 - **No restart**: on Forge and NeoForge, mods are downloaded before the loader scans for them, so they load in the same launch. See [how it works](docs/how-it-works.md).
+- 🖼️ **A face per server**: upload an icon, or let a Prism import adopt the one it already carries. Stored at 64x64, the size Minecraft uses, so an existing `server-icon.png` works as it is.
 - **Every loader generation**: Forge 1.12.2 through current, NeoForge, Fabric and Quilt, from one shared core plus a thin adapter each.
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.

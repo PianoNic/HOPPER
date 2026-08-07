@@ -19,5 +19,7 @@ namespace HOPPER.Application.Dtos.Servers
         public required ModLoader Loader { get; init; }
 
         public string? LoaderVersion { get; init; }
+
+        public string? IconSha256 { get; init; }
     }
 }

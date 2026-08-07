@@ -43,7 +43,7 @@
             align="start"
             class="!w-56 mx-auto"
           >
-            <ng-icon name="lucideServer" />
+            <app-server-icon [sha256]="currentServerIcon()" [name]="currentServerName()" [size]="20" />
             <span class="truncate">{{ currentServerName() || 'Select a server' }}</span>
             <ng-icon
               name="lucideChevronsUpDown"
@@ -58,7 +58,7 @@
                 <hlm-dropdown-menu-group>
                   @for (server of servers(); track server.id) {
                     <button hlmDropdownMenuItem (click)="switchServer(server.id)">
-                      <ng-icon name="lucideServer" />
+                      <app-server-icon [sha256]="server.iconSha256" [name]="server.name" [size]="20" />
                       <span class="truncate">{{ server.name }}</span>
                       @if (server.id === currentServerId()) {
                         <span class="ml-auto text-xs text-muted-foreground">&#10003;</span>

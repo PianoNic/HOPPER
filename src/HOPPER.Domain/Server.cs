@@ -15,5 +15,7 @@ namespace HOPPER.Domain
         public ModLoader Loader { get; set; } = ModLoader.Unknown;
 
         public string? LoaderVersion { get; set; }
+
+        public string? IconSha256 { get; set; }
     }
 }

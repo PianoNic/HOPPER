@@ -52,6 +52,7 @@ export * from './planNodeKind';
 export * from './planNodeStatus';
 export * from './problemDetails';
 export * from './serverDto';
+export * from './serverIconDto';
 export * from './serverTokenDto';
 export * from './setModSideRequest';
 export * from './setModSideResultDto';
