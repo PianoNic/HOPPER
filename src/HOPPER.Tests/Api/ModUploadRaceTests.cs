@@ -16,6 +16,20 @@ namespace HOPPER.Tests.Api
     {
         private static Stream Jar(string marker) => new MemoryStream(Encoding.UTF8.GetBytes($"PK jar {marker}"));
 
+        private static Stream ClientOnlyJar()
+        {
+            var buffer = new MemoryStream();
+
+            using (var archive = new System.IO.Compression.ZipArchive(buffer, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using var json = archive.CreateEntry("fabric.mod.json").Open();
+                json.Write(Encoding.UTF8.GetBytes("{\"id\":\"sodium\",\"environment\":\"client\"}"));
+            }
+
+            buffer.Position = 0;
+            return buffer;
+        }
+
         private static string Unique(string stem) => $"{stem}-{Guid.NewGuid().ToString("N")[..8]}.jar";
 
         private static UploadModsCommandHandler Uploads(IServiceProvider services, HopperDbContext db) =>
@@ -145,6 +159,48 @@ namespace HOPPER.Tests.Api
             await Assert.That(stored.FileName).IsEqualTo(fileName);
             await Assert.That(blobs.Exists(stored.Sha256)).IsTrue();
             await Assert.That(await db.PendingMods.AnyAsync(p => p.Id == pending.Id)).IsFalse();
+        }
+
+        [Test]
+        public async Task ResolvePending_ReadsTheSideOutOfTheJarLikeAnUploadDoes()
+        {
+            // Collecting a jar by hand is the same act as uploading one, so it should not land on the
+            // Both default when the jar says otherwise. Before this it did, and only on this path.
+            await using var scope = HopperApi.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
+            var blobs = scope.ServiceProvider.GetRequiredService<IBlobStorage>();
+
+            var fileName = Unique("race-sided");
+
+            var import = new ModImport
+            {
+                ServerId = HopperApi.ServerAId,
+                SourceName = "pack.zip",
+                SourceKind = ImportSourceKind.Upload,
+                Status = ImportStatus.Completed,
+            };
+            db.ModImports.Add(import);
+
+            var pending = new PendingMod
+            {
+                ServerId = HopperApi.ServerAId,
+                ImportId = import.Id,
+                Reason = PendingReason.NoApiKey,
+                FileName = fileName,
+            };
+            db.PendingMods.Add(pending);
+            await db.SaveChangesAsync();
+
+            var resolve = new ResolvePendingModCommandHandler(
+                db, blobs,
+                scope.ServiceProvider.GetRequiredService<ICurrentUserService>(),
+                scope.ServiceProvider.GetRequiredService<IConfiguration>());
+
+            var stored = await resolve.Handle(
+                new ResolvePendingModCommand(HopperApi.ServerAId, pending.Id, fileName, ClientOnlyJar()),
+                CancellationToken.None);
+
+            await Assert.That(stored.Side).IsEqualTo(ModSide.ClientOnly);
         }
     }
 }
