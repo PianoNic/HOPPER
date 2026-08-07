@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
@@ -18,19 +17,21 @@ import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
+import { WhenPipe } from '../shared/utils/when';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { messageFrom, toNumber } from '../shared/utils/format';
 import { copyText } from '../shared/utils/clipboard';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
+import { MOD_LOADER, modLoaderLabel } from './mod-labels';
 import { ServerDialogService } from './server-dialog';
 
 @Component({
   selector: 'app-servers',
   imports: [
     ContentHeader,
-    DatePipe,
+    WhenPipe,
     NgIcon,
     HlmButtonImports,
     ButtonLoading,
@@ -117,7 +118,7 @@ import { ServerDialogService } from './server-dialog';
             <thead hlmTableHeader>
               <tr hlmTableRow>
                 <th hlmTableHead>Name</th>
-                <th hlmTableHead>Slug</th>
+                <th hlmTableHead>Runs</th>
                 <th hlmTableHead class="text-right">Mods</th>
                 <th hlmTableHead class="text-right">Clients</th>
                 <th hlmTableHead>Created</th>
@@ -128,13 +129,24 @@ import { ServerDialogService } from './server-dialog';
               @for (s of filteredServers(); track s.id) {
                 <tr hlmTableRow class="cursor-pointer" (click)="open(s)">
                   <td hlmTableCell class="font-medium">{{ s.name }}</td>
-                  <td hlmTableCell class="font-mono text-xs">{{ s.slug }}</td>
+                  <td hlmTableCell class="text-xs">
+                    @if (platform(s); as p) {
+                      <span class="inline-flex items-center gap-1.5">
+                        <span class="font-medium">{{ p.loader }}</span>
+                        <span class="text-muted-foreground font-mono">{{ p.version }}</span>
+                      </span>
+                    } @else {
+                      <!-- Not blank: this is the state that makes the browse page refuse to search,
+                           so the list is where it should be noticed. -->
+                      <span class="text-muted-foreground">Not set</span>
+                    }
+                  </td>
                   <td hlmTableCell class="text-right font-mono text-xs">{{ count(s.modCount) }}</td>
                   <td hlmTableCell class="text-right font-mono text-xs">
                     {{ count(s.clientCount) }}
                   </td>
                   <td hlmTableCell class="font-mono text-xs">
-                    {{ s.createdAt | date: 'yyyy-MM-dd HH:mm' }}
+                    {{ s.createdAt | when }}
                   </td>
                   <td hlmTableCell class="text-right">
                     <span class="inline-flex items-center justify-end gap-0.5">
@@ -204,6 +216,16 @@ export class Servers {
   protected readonly filter = signal('');
 
   protected readonly busy = signal<Record<string, boolean>>({});
+
+  // null when there is nothing worth showing, so the template can say "Not set" rather than
+  // rendering an empty cell that looks like a rendering fault.
+  protected platform(server: ServerDto): { loader: string; version: string } | null {
+    const loader = server.loader === MOD_LOADER.unknown ? '' : modLoaderLabel(server.loader);
+    const version = server.minecraftVersion ?? '';
+    if (loader === '' && version === '') return null;
+
+    return { loader: loader === '' ? 'Unknown loader' : loader, version };
+  }
 
   protected readonly filteredServers = computed(() => {
     const q = this.filter().trim().toLowerCase();

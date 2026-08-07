@@ -10,7 +10,6 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { catchError, debounceTime, distinctUntilChanged, EMPTY, forkJoin, switchMap } from 'rxjs';
@@ -53,6 +52,8 @@ import { ApiModrinthSearchGetLimitParameter } from '../api/model/apiModrinthSear
 import { ApiModrinthSearchGetOffsetParameter } from '../api/model/apiModrinthSearchGetOffsetParameter';
 import { apiNumber, messageFrom, toNumber } from '../shared/utils/format';
 import { renderProjectBody } from '../shared/utils/markdown';
+import { WhenPipe } from '../shared/utils/when';
+import { ServerChanged } from '../shared/services/server-changed';
 import { serverIdSignal } from './server-route';
 import {
   MOD_LOADER,
@@ -117,9 +118,9 @@ type SearchKey = {
   selector: 'app-server-browse',
   imports: [
     ContentHeader,
+    WhenPipe,
     NgIcon,
     RouterLink,
-    DatePipe,
     HlmBadgeImports,
     HlmButtonImports,
     ButtonLoading,
@@ -446,7 +447,7 @@ type SearchKey = {
                   {{ compact(p.followers) }}
                 </span>
                 @if (sel.dateModified) {
-                  <span>updated {{ sel.dateModified | date: 'mediumDate' }}</span>
+                  <span>updated {{ sel.dateModified | when: 'date' }}</span>
                 }
               </div>
 
@@ -512,6 +513,7 @@ export class ServerBrowse {
   private readonly destroyRef = inject(DestroyRef);
   private readonly versionDialog = inject(ModrinthVersionDialogService);
   private readonly planDialog = inject(ModrinthPlanDialogService);
+  private readonly serverChanged = inject(ServerChanged);
 
   protected readonly serverId = serverIdSignal(this.route);
   protected readonly sorts = SORTS;
@@ -846,6 +848,7 @@ export class ServerBrowse {
     // treats as a replacement, so everything scrolled since would be thrown away and the reader
     // dropped back at the top. The one thing the refresh was for is this flag.
     this.markInstalled(projectId);
+    this.serverChanged.changed();
   }
 
   private markInstalled(projectId: string): void {

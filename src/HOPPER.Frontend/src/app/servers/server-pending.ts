@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -14,6 +13,7 @@ import { ServerImportsService } from '../api/api/serverImports.service';
 import { ModImportDto } from '../api/model/modImportDto';
 import { PendingModDto } from '../api/model/pendingModDto';
 import { ServerDto } from '../api/model/serverDto';
+import { WhenPipe } from '../shared/utils/when';
 import { serverIdSignal } from './server-route';
 import { packFormatLabel } from './import-labels';
 import { groupPendingByImport } from './pending-groups';
@@ -21,7 +21,7 @@ import { PendingMods } from './pending-mods';
 
 @Component({
   selector: 'app-server-pending',
-  imports: [ContentHeader, DatePipe, NgIcon, HlmButtonImports,
+  imports: [ContentHeader, WhenPipe, NgIcon, HlmButtonImports,
     ButtonLoading, PendingMods],
   providers: [provideIcons({ lucideCircleCheck, lucideRefreshCw })],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -84,7 +84,7 @@ import { PendingMods } from './pending-mods';
                   <span class="text-muted-foreground text-xs">
                     {{ format(group.format) }}
                     @if (group.createdAt; as when) {
-                      · {{ when | date: 'yyyy-MM-dd HH:mm' }}
+                      · {{ when | when }}
                     }
                     · {{ group.entries.length }} open
                   </span>
