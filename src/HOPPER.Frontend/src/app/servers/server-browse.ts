@@ -438,8 +438,8 @@ type SearchKey = {
                 }
               </div>
 
-              <div class="flex items-start gap-2">
-                <div class="flex flex-1 flex-wrap gap-1">
+              <div class="-mt-1 flex items-center gap-2">
+                <div class="flex flex-1 flex-wrap items-center gap-1">
                   @for (c of p.categories; track c) {
                     <span hlmBadge variant="outline" class="text-xs">{{ c }}</span>
                   }
@@ -452,7 +452,7 @@ type SearchKey = {
                     <a
                       hlmBtn
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon-xs"
                       [title]="sourceTitle(p.sourceUrl)"
                       [href]="p.sourceUrl"
                       target="_blank"
@@ -465,7 +465,7 @@ type SearchKey = {
                     <a
                       hlmBtn
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon-xs"
                       title="Issue tracker"
                       [href]="p.issuesUrl"
                       target="_blank"
