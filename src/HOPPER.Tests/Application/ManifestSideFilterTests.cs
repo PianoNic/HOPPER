@@ -103,15 +103,52 @@ namespace HOPPER.Tests.Application
             var client = await handler.Handle(new GetManifestQuery(ServerId, "https://h", SyncSide.Client), CancellationToken.None);
             var server = await handler.Handle(new GetManifestQuery(ServerId, "https://h", SyncSide.Server), CancellationToken.None);
 
-            var clientJson = JsonSerializer.Serialize(client);
-            var serverJson = JsonSerializer.Serialize(server);
+            static (List<string> Keys, List<JsonValueKind> Kinds) Shape(object manifest)
+            {
+                using var document = JsonDocument.Parse(JsonSerializer.Serialize(manifest));
+                var entry = document.RootElement.GetProperty("mods")[0];
+                return (entry.EnumerateObject().Select(p => p.Name).ToList(),
+                        entry.EnumerateObject().Select(p => p.Value.ValueKind).ToList());
+            }
 
-            await Assert.That(clientJson).IsEqualTo(serverJson);
-            await Assert.That(clientJson).Contains("\"file\":\"both.jar\"");
+            var clientShape = Shape(client);
+            var serverShape = Shape(server);
 
-            using var document = JsonDocument.Parse(clientJson);
-            var keys = document.RootElement.GetProperty("mods")[0].EnumerateObject().Select(p => p.Name).ToList();
-            await Assert.That(keys).IsEquivalentTo(new[] { "file", "url", "sha256", "size", "modIds" });
+            // The shape, not the bytes. The url VALUE has always differed per deployment - it
+            // embeds the base URL - and now carries the side as well, so comparing serialised JSON
+            // would pin something that was never the contract.
+            await Assert.That(clientShape.Keys).IsEquivalentTo(serverShape.Keys);
+            await Assert.That(clientShape.Kinds).IsEquivalentTo(serverShape.Kinds);
+            await Assert.That(clientShape.Keys).IsEquivalentTo(new[] { "file", "url", "sha256", "size", "modIds" });
+            await Assert.That(clientShape.Kinds[3]).IsEqualTo(JsonValueKind.Number);
+        }
+
+        [Test]
+        public async Task Server_BlobUrlsCarryTheSide()
+        {
+            // Caught by a real Forge dedicated server, not by a unit test: the manifest handed it
+            // the ServerOnly jar and a plain blob URL, the blob endpoint defaulted that request to
+            // client, and the download 404d. The client fetches these URLs verbatim, so the side
+            // has to be in them.
+            await using var db = await WithOneOfEach();
+
+            var result = await new GetManifestQueryHandler(db)
+                .Handle(new GetManifestQuery(ServerId, "https://h", SyncSide.Server), CancellationToken.None);
+
+            await Assert.That(result.Mods.All(m => m.Url.EndsWith("?side=server", StringComparison.Ordinal))).IsTrue();
+        }
+
+        [Test]
+        public async Task Client_BlobUrlsAreUnchanged()
+        {
+            // Every jar in the field already follows these URLs. Adding anything here would point
+            // them somewhere new.
+            await using var db = await WithOneOfEach();
+
+            var result = await new GetManifestQueryHandler(db)
+                .Handle(new GetManifestQuery(ServerId, "https://h"), CancellationToken.None);
+
+            await Assert.That(result.Mods.All(m => !m.Url.Contains('?'))).IsTrue();
         }
 
         // ---- the rule itself ------------------------------------------------------------------
