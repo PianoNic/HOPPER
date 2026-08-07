@@ -12,6 +12,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCheck, lucideExternalLink, lucidePackage } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmSpinnerImports } from '@spartan-ng/helm/spinner';
 import {
   HlmDialogDescription,
   HlmDialogHeader,
@@ -40,6 +41,7 @@ export type ModrinthVersionPick = { projectId: string; versionId: string; title:
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
+    HlmSpinnerImports,
     HlmDialogHeader,
     HlmDialogTitle,
     HlmDialogDescription,
@@ -58,7 +60,10 @@ export type ModrinthVersionPick = { projectId: string; versionId: string; title:
 
     <div class="max-h-96 min-h-0 flex-1 overflow-auto">
       @if (loading()) {
-        <p class="text-muted-foreground p-6 text-center text-sm">Loading versions…</p>
+        <p class="text-muted-foreground flex items-center justify-center gap-2 p-6 text-sm">
+          <hlm-spinner aria-label="Loading versions" />
+          Loading versions
+        </p>
       } @else if (versions().length === 0) {
         <div
           class="text-muted-foreground flex flex-col items-center justify-center gap-2 p-8 text-center text-sm"

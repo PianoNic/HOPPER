@@ -22,6 +22,7 @@ import {
 } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmSpinnerImports } from '@spartan-ng/helm/spinner';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 import {
@@ -57,6 +58,7 @@ const REPLAN_DEBOUNCE_MS = 300;
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
+    HlmSpinnerImports,
     ButtonLoading,
     HlmCheckboxImports,
     HlmDialogHeader,
@@ -166,7 +168,10 @@ const REPLAN_DEBOUNCE_MS = 300;
             </button>
           </div>
         } @else if (loading() && plan() === null) {
-          <p class="text-muted-foreground p-6 text-center text-sm">Resolving dependencies…</p>
+          <p class="text-muted-foreground flex items-center justify-center gap-2 p-6 text-sm">
+            <hlm-spinner aria-label="Resolving dependencies" />
+            Resolving dependencies
+          </p>
         } @else if (plan(); as p) {
           <div class="flex flex-col gap-4" [class.opacity-60]="loading()">
             <!-- 1. Will be added. Not tickable: these are required, and hiding a requirement behind
