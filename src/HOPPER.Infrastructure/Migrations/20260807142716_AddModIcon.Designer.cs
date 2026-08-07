@@ -3,6 +3,7 @@ using System;
 using HOPPER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HOPPER.Infrastructure.Migrations
 {
     [DbContext(typeof(HopperDbContext))]
-    partial class HopperDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807142716_AddModIcon")]
+    partial class AddModIcon
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -114,10 +117,6 @@ namespace HOPPER.Infrastructure.Migrations
                     b.Property<string>("IconSha256")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<string>("IconUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
 
                     b.PrimitiveCollection<string[]>("ModIds")
                         .HasColumnType("text[]");

@@ -170,12 +170,21 @@ namespace HOPPER.Application.Maintenance
 
                 var batch = candidates.GetRange(offset, Math.Min(BatchSize, candidates.Count - offset));
 
-                var referenced = (await db.Mods.AsNoTracking()
-                        .Where(m => batch.Contains(m.Sha256))
-                        .Select(m => m.Sha256)
-                        .Distinct()
-                        .ToListAsync(cancellationToken))
-                    .ToHashSet(StringComparer.Ordinal);
+                // Icons are blobs too, and a mod referencing one is as good a reason to keep it as
+                // a mod being one.
+                var referencedJars = await db.Mods.AsNoTracking()
+                    .Where(m => batch.Contains(m.Sha256))
+                    .Select(m => m.Sha256)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                var referencedIcons = await db.Mods.AsNoTracking()
+                    .Where(m => m.IconSha256 != null && batch.Contains(m.IconSha256))
+                    .Select(m => m.IconSha256!)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                var referenced = referencedJars.Concat(referencedIcons).ToHashSet(StringComparer.Ordinal);
 
                 foreach (var sha in batch)
                 {

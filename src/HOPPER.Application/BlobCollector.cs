@@ -12,7 +12,9 @@ namespace HOPPER.Application
         {
             await using var hold = await BlobLock.HoldAsync(db, sha256, cancellationToken);
 
-            if (await db.Mods.AnyAsync(m => m.Sha256 == sha256, cancellationToken))
+            // Both columns: a mod's icon lives in the same content-addressed store as its jar, and
+            // checking only Sha256 would make every icon look unreferenced and sweep it away.
+            if (await db.Mods.AnyAsync(m => m.Sha256 == sha256 || m.IconSha256 == sha256, cancellationToken))
                 return false;
 
             blobs.Delete(sha256);

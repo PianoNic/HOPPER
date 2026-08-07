@@ -18,5 +18,11 @@ namespace HOPPER.Application.Dtos.Mods
         public string? ProjectName { get; init; }
 
         public string? DownloadUrl { get; init; }
+
+        /// <summary>Fetch it from /api/icons/{sha256}. Null when this mod has no icon.</summary>
+        public string? IconSha256 { get; init; }
+
+        /// <summary>The platform's own icon, for a mod installed through the manager.</summary>
+        public string? IconUrl { get; init; }
     }
 }

@@ -85,6 +85,55 @@ namespace HOPPER.Application.ModMetadata
             return [.. ids];
         }
 
+        /// <summary>
+        /// The first value of a bare key, wherever it sits. Enough for logoFile, which mods.toml
+        /// puts at the root on some mods and inside [[mods]] on others, and not enough for anything
+        /// that needs to know which table it came from.
+        /// </summary>
+        public static string? Value(string text, string key)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+
+            var multiline = false;
+            var multilineDelimiter = string.Empty;
+
+            foreach (var raw in text.Split('\n'))
+            {
+                var line = raw.TrimEnd('\r');
+
+                if (multiline)
+                {
+                    if (line.Contains(multilineDelimiter, StringComparison.Ordinal)) multiline = false;
+                    continue;
+                }
+
+                if (IndexOfTripleQuote(line, out var delimiter) >= 0)
+                {
+                    if (Occurrences(line, delimiter) % 2 == 1)
+                    {
+                        multiline = true;
+                        multilineDelimiter = delimiter;
+                    }
+
+                    continue;
+                }
+
+                line = line.Trim();
+                if (line.Length == 0 || line[0] == '#' || line[0] == '[') continue;
+
+                var stripped = StripComment(line);
+                var equals = IndexOfEqualsOutsideString(stripped);
+                if (equals < 0) continue;
+
+                if (!string.Equals(stripped[..equals].Trim(), key, StringComparison.Ordinal)) continue;
+
+                var value = Unquote(stripped[(equals + 1)..].Trim());
+                if (value.Length > 0) return value;
+            }
+
+            return null;
+        }
+
         private static string TableName(string line)
         {
             if (line.StartsWith("[[", StringComparison.Ordinal))

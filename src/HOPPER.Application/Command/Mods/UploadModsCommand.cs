@@ -109,6 +109,7 @@ namespace HOPPER.Application.Command.Mods
                     UploadedBy = currentUser.Name,
 
                     ModIds = ModIdReader.FromStaged(blobs, staged),
+                    IconSha256 = await ModIconStore.FromStagedJarAsync(blobs, staged, cancellationToken),
                 };
 
                 await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
