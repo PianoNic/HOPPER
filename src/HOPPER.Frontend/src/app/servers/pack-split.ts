@@ -1,7 +1,7 @@
 import { ModDto } from '../api/model/modDto';
 import { toNumber } from '../shared/utils/format';
-import { PACK_FORMAT } from './import-labels';
-import { MOD_SOURCE } from './mod-labels';
+import { PackFormat } from '../api/model/packFormat';
+import { ModSource } from '../api/model/modSource';
 
 export interface PackSplit {
   readonly manifestEntries: number;
@@ -13,7 +13,7 @@ export interface PackSplit {
 
 export function linksToModrinth(mod: ModDto): boolean {
   return (
-    mod.source === MOD_SOURCE.modrinth &&
+    mod.source === ModSource.Modrinth &&
     notEmpty(mod.projectId) &&
     notEmpty(mod.versionId) &&
     notEmpty(mod.downloadUrl)
@@ -22,7 +22,7 @@ export function linksToModrinth(mod: ModDto): boolean {
 
 export function linksToCurseForge(mod: ModDto): boolean {
   return (
-    mod.source === MOD_SOURCE.curseForge && isInteger(mod.projectId) && isInteger(mod.versionId)
+    mod.source === ModSource.CurseForge && isInteger(mod.projectId) && isInteger(mod.versionId)
   );
 }
 
@@ -45,9 +45,9 @@ export function packSplit(mods: ReadonlyArray<ModDto>, format: number): PackSpli
 
 function linksInFormat(mod: ModDto, format: number): boolean {
   switch (format) {
-    case PACK_FORMAT.modrinth:
+    case PackFormat.Modrinth:
       return linksToModrinth(mod);
-    case PACK_FORMAT.curseForge:
+    case PackFormat.CurseForge:
       return linksToCurseForge(mod);
     default:
 

@@ -19,6 +19,8 @@ import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 // @ts-ignore
 import { FileResult } from '../model/fileResult';
 // @ts-ignore
+import { PackFormat } from '../model/packFormat';
+// @ts-ignore
 import { ProblemDetails } from '../model/problemDetails';
 
 // @ts-ignore
@@ -45,10 +47,10 @@ export class ServerExportService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public apiServersIdExportGet(id: string, format?: number, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<FileResult>;
-    public apiServersIdExportGet(id: string, format?: number, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FileResult>>;
-    public apiServersIdExportGet(id: string, format?: number, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FileResult>>;
-    public apiServersIdExportGet(id: string, format?: number, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public apiServersIdExportGet(id: string, format?: PackFormat, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<FileResult>;
+    public apiServersIdExportGet(id: string, format?: PackFormat, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FileResult>>;
+    public apiServersIdExportGet(id: string, format?: PackFormat, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FileResult>>;
+    public apiServersIdExportGet(id: string, format?: PackFormat, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/octet-stream', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (id === null || id === undefined) {
             throw new Error('Required parameter id was null or undefined when calling apiServersIdExportGet.');
         }

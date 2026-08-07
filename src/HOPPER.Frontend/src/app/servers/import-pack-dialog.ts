@@ -39,12 +39,8 @@ import { ModImportDto } from '../api/model/modImportDto';
 import { PendingModDto } from '../api/model/pendingModDto';
 import { BASE_PATH } from '../api/variables';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
-import {
-  IMPORT_STATUS,
-  importStatusLabel,
-  isImportPending,
-  packFormatLabel,
-} from './import-labels';
+import { importStatusLabel, isImportPending, packFormatLabel } from './import-labels';
+import { ImportStatus } from '../api/model/importStatus';
 import { PendingMods } from './pending-mods';
 
 export type ImportPackDialogContext = { serverId: string };
@@ -327,14 +323,14 @@ export class ImportPackDialog {
     () => {
       const row = this.job();
       if (row === null) return 'outline';
-      if (row.status === IMPORT_STATUS.failed) return 'destructive';
-      if (row.status === IMPORT_STATUS.completed) return 'default';
+      if (row.status === ImportStatus.Failed) return 'destructive';
+      if (row.status === ImportStatus.Completed) return 'default';
       return 'outline';
     },
   );
 
   protected readonly noteClass = computed(() =>
-    this.job()?.status === IMPORT_STATUS.completed ? 'text-muted-foreground' : 'text-destructive',
+    this.job()?.status === ImportStatus.Completed ? 'text-muted-foreground' : 'text-destructive',
   );
 
   protected readonly format = computed(() => {
@@ -555,7 +551,7 @@ export class ImportPackDialog {
   }
 
   private loadPending(row: ModImportDto): void {
-    if (row.status === IMPORT_STATUS.failed) {
+    if (row.status === ImportStatus.Failed) {
       toast.error(row.error ?? 'The import failed.');
       return;
     }

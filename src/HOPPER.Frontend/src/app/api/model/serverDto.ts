@@ -8,6 +8,7 @@
  * Do not edit the class manually.
  */
 import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { ModLoader } from './modLoader';
 
 
 export interface ServerDto { 
@@ -18,7 +19,10 @@ export interface ServerDto {
     clientCount: ModImportDtoImportedCount;
     createdAt: string;
     minecraftVersion?: string | null;
-    loader: number;
+    loader: ModLoader;
     loaderVersion?: string | null;
 }
+export namespace ServerDto {
+}
+
 

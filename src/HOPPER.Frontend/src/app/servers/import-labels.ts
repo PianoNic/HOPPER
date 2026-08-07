@@ -1,37 +1,18 @@
+import { ImportStatus } from '../api/model/importStatus';
+import { PackFormat } from '../api/model/packFormat';
+import { PendingReason } from '../api/model/pendingReason';
 import { PendingModDto } from '../api/model/pendingModDto';
 import { toNumber } from '../shared/utils/format';
 
-export const IMPORT_STATUS = {
-  queued: 0,
-  running: 1,
-  completed: 2,
-  failed: 3,
-} as const;
-
-export const PACK_FORMAT = {
-  unknown: 0,
-  modrinth: 1,
-  curseForge: 2,
-  prismInstance: 3,
-  jarArchive: 4,
-} as const;
-
-export const PENDING_REASON = {
-  noApiKey: 0,
-  blocked: 1,
-  downloadFailed: 2,
-  hashMismatch: 3,
-} as const;
-
 export function importStatusLabel(status: number): string {
   switch (status) {
-    case IMPORT_STATUS.queued:
+    case ImportStatus.Queued:
       return 'Queued';
-    case IMPORT_STATUS.running:
+    case ImportStatus.Running:
       return 'Running';
-    case IMPORT_STATUS.completed:
+    case ImportStatus.Completed:
       return 'Completed';
-    case IMPORT_STATUS.failed:
+    case ImportStatus.Failed:
       return 'Failed';
     default:
       return 'Unknown';
@@ -39,18 +20,18 @@ export function importStatusLabel(status: number): string {
 }
 
 export function isImportPending(status: number): boolean {
-  return status === IMPORT_STATUS.queued || status === IMPORT_STATUS.running;
+  return status === ImportStatus.Queued || status === ImportStatus.Running;
 }
 
 export function packFormatLabel(format: number): string {
   switch (format) {
-    case PACK_FORMAT.modrinth:
+    case PackFormat.Modrinth:
       return 'Modrinth pack';
-    case PACK_FORMAT.curseForge:
+    case PackFormat.CurseForge:
       return 'CurseForge pack';
-    case PACK_FORMAT.prismInstance:
+    case PackFormat.PrismInstance:
       return 'Prism instance';
-    case PACK_FORMAT.jarArchive:
+    case PackFormat.JarArchive:
       return 'Zip of jars';
     default:
       return 'Not detected';
@@ -59,13 +40,13 @@ export function packFormatLabel(format: number): string {
 
 export function pendingReasonLabel(reason: number): string {
   switch (reason) {
-    case PENDING_REASON.noApiKey:
+    case PendingReason.NoApiKey:
       return 'No CurseForge key';
-    case PENDING_REASON.blocked:
+    case PendingReason.Blocked:
       return 'Blocked by the author';
-    case PENDING_REASON.downloadFailed:
+    case PendingReason.DownloadFailed:
       return 'Download failed';
-    case PENDING_REASON.hashMismatch:
+    case PendingReason.HashMismatch:
       return 'Hash mismatch';
     default:
       return 'Pending';
@@ -74,13 +55,13 @@ export function pendingReasonLabel(reason: number): string {
 
 export function pendingReasonDetail(reason: number): string {
   switch (reason) {
-    case PENDING_REASON.noApiKey:
+    case PendingReason.NoApiKey:
       return 'A CurseForge pack names its mods by project and file id only - no filename, no URL, no hash. Without CurseForge:ApiKey configured, HOPPER cannot resolve them, so download this file yourself and upload it with the others.';
-    case PENDING_REASON.blocked:
+    case PendingReason.Blocked:
       return 'The author disabled third-party distribution, so the CurseForge API returns no download URL. This one always has to be fetched by hand, key or not.';
-    case PENDING_REASON.downloadFailed:
+    case PendingReason.DownloadFailed:
       return 'Every mirror the pack listed failed, or its host is not on the allow-list. Fetch the jar yourself and upload it.';
-    case PENDING_REASON.hashMismatch:
+    case PendingReason.HashMismatch:
       return 'The bytes that arrived are not what the pack index described, so they were discarded rather than stored under a wrong name.';
     default:
       return 'HOPPER could not store this file automatically.';

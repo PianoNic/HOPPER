@@ -39,7 +39,12 @@ builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLi
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 
-builder.Services.AddOpenApi(options => { options.AddDocumentTransformer<SecuritySchemeTransformer>(); });
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<SecuritySchemeTransformer>();
+    options.AddSchemaTransformer<EnumSchemaTransformer>();
+    options.CreateSchemaReferenceId = EnumSchemaTransformer.ReferenceId;
+});
 
 builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifetime.Scoped; });
 

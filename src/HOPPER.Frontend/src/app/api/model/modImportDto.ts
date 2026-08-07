@@ -7,15 +7,18 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ImportSourceKind } from './importSourceKind';
 import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { PackFormat } from './packFormat';
+import { ImportStatus } from './importStatus';
 
 
 export interface ModImportDto { 
     id: string;
     sourceName: string;
-    sourceKind: number;
-    format: number;
-    status: number;
+    sourceKind: ImportSourceKind;
+    format: PackFormat;
+    status: ImportStatus;
     importedCount: ModImportDtoImportedCount;
     skippedCount: ModImportDtoImportedCount;
     pendingCount: ModImportDtoImportedCount;
@@ -26,4 +29,7 @@ export interface ModImportDto {
     createdBy?: string | null;
     createdAt: string;
 }
+export namespace ModImportDto {
+}
+
 

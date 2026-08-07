@@ -29,24 +29,25 @@ import { LoaderVersionDto } from '../api/model/loaderVersionDto';
 import { LoadersService } from '../api/api/loaders.service';
 import { ServerDto } from '../api/model/serverDto';
 import { messageFrom } from '../shared/utils/format';
-import { MOD_LOADER, modLoaderLabel } from './mod-labels';
+import { modLoaderLabel } from './mod-labels';
+import { ModLoader } from '../api/model/modLoader';
 
 export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server: ServerDto };
 
-const REAL_LOADERS: ReadonlyArray<number> = [
-  MOD_LOADER.forge,
-  MOD_LOADER.neoForge,
-  MOD_LOADER.fabric,
-  MOD_LOADER.quilt,
+const REAL_LOADERS: ReadonlyArray<ModLoader> = [
+  ModLoader.Forge,
+  ModLoader.NeoForge,
+  ModLoader.Fabric,
+  ModLoader.Quilt,
 ];
 
-const LOADERS: ReadonlyArray<{ value: number; label: string }> = REAL_LOADERS.map((value) => ({
+const LOADERS: ReadonlyArray<{ value: ModLoader; label: string }> = REAL_LOADERS.map((value) => ({
   value,
   label: modLoaderLabel(value),
 }));
 
-const LOADERS_WITH_UNSET: ReadonlyArray<{ value: number; label: string }> = [
-  { value: MOD_LOADER.unknown, label: modLoaderLabel(MOD_LOADER.unknown) },
+const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
+  { value: ModLoader.Unknown, label: modLoaderLabel(ModLoader.Unknown) },
   ...LOADERS,
 ];
 
@@ -211,7 +212,7 @@ export class ServerDialog {
     this.ctx.mode === 'rename' ? (this.ctx.server.minecraftVersion ?? '') : '',
   );
   protected readonly loader = signal(
-    this.ctx.mode === 'rename' ? this.ctx.server.loader : MOD_LOADER.forge,
+    this.ctx.mode === 'rename' ? this.ctx.server.loader : ModLoader.Forge,
   );
   protected readonly loaderVersion = signal(
     this.ctx.mode === 'rename' ? (this.ctx.server.loaderVersion ?? '') : '',
@@ -239,7 +240,7 @@ export class ServerDialog {
       .pipe(
         switchMap(({ loader, minecraft }) => {
           this.loaderVersions.set([]);
-          if (loader === MOD_LOADER.unknown) return EMPTY;
+          if (loader === ModLoader.Unknown) return EMPTY;
 
           return this.loaders$.apiLoadersLoaderVersionsGet(loader, minecraft || undefined).pipe(
             catchError((err: unknown) => {

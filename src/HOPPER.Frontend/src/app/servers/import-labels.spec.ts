@@ -1,23 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import {
-  IMPORT_STATUS,
-  PACK_FORMAT,
-  PENDING_REASON,
-  importStatusLabel,
-  isImportPending,
-  packFormatLabel,
-  pendingLabel,
-  pendingProjectUrl,
-  pendingReasonDetail,
-  pendingReasonLabel,
-} from './import-labels';
+import { importStatusLabel, isImportPending, packFormatLabel, pendingLabel, pendingProjectUrl, pendingReasonDetail, pendingReasonLabel } from './import-labels';
+import { ImportStatus } from '../api/model/importStatus';
+import { PackFormat } from '../api/model/packFormat';
+import { PendingReason } from '../api/model/pendingReason';
 import { PendingModDto } from '../api/model/pendingModDto';
 
 function pending(overrides: Partial<PendingModDto> = {}): PendingModDto {
   return {
     id: 'pending-id',
     importId: 'import-id',
-    reason: PENDING_REASON.noApiKey,
+    reason: PendingReason.NoApiKey,
     displayName: null,
     fileName: null,
     projectId: null,
@@ -32,10 +24,10 @@ function pending(overrides: Partial<PendingModDto> = {}): PendingModDto {
 
 describe('importStatusLabel', () => {
   it('names every status HOPPER can persist', () => {
-    expect(importStatusLabel(IMPORT_STATUS.queued)).toBe('Queued');
-    expect(importStatusLabel(IMPORT_STATUS.running)).toBe('Running');
-    expect(importStatusLabel(IMPORT_STATUS.completed)).toBe('Completed');
-    expect(importStatusLabel(IMPORT_STATUS.failed)).toBe('Failed');
+    expect(importStatusLabel(ImportStatus.Queued)).toBe('Queued');
+    expect(importStatusLabel(ImportStatus.Running)).toBe('Running');
+    expect(importStatusLabel(ImportStatus.Completed)).toBe('Completed');
+    expect(importStatusLabel(ImportStatus.Failed)).toBe('Failed');
   });
 
   it('does not pass an unknown status off as a known one', () => {
@@ -45,10 +37,10 @@ describe('importStatusLabel', () => {
 
 describe('isImportPending', () => {
   it('is true only while the worker still owns the row', () => {
-    expect(isImportPending(IMPORT_STATUS.queued)).toBe(true);
-    expect(isImportPending(IMPORT_STATUS.running)).toBe(true);
-    expect(isImportPending(IMPORT_STATUS.completed)).toBe(false);
-    expect(isImportPending(IMPORT_STATUS.failed)).toBe(false);
+    expect(isImportPending(ImportStatus.Queued)).toBe(true);
+    expect(isImportPending(ImportStatus.Running)).toBe(true);
+    expect(isImportPending(ImportStatus.Completed)).toBe(false);
+    expect(isImportPending(ImportStatus.Failed)).toBe(false);
   });
 
   it('stops polling on a status this build does not know', () => {
@@ -58,20 +50,20 @@ describe('isImportPending', () => {
 
 describe('packFormatLabel', () => {
   it('names the formats the detector produces', () => {
-    expect(packFormatLabel(PACK_FORMAT.modrinth)).toBe('Modrinth pack');
-    expect(packFormatLabel(PACK_FORMAT.curseForge)).toBe('CurseForge pack');
-    expect(packFormatLabel(PACK_FORMAT.prismInstance)).toBe('Prism instance');
-    expect(packFormatLabel(PACK_FORMAT.jarArchive)).toBe('Zip of jars');
-    expect(packFormatLabel(PACK_FORMAT.unknown)).toBe('Not detected');
+    expect(packFormatLabel(PackFormat.Modrinth)).toBe('Modrinth pack');
+    expect(packFormatLabel(PackFormat.CurseForge)).toBe('CurseForge pack');
+    expect(packFormatLabel(PackFormat.PrismInstance)).toBe('Prism instance');
+    expect(packFormatLabel(PackFormat.JarArchive)).toBe('Zip of jars');
+    expect(packFormatLabel(PackFormat.Unknown)).toBe('Not detected');
   });
 });
 
 describe('pendingReasonLabel / pendingReasonDetail', () => {
   it('separates the keyless case from the genuinely blocked one', () => {
-    expect(pendingReasonLabel(PENDING_REASON.noApiKey)).toBe('No CurseForge key');
-    expect(pendingReasonLabel(PENDING_REASON.blocked)).toBe('Blocked by the author');
-    expect(pendingReasonDetail(PENDING_REASON.noApiKey)).toContain('CurseForge:ApiKey');
-    expect(pendingReasonDetail(PENDING_REASON.blocked)).toContain('third-party distribution');
+    expect(pendingReasonLabel(PendingReason.NoApiKey)).toBe('No CurseForge key');
+    expect(pendingReasonLabel(PendingReason.Blocked)).toBe('Blocked by the author');
+    expect(pendingReasonDetail(PendingReason.NoApiKey)).toContain('CurseForge:ApiKey');
+    expect(pendingReasonDetail(PendingReason.Blocked)).toContain('third-party distribution');
   });
 
   it('has wording for every reason, including one it does not recognise', () => {

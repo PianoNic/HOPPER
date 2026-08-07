@@ -23,6 +23,8 @@ import { ApiModrinthSearchGetOffsetParameter } from '../model/apiModrinthSearchG
 // @ts-ignore
 import { ModrinthProjectDto } from '../model/modrinthProjectDto';
 // @ts-ignore
+import { ModrinthSearchIndex } from '../model/modrinthSearchIndex';
+// @ts-ignore
 import { ModrinthSearchResultDto } from '../model/modrinthSearchResultDto';
 // @ts-ignore
 import { ModrinthTagsDto } from '../model/modrinthTagsDto';
@@ -213,10 +215,10 @@ export class ModrinthService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: number, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<ModrinthSearchResultDto>;
-    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: number, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<ModrinthSearchResultDto>>;
-    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: number, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<ModrinthSearchResultDto>>;
-    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: number, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: ModrinthSearchIndex, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<ModrinthSearchResultDto>;
+    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: ModrinthSearchIndex, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<ModrinthSearchResultDto>>;
+    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: ModrinthSearchIndex, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<ModrinthSearchResultDto>>;
+    public apiModrinthSearchGet(query?: string, loader?: string, gameVersion?: string, index?: ModrinthSearchIndex, offset?: ApiModrinthSearchGetOffsetParameter, limit?: ApiModrinthSearchGetLimitParameter, serverId?: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
 
         let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
 

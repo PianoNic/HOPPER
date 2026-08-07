@@ -1,6 +1,6 @@
 import { ModImportDto } from '../api/model/modImportDto';
 import { PendingModDto } from '../api/model/pendingModDto';
-import { PACK_FORMAT } from './import-labels';
+import { PackFormat } from '../api/model/packFormat';
 
 export interface PendingGroup {
   readonly importId: string;
@@ -31,7 +31,7 @@ export function groupPendingByImport(
     groups.push({
       importId,
       sourceName: row?.sourceName ?? 'Import no longer listed',
-      format: row?.format ?? PACK_FORMAT.unknown,
+      format: row?.format ?? PackFormat.Unknown,
       createdAt: row?.createdAt ?? null,
       entries: rows,
     });

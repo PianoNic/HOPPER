@@ -24,7 +24,8 @@ import { copyText } from '../shared/utils/clipboard';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
-import { MOD_LOADER, modLoaderLabel } from './mod-labels';
+import { modLoaderLabel } from './mod-labels';
+import { ModLoader } from '../api/model/modLoader';
 import { ServerDialogService } from './server-dialog';
 
 @Component({
@@ -218,7 +219,7 @@ export class Servers {
   protected readonly busy = signal<Record<string, boolean>>({});
 
   protected platform(server: ServerDto): { loader: string; version: string } | null {
-    const loader = server.loader === MOD_LOADER.unknown ? '' : modLoaderLabel(server.loader);
+    const loader = server.loader === ModLoader.Unknown ? '' : modLoaderLabel(server.loader);
     const version = server.minecraftVersion ?? '';
     if (loader === '' && version === '') return null;
 

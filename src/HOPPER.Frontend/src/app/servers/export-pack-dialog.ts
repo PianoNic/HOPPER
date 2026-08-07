@@ -30,8 +30,9 @@ import {
   fileNameFromDisposition,
   messageFromBlobError,
 } from '../shared/utils/download';
-import { PACK_FORMAT } from './import-labels';
-import { MOD_LOADER, modLoaderLabel } from './mod-labels';
+import { PackFormat } from '../api/model/packFormat';
+import { modLoaderLabel } from './mod-labels';
+import { ModLoader } from '../api/model/modLoader';
 import { PackSplit, packSplit } from './pack-split';
 
 export type ExportPackDialogContext = {
@@ -39,10 +40,10 @@ export type ExportPackDialogContext = {
   mods: ReadonlyArray<ModDto>;
 };
 
-export type ExportPackResult = { format: number; fileName: string; bytes: number };
+export type ExportPackResult = { format: PackFormat; fileName: string; bytes: number };
 
 type ExportOption = {
-  format: number;
+  format: PackFormat;
   label: string;
   icon: string;
 
@@ -165,13 +166,13 @@ export class ExportPackDialog {
   private readonly router = inject(Router);
   protected readonly ctx = injectBrnDialogContext<ExportPackDialogContext>();
 
-  protected readonly format = signal<number>(PACK_FORMAT.modrinth);
+  protected readonly format = signal<PackFormat>(PackFormat.Modrinth);
   protected readonly busy = signal(false);
 
   protected readonly platformReady = computed(
     () =>
       (this.ctx.server.minecraftVersion ?? '') !== '' &&
-      this.ctx.server.loader !== MOD_LOADER.unknown &&
+      this.ctx.server.loader !== ModLoader.Unknown &&
       (this.ctx.server.loaderVersion ?? '') !== '',
   );
 
@@ -181,26 +182,26 @@ export class ExportPackDialog {
     const mods = this.ctx.mods;
     return [
       {
-        format: PACK_FORMAT.modrinth,
+        format: PackFormat.Modrinth,
         label: 'Modrinth pack (.mrpack)',
         icon: 'simpleModrinth',
         hint: 'Mods added from Modrinth are listed with their CDN link and hashes. Everything else rides along in overrides/mods/.',
-        split: packSplit(mods, PACK_FORMAT.modrinth),
+        split: packSplit(mods, PackFormat.Modrinth),
       },
       {
-        format: PACK_FORMAT.curseForge,
+        format: PackFormat.CurseForge,
         label: 'CurseForge pack (.zip)',
         icon: 'simpleCurseforge',
 
         hint: 'A CurseForge manifest entry is a CurseForge project and file id, which a Modrinth or hand-uploaded jar does not have, so those ship inside overrides/mods/.',
-        split: packSplit(mods, PACK_FORMAT.curseForge),
+        split: packSplit(mods, PackFormat.CurseForge),
       },
       {
-        format: PACK_FORMAT.prismInstance,
+        format: PackFormat.PrismInstance,
         label: 'Prism instance (.zip)',
         icon: 'hopperPrism',
         hint: 'A ready-to-import instance directory. It has no manifest to reference anything from, so every jar is a real file in minecraft/mods/.',
-        split: packSplit(mods, PACK_FORMAT.prismInstance),
+        split: packSplit(mods, PackFormat.PrismInstance),
       },
     ];
   });
@@ -270,8 +271,8 @@ export class ExportPackDialog {
     await this.router.navigateByUrl('/servers');
   }
 
-  private extension(format: number): string {
-    return format === PACK_FORMAT.modrinth ? 'mrpack' : 'zip';
+  private extension(format: PackFormat): string {
+    return format === PackFormat.Modrinth ? 'mrpack' : 'zip';
   }
 }
 

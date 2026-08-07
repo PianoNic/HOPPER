@@ -7,14 +7,12 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const ModSource = {
+    Manual: 0,
+    Modrinth: 1,
+    CurseForge: 2
+} as const;
+export type ModSource = typeof ModSource[keyof typeof ModSource];
 

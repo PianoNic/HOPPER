@@ -19,6 +19,8 @@ import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 // @ts-ignore
 import { LoaderVersionDto } from '../model/loaderVersionDto';
 // @ts-ignore
+import { ModLoader } from '../model/modLoader';
+// @ts-ignore
 import { ProblemDetails } from '../model/problemDetails';
 
 // @ts-ignore
@@ -45,10 +47,10 @@ export class LoadersService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public apiLoadersLoaderVersionsGet(loader: number, minecraftVersion?: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<LoaderVersionDto>>;
-    public apiLoadersLoaderVersionsGet(loader: number, minecraftVersion?: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<LoaderVersionDto>>>;
-    public apiLoadersLoaderVersionsGet(loader: number, minecraftVersion?: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<LoaderVersionDto>>>;
-    public apiLoadersLoaderVersionsGet(loader: number, minecraftVersion?: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public apiLoadersLoaderVersionsGet(loader: ModLoader, minecraftVersion?: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<LoaderVersionDto>>;
+    public apiLoadersLoaderVersionsGet(loader: ModLoader, minecraftVersion?: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<LoaderVersionDto>>>;
+    public apiLoadersLoaderVersionsGet(loader: ModLoader, minecraftVersion?: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<LoaderVersionDto>>>;
+    public apiLoadersLoaderVersionsGet(loader: ModLoader, minecraftVersion?: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (loader === null || loader === undefined) {
             throw new Error('Required parameter loader was null or undefined when calling apiLoadersLoaderVersionsGet.');
         }
@@ -94,7 +96,7 @@ export class LoadersService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/loaders/${this.configuration.encodeParam({name: "loader", value: loader, in: "path", style: "simple", explode: false, dataType: "number", dataFormat: undefined})}/versions`;
+        let localVarPath = `/api/loaders/${this.configuration.encodeParam({name: "loader", value: loader, in: "path", style: "simple", explode: false, dataType: "ModLoader", dataFormat: undefined})}/versions`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<Array<LoaderVersionDto>>('get', `${basePath}${localVarPath}`,
             {

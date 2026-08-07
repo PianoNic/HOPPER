@@ -10,7 +10,9 @@ import {
 import { ClientDto } from '../../api/model/clientDto';
 import { ClientModDto } from '../../api/model/clientModDto';
 import { ModDto } from '../../api/model/modDto';
-import { MOD_SIDE, MOD_SOURCE, SYNC_SIDE } from '../../servers/mod-labels';
+import { ModSide } from '../../api/model/modSide';
+import { ModSource } from '../../api/model/modSource';
+import { SyncSide } from '../../api/model/syncSide';
 
 const NOW = Date.parse('2026-08-05T12:00:00Z');
 
@@ -22,8 +24,8 @@ function mod(fileName: string, sha256: string): ModDto {
     size: {},
     uploadedBy: null,
     createdAt: '2026-08-01T00:00:00Z',
-    source: MOD_SOURCE.manual,
-    side: MOD_SIDE.both,
+    source: ModSource.Manual,
+    side: ModSide.Both,
   };
 }
 
@@ -34,7 +36,7 @@ function reported(fileName: string, sha256: string, known: boolean): ClientModDt
 function client(
   mods: ClientModDto[],
   lastSeenAt = '2026-08-05T11:59:00Z',
-  side: number = SYNC_SIDE.client,
+  side: SyncSide = SyncSide.Client,
 ): ClientDto {
   return {
     id: 'row-id',
@@ -48,11 +50,11 @@ function client(
   };
 }
 
-function sidedMod(fileName: string, sha256: string, side: number): ModDto {
+function sidedMod(fileName: string, sha256: string, side: ModSide): ModDto {
   return { ...mod(fileName, sha256), side };
 }
 
-function sizedMod(fileName: string, sha256: string, side: number, size: number): ModDto {
+function sizedMod(fileName: string, sha256: string, side: ModSide, size: number): ModDto {
   return { ...sidedMod(fileName, sha256, side), size: size as unknown as object };
 }
 
@@ -152,14 +154,14 @@ describe('countDrift', () => {
 describe('diffClient and sides', () => {
   it('does not fault a server for the mods only clients get', () => {
     const required = [
-      sidedMod('both.jar', 'aaa', MOD_SIDE.both),
-      sidedMod('client-only.jar', 'bbb', MOD_SIDE.clientOnly),
-      sidedMod('server-only.jar', 'ccc', MOD_SIDE.serverOnly),
+      sidedMod('both.jar', 'aaa', ModSide.Both),
+      sidedMod('client-only.jar', 'bbb', ModSide.ClientOnly),
+      sidedMod('server-only.jar', 'ccc', ModSide.ServerOnly),
     ];
     const server = client(
       [reported('both.jar', 'aaa', true), reported('server-only.jar', 'ccc', true)],
       '2026-08-05T11:59:00Z',
-      SYNC_SIDE.server,
+      SyncSide.Server,
     );
 
     const drift = diffClient(server, required, NOW);
@@ -170,8 +172,8 @@ describe('diffClient and sides', () => {
 
   it('does not fault a player for the mods only servers get', () => {
     const required = [
-      sidedMod('both.jar', 'aaa', MOD_SIDE.both),
-      sidedMod('server-only.jar', 'ccc', MOD_SIDE.serverOnly),
+      sidedMod('both.jar', 'aaa', ModSide.Both),
+      sidedMod('server-only.jar', 'ccc', ModSide.ServerOnly),
     ];
     const player = client([reported('both.jar', 'aaa', true)]);
 
@@ -180,8 +182,8 @@ describe('diffClient and sides', () => {
 
   it('still reports a mod the client should have and does not', () => {
     const required = [
-      sidedMod('both.jar', 'aaa', MOD_SIDE.both),
-      sidedMod('client-only.jar', 'bbb', MOD_SIDE.clientOnly),
+      sidedMod('both.jar', 'aaa', ModSide.Both),
+      sidedMod('client-only.jar', 'bbb', ModSide.ClientOnly),
     ];
     const player = client([reported('both.jar', 'aaa', true)]);
 
@@ -194,27 +196,27 @@ describe('diffClient and sides', () => {
 
 describe('what the Clients page counts', () => {
   const required = [
-    sidedMod('both.jar', 'aaa', MOD_SIDE.both),
-    sidedMod('client-only.jar', 'bbb', MOD_SIDE.clientOnly),
-    sidedMod('server-only.jar', 'ccc', MOD_SIDE.serverOnly),
+    sidedMod('both.jar', 'aaa', ModSide.Both),
+    sidedMod('client-only.jar', 'bbb', ModSide.ClientOnly),
+    sidedMod('server-only.jar', 'ccc', ModSide.ServerOnly),
   ];
 
-  const requiredFor = (side: number) => required.filter((m) => reaches(m, side)).length;
+  const requiredFor = (side: SyncSide) => required.filter((m) => reaches(m, side)).length;
 
   it('counts only what that side is sent as the denominator', () => {
-    expect(requiredFor(SYNC_SIDE.client)).toBe(2);
-    expect(requiredFor(SYNC_SIDE.server)).toBe(2);
+    expect(requiredFor(SyncSide.Client)).toBe(2);
+    expect(requiredFor(SyncSide.Server)).toBe(2);
   });
 
   it('agrees with the missing badge', () => {
     const holder = client(
       [reported('both.jar', 'aaa', true), reported('server-only.jar', 'ccc', true)],
       '2026-08-05T11:59:00Z',
-      SYNC_SIDE.client,
+      SyncSide.Client,
     );
 
     const drift = diffClient(holder, required, NOW);
-    const matched = requiredFor(SYNC_SIDE.client) - drift.missing.length;
+    const matched = requiredFor(SyncSide.Client) - drift.missing.length;
 
     expect(drift.missing.map((m) => m.fileName)).toEqual(['client-only.jar']);
     expect(matched).toBe(1);
@@ -224,8 +226,8 @@ describe('what the Clients page counts', () => {
 describe('downloadSizes', () => {
   it('gives both sides the whole set when nothing is one-sided', () => {
     const sizes = downloadSizes([
-      sizedMod('jade.jar', 'aa', MOD_SIDE.both, 1000),
-      sizedMod('sodium.jar', 'bb', MOD_SIDE.both, 500),
+      sizedMod('jade.jar', 'aa', ModSide.Both, 1000),
+      sizedMod('sodium.jar', 'bb', ModSide.Both, 500),
     ]);
 
     expect(sizes).toEqual({ stored: 1500, client: 1500, server: 1500 });
@@ -233,9 +235,9 @@ describe('downloadSizes', () => {
 
   it('leaves a one-sided mod out of the other side', () => {
     const sizes = downloadSizes([
-      sizedMod('jade.jar', 'aa', MOD_SIDE.both, 1000),
-      sizedMod('jei.jar', 'bb', MOD_SIDE.clientOnly, 300),
-      sizedMod('appleskin.jar', 'cc', MOD_SIDE.serverOnly, 70),
+      sizedMod('jade.jar', 'aa', ModSide.Both, 1000),
+      sizedMod('jei.jar', 'bb', ModSide.ClientOnly, 300),
+      sizedMod('appleskin.jar', 'cc', ModSide.ServerOnly, 70),
     ]);
 
     expect(sizes).toEqual({ stored: 1370, client: 1300, server: 1070 });
@@ -243,8 +245,8 @@ describe('downloadSizes', () => {
 
   it('counts a hash once however many mods share it', () => {
     const sizes = downloadSizes([
-      sizedMod('jade.jar', 'aa', MOD_SIDE.both, 1000),
-      sizedMod('jade-copy.jar', 'aa', MOD_SIDE.both, 1000),
+      sizedMod('jade.jar', 'aa', ModSide.Both, 1000),
+      sizedMod('jade-copy.jar', 'aa', ModSide.Both, 1000),
     ]);
 
     expect(sizes).toEqual({ stored: 1000, client: 1000, server: 1000 });

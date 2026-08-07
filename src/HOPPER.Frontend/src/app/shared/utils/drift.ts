@@ -1,6 +1,7 @@
 import { ClientDto } from '../../api/model/clientDto';
 import { ModDto } from '../../api/model/modDto';
-import { MOD_SIDE, SYNC_SIDE } from '../../servers/mod-labels';
+import { ModSide } from '../../api/model/modSide';
+import { SyncSide } from '../../api/model/syncSide';
 import { toNumber } from './format';
 
 export type ClientDrift = {
@@ -23,9 +24,9 @@ export function countDrift(rows: ReadonlyArray<ClientDrift>): { active: number; 
   };
 }
 
-export function reaches(mod: ModDto, side: number): boolean {
-  if (mod.side === MOD_SIDE.clientOnly) return side === SYNC_SIDE.client;
-  if (mod.side === MOD_SIDE.serverOnly) return side === SYNC_SIDE.server;
+export function reaches(mod: ModDto, side: SyncSide): boolean {
+  if (mod.side === ModSide.ClientOnly) return side === SyncSide.Client;
+  if (mod.side === ModSide.ServerOnly) return side === SyncSide.Server;
   return true;
 }
 
@@ -50,8 +51,8 @@ export function downloadSizes(mods: ReadonlyArray<ModDto>): {
 
   return {
     stored: sum(mods),
-    client: sum(mods.filter((m) => reaches(m, SYNC_SIDE.client))),
-    server: sum(mods.filter((m) => reaches(m, SYNC_SIDE.server))),
+    client: sum(mods.filter((m) => reaches(m, SyncSide.Client))),
+    server: sum(mods.filter((m) => reaches(m, SyncSide.Server))),
   };
 }
 

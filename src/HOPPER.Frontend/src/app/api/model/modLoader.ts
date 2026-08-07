@@ -7,14 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ModSide } from './modSide';
 
 
-export interface SetModSideRequest { 
-    modIds: Array<string>;
-    side: ModSide;
-}
-export namespace SetModSideRequest {
-}
-
+export const ModLoader = {
+    Unknown: 0,
+    Forge: 1,
+    NeoForge: 2,
+    Fabric: 3,
+    Quilt: 4
+} as const;
+export type ModLoader = typeof ModLoader[keyof typeof ModLoader];
 
