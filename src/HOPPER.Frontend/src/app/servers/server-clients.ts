@@ -67,7 +67,6 @@ const POLL_MS = 10000;
     <app-content-header>
       <span slot="left" class="truncate text-sm font-medium">{{ serverName() }}</span>
     </app-content-header>
-
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <h2 class="text-sm font-medium">
@@ -103,7 +102,6 @@ const POLL_MS = 10000;
           </button>
         </div>
       </header>
-
       <div class="min-h-0 flex-1 overflow-auto px-4">
         @if (filteredRows().length === 0 && !loading()) {
           @if (rows().length === 0) {
@@ -137,8 +135,6 @@ const POLL_MS = 10000;
             <tbody hlmTableBody>
               @for (row of filteredRows(); track row.client.id) {
                 <tr hlmTableRow class="cursor-pointer" (click)="openDetails(row)">
-                  <!-- A dedicated server has no username and never will, so the side is its
-                       identity rather than a blank where a name should be. -->
                   <td hlmTableCell class="font-medium">
                     @if (isServer(row)) {
                       <span class="inline-flex items-center gap-1.5">

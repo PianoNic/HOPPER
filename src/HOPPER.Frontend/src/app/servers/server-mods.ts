@@ -83,7 +83,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
     <app-content-header>
       <span slot="left" class="truncate text-sm font-medium">{{ serverName() }}</span>
     </app-content-header>
-
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <h2 class="text-sm font-medium">
@@ -117,9 +116,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             <ng-icon name="lucideRefreshCw" size="14" />
             {{ loading() ? 'Loading' : 'Refresh' }}
           </button>
-          <!-- Only when there is something to do. A pack import can leave jars only a human can
-               fetch, and this is the count of them plus the way to the page that lists them - the
-               mods table itself has no row for a file that was never stored. -->
           @if (pendingCount() > 0) {
             <a hlmBtn variant="outline" size="sm" [routerLink]="pendingLink()">
               <ng-icon name="lucideClipboardList" size="14" />
@@ -134,9 +130,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             <ng-icon name="lucideImport" size="14" />
             Import pack
           </button>
-          <!-- The other direction. Disabled while the list is loading rather than hidden: the
-               dialog quotes a size per format from exactly this array, and quoting it from a
-               half-loaded one would understate the download. -->
           <button
             hlmBtn
             variant="outline"
@@ -154,9 +147,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
           </button>
         </div>
       </header>
-
-      <!-- Its own strip rather than more buttons in the header: the header is already five
-           controls wide and wraps on a narrow window, and this appears and disappears. -->
       @if (selectedCount() > 0) {
         <div class="bg-muted/40 flex flex-wrap items-center gap-2 border-b px-4 py-2">
           <span class="text-sm font-medium">{{ selectedCount() }} selected</span>
@@ -247,11 +237,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                     />
                   </td>
                   <td hlmTableCell>
-                    <!-- The placeholder keeps the column from collapsing on a server whose jars
-                         carry no icon, which is every hand-built pack until the backfill runs. -->
-                    <!-- The jar's own icon first, because it is served by HOPPER and works with no
-                         network. The platform's URL is the fallback for what the manager installed,
-                         where the jar usually carries none. -->
                     @if (iconOf(m); as icon) {
                       <img
                         [src]="icon"
@@ -269,8 +254,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                     }
                   </td>
                   <td hlmTableCell class="font-medium">{{ m.fileName }}</td>
-                  <!-- Quiet for Both, which is nearly every row. Only the exceptions should draw
-                       the eye, because those are the ones somebody decided. -->
                   <td hlmTableCell class="text-sm">
                     @if (m.side === ModSide.Both) {
                       <span class="text-muted-foreground text-xs">Both</span>
@@ -278,9 +261,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                       <span hlmBadge variant="secondary" class="text-xs">{{ sideLabel(m.side) }}</span>
                     }
                   </td>
-                  <!-- Where the jar came from, and where it goes in an exported pack: a mod with
-                       Modrinth provenance becomes a manifest entry with its real CDN URL, and
-                       anything else ships as bytes in overrides/. -->
                   <td hlmTableCell class="text-sm">
                     <span class="flex flex-col">
                       <span>{{ source(m) }}</span>
@@ -341,7 +321,6 @@ import { UploadModsDialogService } from './upload-mods-dialog';
         }
       </div>
     </section>
-
     <ng-template #sideMenu let-mod>
       <div hlmDropdownMenu class="w-52">
         <div hlmDropdownMenuLabel>{{ contextLabel(mod) }}</div>

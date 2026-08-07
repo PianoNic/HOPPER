@@ -19,7 +19,6 @@
         </li>
       </ul>
     </hlm-sidebar-header>
-
     <hlm-sidebar-content>
       <ul hlmSidebarMenu>
         @for (item of rootNav; track item.route) {
@@ -36,8 +35,6 @@
           </li>
         }
 
-        <!-- Server picker. Sits under Servers so switching does not mean a trip through the list
-             page; it keeps the sub-page you are on, so Mods of one server lands on Mods of the next. -->
         <li hlmSidebarMenuItem>
           <button
             hlmSidebarMenuButton
@@ -53,7 +50,6 @@
               class="ml-auto group-data-[collapsible=icon]:hidden"
             />
           </button>
-
           <ng-template #serverPicker>
             <hlm-dropdown-menu class="min-w-56">
               @if (servers().length === 0) {
@@ -75,9 +71,6 @@
           </ng-template>
         </li>
       </ul>
-
-      <!-- Always rendered. Without a server open the entries are greyed out instead of hidden, so
-           the sidebar keeps its shape and still shows what a server can do. -->
       <div hlmSidebarGroup>
         <div hlmSidebarGroupLabel class="!w-56 mx-auto truncate">Management</div>
         <div hlmSidebarGroupContent>
@@ -94,8 +87,6 @@
                     <ng-icon [name]="item.icon" />
                     <span>{{ item.label }}</span>
                     @if (item.count !== undefined) {
-                      <!-- Left out entirely while unknown: an empty badge, or a 0 that becomes 18 a
-                           moment later, is worse than no badge. -->
                       <span
                         class="bg-sidebar-accent text-sidebar-accent-foreground ml-auto rounded-full px-1.5 py-0.5 text-[0.6875rem] leading-none tabular-nums"
                         >{{ item.count }}</span
@@ -114,7 +105,6 @@
         </div>
       </div>
     </hlm-sidebar-content>
-
     <hlm-sidebar-footer>
       <ul hlmSidebarMenu>
         <li hlmSidebarMenuItem>
@@ -145,13 +135,10 @@
               class="ml-auto group-data-[collapsible=icon]:hidden"
             />
           </button>
-
           <ng-template #userMenu>
             <hlm-dropdown-menu class="min-w-64">
               <hlm-dropdown-menu-label>{{ user().email }}</hlm-dropdown-menu-label>
-
               <hlm-dropdown-menu-separator />
-
               <hlm-dropdown-menu-group>
                 @for (option of themeOptions; track option.mode) {
                   <button hlmDropdownMenuItem (click)="setTheme(option.mode)">
@@ -163,9 +150,7 @@
                   </button>
                 }
               </hlm-dropdown-menu-group>
-
               <hlm-dropdown-menu-separator />
-
               <button hlmDropdownMenuItem (click)="logout()">
                 <ng-icon name="lucideLogOut" />
                 Log out
@@ -176,6 +161,5 @@
       </ul>
     </hlm-sidebar-footer>
   </hlm-sidebar>
-
   <ng-content></ng-content>
 </div>

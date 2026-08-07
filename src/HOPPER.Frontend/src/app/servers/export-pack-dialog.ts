@@ -76,10 +76,7 @@ type ExportOption = {
         URL and no token, so it works for someone who has never heard of this deployment.
       </p>
     </hlm-dialog-header>
-
     @if (!platformReady()) {
-      <!-- A state, not an error. All three formats name an exact Minecraft version and loader in
-           their manifest, and there is nothing honest to guess from a mod list. -->
       <div
         class="text-muted-foreground flex flex-col items-center justify-center gap-2 p-6 text-center text-sm"
       >
@@ -101,7 +98,6 @@ type ExportOption = {
           and costs nothing to download; every other jar is copied into the archive. That is what
           decides whether this file is kilobytes or hundreds of megabytes.
         </p>
-
         <ul class="flex flex-col gap-2">
           @for (option of options(); track option.format) {
             <li>
@@ -137,9 +133,6 @@ type ExportOption = {
             </li>
           }
         </ul>
-
-        <!-- Said once, plainly. Jars are already compressed archives, so deflate takes single-digit
-             percent off and the quoted number is the one to plan around rather than a floor. -->
         <p class="text-muted-foreground text-xs">
           Sizes are the jars that go inside, measured before the archive compresses them, so expect
           a file about this big. Anything HOPPER cannot put in - a stored jar that has gone missing

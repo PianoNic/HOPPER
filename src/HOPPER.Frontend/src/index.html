@@ -9,8 +9,6 @@
     <link rel="icon" href="favicon.ico" sizes="32x32" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-    <!-- Self-contained on purpose: this block has to render when nothing else did, so it leans on
-         neither styles.css nor the build's font stack. -->
     <style>
       #bootstrap-failure[hidden] {
         display: none;
@@ -76,9 +74,6 @@
     </style>
   </head>
   <body>
-    <!-- The one failure surface in HOPPER that is not a toast. hlm-toaster is mounted inside the
-         routed shell, so when the bootstrap itself fails there is no toaster, no router and no
-         Angular to fire one. Unhidden from app/shared/auth/bootstrap-failure.ts. -->
     <div id="bootstrap-failure" hidden>
       <h1>HOPPER could not start</h1>
       <p id="bootstrap-failure-detail"></p>

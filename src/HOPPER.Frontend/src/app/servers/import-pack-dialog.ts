@@ -88,7 +88,6 @@ const POLL_MS = 2000;
         collect by hand.
       </p>
     </hlm-dialog-header>
-
     @if (job() === null) {
       <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-1.5">
@@ -127,9 +126,6 @@ const POLL_MS = 2000;
           </div>
           <p class="text-muted-foreground text-xs">{{ sourceHint() }}</p>
         </div>
-
-        <!-- File and URL are one choice, not two fields: filling either clears the other, so the
-             request that goes out is never ambiguous about which one the admin meant. -->
         <label
           class="border-input hover:bg-accent/40 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed p-6 text-center transition-colors"
           [class.border-primary]="dragging()"
@@ -152,13 +148,11 @@ const POLL_MS = 2000;
           }
           <input type="file" [accept]="accept()" class="hidden" (change)="onPick($event)" />
         </label>
-
         <div class="text-muted-foreground flex items-center gap-2 text-xs">
           <span class="bg-border h-px flex-1"></span>
           or
           <span class="bg-border h-px flex-1"></span>
         </div>
-
         <div class="flex flex-col gap-1.5">
           <label hlmLabel for="pack-url">Link to the pack</label>
           <div class="relative">
@@ -203,10 +197,6 @@ const POLL_MS = 2000;
           </span>
           <span hlmBadge [variant]="statusVariant()" class="text-xs">{{ status() }}</span>
         </div>
-
-        <!-- No progress bar while it runs: a pack has no total until the manifest is parsed, and an
-             indeterminate hlm-progress renders as a full bar here, which reads as finished. The
-             counters below move on every file, which is the honest signal of life. -->
         <dl class="grid grid-cols-4 gap-2 text-center">
           @for (counter of counters(); track counter.label) {
             <div class="rounded-md border p-2" [title]="counter.hint">
@@ -215,7 +205,6 @@ const POLL_MS = 2000;
             </div>
           }
         </dl>
-
         @if (row.error) {
           <p class="text-xs" [class]="noteClass()">{{ row.error }}</p>
         }
@@ -242,7 +231,6 @@ const POLL_MS = 2000;
           this server: closing the dialog loses nothing, the list is on the
           <strong>Fetch by hand</strong> page.
         </p>
-
         <div class="max-h-56 overflow-auto">
           <app-pending-mods
             [serverId]="ctx.serverId"
@@ -255,8 +243,6 @@ const POLL_MS = 2000;
     }
 
     <div class="flex justify-end gap-2">
-      <!-- Hidden once the import is done and left nothing to do: a "Close" next to a "Done" that
-           both close the same dialog is two buttons for one act. -->
       @if (job() === null || watching() || pending().length > 0) {
         <button
           hlmBtn

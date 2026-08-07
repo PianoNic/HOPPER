@@ -78,7 +78,6 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
         }
       </p>
     </hlm-dialog-header>
-
     <div class="flex flex-col gap-3">
       <div class="flex flex-col gap-1.5">
         <label hlmLabel for="server-name">Name</label>
@@ -92,10 +91,6 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
           (input)="onName($event)"
         />
       </div>
-
-      <!-- What this server runs. All three are optional and leaving them unset changes nothing
-           about distributing mods - they exist because the Modrinth browser has to filter on
-           something, and because an exported pack names an exact platform. -->
       <div class="grid grid-cols-2 gap-3">
         <div class="flex flex-col gap-1.5">
           <label hlmLabel for="server-mc">Minecraft version</label>
@@ -116,7 +111,6 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
             </ng-template>
           </hlm-select>
         </div>
-
         <div class="flex flex-col gap-1.5">
           <label hlmLabel for="server-loader">Loader</label>
           <hlm-select id="server-loader" [value]="loaderLabel()" (valueChange)="onLoader($event)">
@@ -133,13 +127,8 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
           </hlm-select>
         </div>
       </div>
-
       <div class="flex flex-col gap-1.5">
         <label hlmLabel for="server-loader-version">Loader version</label>
-
-        <!-- The dropdown only when the list arrived. An air-gapped deployment, or a build too new
-             for the metadata, still has to be enterable, so the text input is the fallback rather
-             than a dead field. -->
         @if (loaderVersions().length > 0) {
           <hlm-select
             id="server-loader-version"
@@ -172,9 +161,6 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
             [disabled]="saving()"
             (input)="onLoaderVersion($event)"
           />
-
-          <!-- Only beside the input. Nobody typing is nobody getting the format wrong, and the
-               dropdown's own entries are already in it. -->
           <p class="text-muted-foreground text-xs">
             The loader's own version, with no Minecraft prefix -
             <code class="font-mono">47.4.10</code>, not
@@ -183,7 +169,6 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
         }
       </div>
     </div>
-
     <div class="flex justify-end gap-2">
       <button hlmBtn variant="ghost" type="button" [disabled]="saving()" (click)="cancel()">
         Cancel

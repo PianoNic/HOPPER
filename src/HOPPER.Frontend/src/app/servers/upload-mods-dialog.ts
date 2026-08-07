@@ -66,9 +66,6 @@ const MAX_ROW_ERRORS = 3;
         extra disk.
       </p>
     </hlm-dialog-header>
-
-    <!-- The whole zone is the file picker: the hidden input is what actually opens the chooser and
-         the drag handlers cover the drop path, and both land on the same addFiles(). -->
     <label
       class="border-input hover:bg-accent/40 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed p-6 text-center transition-colors"
       [class.border-primary]="dragging()"
@@ -91,7 +88,6 @@ const MAX_ROW_ERRORS = 3;
       }
       <input type="file" accept=".jar,.zip" multiple class="hidden" (change)="onPick($event)" />
     </label>
-
     @if (items().length > 0) {
       <ul class="max-h-64 overflow-auto rounded-md border">
         @for (item of items(); track item.id) {
@@ -129,9 +125,6 @@ const MAX_ROW_ERRORS = 3;
                 }
               </span>
             </div>
-
-            <!-- One bar per file rather than one for the batch: a forty-jar drop otherwise shows a
-                 single number that says nothing about which file is slow or which one hung. -->
             @if (item.state === 'uploading') {
               <div class="bg-muted h-1 w-full overflow-hidden rounded-full">
                 <div class="bg-primary h-full transition-all" [style.width.%]="item.progress"></div>
