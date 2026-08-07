@@ -13,6 +13,7 @@ import { ClientReportModDto } from './clientReportModDto';
 export interface ClientReportDto { 
     clientId: string;
     username: string | null;
+    side?: string | null;
     mods: Array<ClientReportModDto>;
 }
 

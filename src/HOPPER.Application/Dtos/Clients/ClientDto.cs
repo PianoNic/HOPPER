@@ -1,3 +1,5 @@
+using HOPPER.Domain.Enums;
+
 namespace HOPPER.Application.Dtos.Clients
 {
     public record ClientDto
@@ -7,6 +9,9 @@ namespace HOPPER.Application.Dtos.Clients
         public required string ClientId { get; init; }
 
         public string? Username { get; init; }
+
+        public required SyncSide Side { get; init; }
+
         public required DateTime LastSeenAt { get; init; }
         public string? LastIpAddress { get; init; }
         public required IReadOnlyList<ClientModDto> Mods { get; init; }

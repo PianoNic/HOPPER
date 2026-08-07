@@ -1,6 +1,7 @@
 using System.Buffers;
 using HOPPER.Application.Dtos.Clients;
 using HOPPER.Domain;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,11 @@ namespace HOPPER.Application.Command.Clients
             if (username is { Length: > HopperLimits.MaxUsernameLength })
                 username = username[..HopperLimits.MaxUsernameLength];
 
+            // An unrecognised value is client rather than a 400: this arrives from a jar on a
+            // machine nobody controls, and refusing the whole report over one field would lose the
+            // mod list too.
+            ModSideRules.TryParse(body.Side, out var side);
+
             var client = await db.Clients.FirstOrDefaultAsync(
                 c => c.ServerId == command.ServerId && c.ClientId == body.ClientId, cancellationToken);
 
@@ -44,6 +50,7 @@ namespace HOPPER.Application.Command.Clients
                     ServerId = command.ServerId,
                     ClientId = body.ClientId,
                     Username = username,
+                    Side = side,
                     LastSeenAt = DateTime.UtcNow,
                     LastIpAddress = command.IpAddress,
                 };
@@ -52,6 +59,7 @@ namespace HOPPER.Application.Command.Clients
             else
             {
                 client.Username = username;
+                client.Side = side;
                 client.LastSeenAt = DateTime.UtcNow;
                 client.LastIpAddress = command.IpAddress;
             }

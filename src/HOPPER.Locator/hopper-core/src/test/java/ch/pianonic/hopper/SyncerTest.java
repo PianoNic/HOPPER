@@ -68,16 +68,30 @@ class SyncerTest {
     @Test
     void reportBodyCarriesNoServerId() {
         assertEquals(
-                "{\"clientId\":\"c-1\",\"username\":\"steve\","
+                "{\"clientId\":\"c-1\",\"username\":\"steve\",\"side\":\"client\","
                         + "\"mods\":[{\"file\":\"jei.jar\",\"sha256\":\"abc\"}]}",
-                Syncer.reportBody("c-1", "steve",
+                Syncer.reportBody("c-1", "steve", Side.CLIENT,
                         Collections.singletonList(new Syncer.Mod("jei.jar", "abc"))));
     }
 
     @Test
     void reportSendsAnAbsentUsernameAsAnExplicitNull() {
-        assertEquals("{\"clientId\":\"c-1\",\"username\":null,\"mods\":[]}",
-                Syncer.reportBody("c-1", null, Collections.<Syncer.Mod>emptyList()));
+        assertEquals("{\"clientId\":\"c-1\",\"username\":null,\"side\":\"client\",\"mods\":[]}",
+                Syncer.reportBody("c-1", null, Side.CLIENT, Collections.<Syncer.Mod>emptyList()));
+    }
+
+    // A dedicated server has no username and never will, so the side is the only thing that says
+    // what reported.
+    @Test
+    void aServerSaysSo() {
+        assertEquals("{\"clientId\":\"c-1\",\"username\":null,\"side\":\"server\",\"mods\":[]}",
+                Syncer.reportBody("c-1", null, Side.SERVER, Collections.<Syncer.Mod>emptyList()));
+    }
+
+    @Test
+    void aNullSideReportsAsClient() {
+        assertEquals("{\"clientId\":\"c-1\",\"username\":null,\"side\":\"client\",\"mods\":[]}",
+                Syncer.reportBody("c-1", null, null, Collections.<Syncer.Mod>emptyList()));
     }
 
     @Test

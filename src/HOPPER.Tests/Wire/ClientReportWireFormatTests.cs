@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HOPPER.Application.Dtos.Clients;
+using HOPPER.Domain.Enums;
 
 namespace HOPPER.Tests.Wire
 {
@@ -78,5 +79,47 @@ namespace HOPPER.Tests.Wire
             await Assert.That(dto.Username).IsNull();
             await Assert.That(dto.Mods[0].File).IsEqualTo("jei-1.20.1-15.2.0.27.jar");
         }
-    }
+    
+        // The side is new and optional. Every jar shipped before it exists sends no side, and those
+        // are all clients, so absent has to mean client - the same rule the manifest follows.
+        [Test]
+        public async Task Deserialize_NoSide_MeansClient()
+        {
+            var dto = JsonSerializer.Deserialize<ClientReportDto>(ReportWithUsername);
+
+            await Assert.That(dto!.Side).IsNull();
+            await Assert.That(ModSideRules.TryParse(dto.Side, out var side)).IsTrue();
+            await Assert.That(side).IsEqualTo(SyncSide.Client);
+        }
+
+        [Test]
+        public async Task Deserialize_ServerSide_IsRead()
+        {
+            const string body = """
+                {"clientId":"c-1","username":null,"side":"server","mods":[]}
+                """;
+
+            var dto = JsonSerializer.Deserialize<ClientReportDto>(body);
+
+            await Assert.That(dto!.Side).IsEqualTo("server");
+            await Assert.That(ModSideRules.TryParse(dto.Side, out var side)).IsTrue();
+            await Assert.That(side).IsEqualTo(SyncSide.Server);
+        }
+
+        [Test]
+        public async Task Deserialize_AnUnknownSide_StillLeavesTheModListReadable()
+        {
+            // This arrives from a jar on a machine nobody controls. Losing the whole report over one
+            // unrecognised field would be the wrong trade, so the handler falls back to client.
+            const string body = """
+                {"clientId":"c-1","username":null,"side":"weird","mods":[{"file":"a.jar","sha256":"abc"}]}
+                """;
+
+            var dto = JsonSerializer.Deserialize<ClientReportDto>(body);
+
+            await Assert.That(dto!.Mods).Count().IsEqualTo(1);
+            await Assert.That(ModSideRules.TryParse(dto.Side, out var side)).IsFalse();
+            await Assert.That(side).IsEqualTo(SyncSide.Client);
+        }
+}
 }
