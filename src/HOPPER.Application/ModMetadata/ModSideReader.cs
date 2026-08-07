@@ -22,12 +22,10 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
-        public static ModSide Read(Stream jar)
+        public static ModSide Read(ZipArchive archive)
         {
             try
             {
-                using var archive = new ZipArchive(jar, ZipArchiveMode.Read, leaveOpen: true);
-
                 var fabric = Text(archive, "fabric.mod.json");
                 if (fabric is not null)
                     return FromFabricEnvironment(fabric);
@@ -37,6 +35,23 @@ namespace HOPPER.Application.ModMetadata
                     return FromQuiltEnvironment(quilt);
 
                 return ModSide.Both;
+            }
+            catch (Exception ex) when (ex is InvalidDataException
+                                          or IOException
+                                          or NotSupportedException
+                                          or ObjectDisposedException
+                                          or ArgumentException)
+            {
+                return ModSide.Both;
+            }
+        }
+
+        public static ModSide Read(Stream jar)
+        {
+            try
+            {
+                using var archive = new ZipArchive(jar, ZipArchiveMode.Read, leaveOpen: true);
+                return Read(archive);
             }
             catch (InvalidDataException)
             {

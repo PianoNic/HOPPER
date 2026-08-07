@@ -36,13 +36,24 @@ namespace HOPPER.Application.ModMetadata
 
         public static byte[]? Read(ZipArchive archive)
         {
-            foreach (var path in DeclaredPaths(archive))
+            try
             {
-                var bytes = Extract(archive, path);
-                if (bytes is not null) return bytes;
-            }
+                foreach (var path in DeclaredPaths(archive))
+                {
+                    var bytes = Extract(archive, path);
+                    if (bytes is not null) return bytes;
+                }
 
-            return null;
+                return null;
+            }
+            catch (Exception ex) when (ex is InvalidDataException
+                                          or IOException
+                                          or NotSupportedException
+                                          or ObjectDisposedException
+                                          or ArgumentException)
+            {
+                return null;
+            }
         }
 
         public static IEnumerable<string> DeclaredPaths(ZipArchive archive)

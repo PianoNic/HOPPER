@@ -201,6 +201,8 @@ namespace HOPPER.Application.Command.Modrinth
                     return;
                 }
 
+                var metadata = await ModJarReader.FromStagedAsync(blobs, staged, cancellationToken);
+
                 var entry = new Mod
                 {
                     ServerId = server.Id,
@@ -209,8 +211,8 @@ namespace HOPPER.Application.Command.Modrinth
                     Size = staged.Size,
                     UploadedBy = currentUser.Name,
 
-                    ModIds = ModIdReader.FromStaged(blobs, staged),
-                    IconSha256 = await ModIconStore.FromStagedJarAsync(blobs, staged, cancellationToken),
+                    ModIds = metadata.ModIds,
+                    IconSha256 = metadata.IconSha256,
                 };
 
                 ApplyProvenance(entry, version, file, project, sha1, sha512);

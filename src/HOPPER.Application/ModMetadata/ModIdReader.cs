@@ -20,12 +20,10 @@ namespace HOPPER.Application.ModMetadata
 
         public static bool IsValidModId(string id) => ValidModId.IsMatch(id);
 
-        public static string[] Read(Stream seekableJar)
+        public static string[] Read(ZipArchive archive)
         {
             try
             {
-                using var archive = new ZipArchive(seekableJar, ZipArchiveMode.Read, leaveOpen: true);
-
                 var ids = new List<string>();
 
                 var toml = Text(archive, NeoForgeToml);
@@ -50,6 +48,23 @@ namespace HOPPER.Application.ModMetadata
                 if (mcmod is not null) Add(ids, FromMcmodInfo(mcmod));
 
                 return [.. ids];
+            }
+            catch (Exception ex) when (ex is InvalidDataException
+                                          or IOException
+                                          or NotSupportedException
+                                          or ObjectDisposedException
+                                          or ArgumentException)
+            {
+                return [];
+            }
+        }
+
+        public static string[] Read(Stream seekableJar)
+        {
+            try
+            {
+                using var archive = new ZipArchive(seekableJar, ZipArchiveMode.Read, leaveOpen: true);
+                return Read(archive);
             }
             catch (Exception ex) when (ex is InvalidDataException
                                           or IOException

@@ -44,6 +44,8 @@ namespace HOPPER.Application.Command.Imports
 
             try
             {
+                var metadata = await ModJarReader.FromStagedAsync(blobs, staged, cancellationToken);
+
                 var entry = new Mod
                 {
                     ServerId = command.ServerId,
@@ -52,8 +54,8 @@ namespace HOPPER.Application.Command.Imports
                     Size = staged.Size,
                     UploadedBy = currentUser.Name,
 
-                    ModIds = ModIdReader.FromStaged(blobs, staged),
-                    IconSha256 = await ModIconStore.FromStagedJarAsync(blobs, staged, cancellationToken),
+                    ModIds = metadata.ModIds,
+                    IconSha256 = metadata.IconSha256,
                 };
 
                 await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
