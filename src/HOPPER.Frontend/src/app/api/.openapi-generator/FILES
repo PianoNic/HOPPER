@@ -29,6 +29,9 @@ model/clientModDto.ts
 model/clientReportDto.ts
 model/clientReportModDto.ts
 model/createServerRequest.ts
+model/deleteModsRequest.ts
+model/deleteModsResultDto.ts
+model/deleteModsResultDtoDeleted.ts
 model/entityTagHeaderValue.ts
 model/failedUploadDto.ts
 model/fileResult.ts
@@ -40,7 +43,6 @@ model/manifestModDto.ts
 model/manifestModDtoSize.ts
 model/modDto.ts
 model/modImportDto.ts
-model/modImportDtoImportedCount.ts
 model/modLoader.ts
 model/modSide.ts
 model/modSource.ts

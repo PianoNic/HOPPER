@@ -8,7 +8,7 @@
  * Do not edit the class manually.
  */
 import { ManifestModDtoSize } from './manifestModDtoSize';
-import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 import { PlanNodeStatus } from './planNodeStatus';
 import { PlanNodeKind } from './planNodeKind';
 
@@ -25,7 +25,7 @@ export interface ModrinthPlanNodeDto {
     fileSize: ManifestModDtoSize;
     kind: PlanNodeKind;
     status: PlanNodeStatus;
-    depth: ModImportDtoImportedCount;
+    depth: DeleteModsResultDtoDeleted;
     requiredBy: Array<string>;
     pinned: boolean;
     prerelease: boolean;

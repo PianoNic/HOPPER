@@ -8,7 +8,7 @@
  * Do not edit the class manually.
  */
 import { ImportSourceKind } from './importSourceKind';
-import { ModImportDtoImportedCount } from './modImportDtoImportedCount';
+import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 import { PackFormat } from './packFormat';
 import { ImportStatus } from './importStatus';
 
@@ -19,10 +19,10 @@ export interface ModImportDto {
     sourceKind: ImportSourceKind;
     format: PackFormat;
     status: ImportStatus;
-    importedCount: ModImportDtoImportedCount;
-    skippedCount: ModImportDtoImportedCount;
-    pendingCount: ModImportDtoImportedCount;
-    failedCount: ModImportDtoImportedCount;
+    importedCount: DeleteModsResultDtoDeleted;
+    skippedCount: DeleteModsResultDtoDeleted;
+    pendingCount: DeleteModsResultDtoDeleted;
+    failedCount: DeleteModsResultDtoDeleted;
     error?: string | null;
     startedAt?: string | null;
     completedAt?: string | null;

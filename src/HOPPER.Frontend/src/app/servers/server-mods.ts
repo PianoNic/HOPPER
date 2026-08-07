@@ -173,6 +173,19 @@ import { UploadModsDialogService } from './upload-mods-dialog';
               {{ choice.label }}
             </button>
           }
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            type="button"
+            class="text-destructive hover:text-destructive ml-auto"
+            [loading]="deletingSelection()"
+            [disabled]="deletingSelection()"
+            (click)="removeSelected()"
+          >
+            <ng-icon name="lucideTrash2" size="14" />
+            Delete
+          </button>
           <button hlmBtn variant="ghost" size="sm" type="button" (click)="clearSelection()">
             Clear
           </button>
@@ -343,6 +356,17 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             {{ choice.label }}
           </button>
         }
+        <div hlmDropdownMenuSeparator></div>
+        <button
+          hlmDropdownMenuItem
+          type="button"
+          class="text-destructive"
+          [disabled]="deletingSelection()"
+          (click)="removeFor(mod)"
+        >
+          <ng-icon name="lucideTrash2" size="14" />
+          Delete
+        </button>
       </div>
     </ng-template>
   `,
@@ -359,6 +383,8 @@ export class ServerMods {
   private readonly importDialog = inject(ImportPackDialogService);
   private readonly exportDialog = inject(ExportPackDialogService);
   private readonly confirm = inject(ConfirmService);
+
+  protected readonly deletingSelection = signal(false);
 
   protected readonly serverId = serverIdSignal(this.route);
 
@@ -582,6 +608,50 @@ export class ServerMods {
 
     const result = await this.exportDialog.open({ server, mods: this.mods() });
     if (result) toast.success(`Downloaded ${result.fileName}`);
+  }
+
+  protected removeSelected(): void {
+    void this.removeMany([...this.selected()]);
+  }
+
+  // Same rule as the side menu: a row inside the selection takes the whole selection with it.
+  protected removeFor(mod: ModDto): void {
+    const selection = this.selected();
+
+    void this.removeMany(selection.has(mod.id) ? [...selection] : [mod.id]);
+  }
+
+  private async removeMany(ids: ReadonlyArray<string>): Promise<void> {
+    const serverId = this.serverId();
+    if (serverId === '' || ids.length === 0) return;
+
+    const named =
+      ids.length === 1
+        ? (this.mods().find((m) => m.id === ids[0])?.fileName ?? 'this mod')
+        : `${ids.length} mods`;
+
+    const ok = await this.confirm.open({
+      title: `Remove ${named}?`,
+      message:
+        "They leave this server's manifest immediately, and its clients delete their copies on the next launch. Another server carrying the same jar keeps it.",
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (!ok) return;
+
+    this.deletingSelection.set(true);
+    this.api.apiServersIdModsDeletePost(serverId, { modIds: [...ids] }).subscribe({
+      next: (result) => {
+        this.deletingSelection.set(false);
+        this.clearSelection();
+        toast.success(`Removed ${result.deleted} mod${result.deleted === 1 ? '' : 's'}.`);
+        this.reload();
+      },
+      error: (err) => {
+        this.deletingSelection.set(false);
+        toast.error(messageFrom(err, 'Failed to remove the mods'));
+      },
+    });
   }
 
   protected async remove(mod: ModDto): Promise<void> {

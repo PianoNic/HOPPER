@@ -17,6 +17,10 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
+import { DeleteModsRequest } from '../model/deleteModsRequest';
+// @ts-ignore
+import { DeleteModsResultDto } from '../model/deleteModsResultDto';
+// @ts-ignore
 import { ModDto } from '../model/modDto';
 // @ts-ignore
 import { ModUploadResultDto } from '../model/modUploadResultDto';
@@ -41,6 +45,82 @@ export class ServerModsService extends BaseService {
 
     constructor(protected httpClient: HttpClient, @Optional() @Inject(BASE_PATH) basePath: string|string[], @Optional() configuration?: Configuration) {
         super(basePath, configuration);
+    }
+
+    /**
+     * @endpoint post /api/servers/{id}/mods/delete
+     * @param id 
+     * @param deleteModsRequest 
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public apiServersIdModsDeletePost(id: string, deleteModsRequest: DeleteModsRequest, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<DeleteModsResultDto>;
+    public apiServersIdModsDeletePost(id: string, deleteModsRequest: DeleteModsRequest, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<DeleteModsResultDto>>;
+    public apiServersIdModsDeletePost(id: string, deleteModsRequest: DeleteModsRequest, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<DeleteModsResultDto>>;
+    public apiServersIdModsDeletePost(id: string, deleteModsRequest: DeleteModsRequest, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (id === null || id === undefined) {
+            throw new Error('Required parameter id was null or undefined when calling apiServersIdModsDeletePost.');
+        }
+        if (deleteModsRequest === null || deleteModsRequest === undefined) {
+            throw new Error('Required parameter deleteModsRequest was null or undefined when calling apiServersIdModsDeletePost.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (OAuth2) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('OAuth2', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'text/plain',
+            'application/json',
+            'text/json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json',
+            'text/json',
+            'application/*+json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/servers/${this.configuration.encodeParam({name: "id", value: id, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/mods/delete`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<DeleteModsResultDto>('post', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: deleteModsRequest,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
     }
 
     /**

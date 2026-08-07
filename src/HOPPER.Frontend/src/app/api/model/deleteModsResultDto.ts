@@ -10,7 +10,7 @@
 import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 
 
-export interface SetModSideResultDto { 
-    updated: DeleteModsResultDtoDeleted;
+export interface DeleteModsResultDto { 
+    deleted: DeleteModsResultDtoDeleted;
 }
 

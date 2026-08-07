@@ -156,6 +156,64 @@ namespace HOPPER.Tests.Api
         }
 
         [Test]
+        public async Task DeletingManyAtOnce_KeepsABlobAnotherServerStillCarries()
+        {
+            // The rule the bulk path must not break: the orphan check is global on purpose, so
+            // clearing a whole selection from one server cannot take another server's file.
+            var shared = "isolation-bulkshared-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+            var onlyOnA = "isolation-bulkonly-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+
+            var sharedBytes = JarFor(shared);
+            var onlyBytes = JarFor(onlyOnA);
+            var sharedSha = ShaOf(sharedBytes);
+            var onlySha = ShaOf(onlyBytes);
+
+            await SeedAsync(HopperApi.ServerAId, shared, sharedBytes);
+            await SeedAsync(HopperApi.ServerBId, shared, sharedBytes);
+            await SeedAsync(HopperApi.ServerAId, onlyOnA, onlyBytes);
+
+            await using var scope = HopperApi.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
+            var blobs = scope.ServiceProvider.GetRequiredService<IBlobStorage>();
+
+            var ids = await db.Mods
+                .Where(m => m.ServerId == HopperApi.ServerAId && (m.Sha256 == sharedSha || m.Sha256 == onlySha))
+                .Select(m => m.Id)
+                .ToListAsync();
+
+            var deleted = await new DeleteModsCommandHandler(db, blobs)
+                .Handle(new DeleteModsCommand(HopperApi.ServerAId, ids), CancellationToken.None);
+
+            await Assert.That(deleted).IsEqualTo(2);
+            await Assert.That(blobs.Exists(sharedSha)).IsTrue();
+            await Assert.That(blobs.Exists(onlySha)).IsFalse();
+            await Assert.That(await db.Mods.AnyAsync(m => m.ServerId == HopperApi.ServerBId && m.Sha256 == sharedSha)).IsTrue();
+        }
+
+        [Test]
+        public async Task DeletingManyAtOnce_IgnoresIdsFromAnotherServer()
+        {
+            var mine = "isolation-bulkmine-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+            var theirs = "isolation-bulktheirs-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+
+            await SeedAsync(HopperApi.ServerAId, mine, JarFor(mine));
+            await SeedAsync(HopperApi.ServerBId, theirs, JarFor(theirs));
+
+            await using var scope = HopperApi.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
+            var blobs = scope.ServiceProvider.GetRequiredService<IBlobStorage>();
+
+            var mineId = await db.Mods.Where(m => m.ServerId == HopperApi.ServerAId && m.FileName == mine).Select(m => m.Id).SingleAsync();
+            var theirsId = await db.Mods.Where(m => m.ServerId == HopperApi.ServerBId && m.FileName == theirs).Select(m => m.Id).SingleAsync();
+
+            var deleted = await new DeleteModsCommandHandler(db, blobs)
+                .Handle(new DeleteModsCommand(HopperApi.ServerAId, new[] { mineId, theirsId }), CancellationToken.None);
+
+            await Assert.That(deleted).IsEqualTo(1);
+            await Assert.That(await db.Mods.AnyAsync(m => m.Id == theirsId)).IsTrue();
+        }
+
+        [Test]
         public async Task DeletingAModIdThatBelongsToAnotherServer_IsANoOp()
         {
             var fileName = "isolation-crossdelete-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
