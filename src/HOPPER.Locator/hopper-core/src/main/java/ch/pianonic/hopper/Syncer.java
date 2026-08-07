@@ -59,6 +59,13 @@ final class Syncer {
 
         Migrator migrator = new Migrator(modsDir, dir, log);
         Migrator.Result migration = migrator.run(mods);
+
+        // Persisted, because a migration and the day that mod leaves the manifest are almost never
+        // the same launch. Without this the sweep below would delete the player's own jar weeks
+        // later, which is exactly the bug this guards against.
+        MigratedIndex migratedIndex = new MigratedIndex(dir, log);
+        for (String name : migration.migrated) migratedIndex.add(name);
+        migratedIndex.save();
         migrated = migration.moved;
         deferred = migration.deferred;
 
@@ -86,6 +93,7 @@ final class Syncer {
                 if (!Files.isRegularFile(p)) continue;
                 String name = p.getFileName().toString();
                 if (wanted.contains(name) || CLIENT_ID.equals(name)
+                        || MigratedIndex.FILE.equals(name)
                         || Migrator.REPLACED.equals(name)) {
                     continue;
                 }
@@ -100,9 +108,10 @@ final class Syncer {
             // A jar that came out of the player's mods folder is theirs, not ours. Once it leaves
             // the manifest no other copy exists, so it is parked rather than unlinked. Deleting it
             // would destroy a file the player installed themselves, which HOPPER must never do.
-            if (migration.migrated.contains(name)) {
+            if (migratedIndex.contains(name)) {
                 try {
                     Path parked = migrator.park(p);
+                    migratedIndex.remove(name);
                     removed++;
                     log.info("[HOPPER] " + name + " is no longer required; it came from " + modsDir
                             + ", so it was moved to " + parked + " rather than deleted");
@@ -119,6 +128,10 @@ final class Syncer {
                 log.info("[HOPPER] removed " + name);
             }
         }
+
+        // Again after the sweep: parking a jar drops it from the index, and that has to reach disk
+        // or the next launch would still think a file it no longer owns belongs to the player.
+        migratedIndex.save();
 
         return wanted;
     }

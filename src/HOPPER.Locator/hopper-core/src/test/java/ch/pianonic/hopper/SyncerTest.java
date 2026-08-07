@@ -145,6 +145,83 @@ class SyncerTest {
         }
     }
 
+    /**
+     * Issue #17, the half the first fix missed. A migration and the day that mod leaves the manifest
+     * are almost never the same launch, so knowing what was migrated only within one run is not
+     * enough: on the next run nothing is migrated, the set is empty, and the sweep deletes the
+     * player's own jar. Two separate Syncer instances here on purpose - that is the whole point.
+     */
+    @Test
+    void aJarMigratedInAnEarlierRunIsParkedNotDeletedWhenItLeavesTheManifest(@TempDir Path game)
+            throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        Path mine = jar(mods, "appleskin-mine.jar", "the required build", "appleskin");
+        String sha = Syncer.sha256(mine);
+
+        Stub stub = new Stub();
+        try {
+            stub.manifest("{\"mods\":[{\"file\":\"appleskin-2.5.1.jar\",\"url\":\""
+                    + stub.blobUrl() + "\",\"sha256\":\"" + sha + "\",\"size\":1,"
+                    + "\"modIds\":[\"appleskin\"]}]}");
+
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+            assertTrue(Files.exists(dir.resolve("appleskin-2.5.1.jar")), "run 1 migrates it in");
+
+            // A later launch. The admin has dropped the mod, so the manifest is empty and this
+            // Syncer knows nothing about the earlier migration except what is on disk.
+            stub.manifest("{\"mods\":[]}");
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertFalse(Files.exists(dir.resolve("appleskin-2.5.1.jar")),
+                    "it is no longer required, so it leaves hoppermods/");
+            assertTrue(Files.isDirectory(dir.resolve(Migrator.REPLACED)),
+                    "but it must be parked rather than unlinked: it is the player's only copy");
+            assertEquals(1, countJars(dir.resolve(Migrator.REPLACED)),
+                    "exactly the one file the player owned");
+        } finally {
+            stub.stop();
+        }
+    }
+
+    /** A jar HOPPER downloaded itself is not the player's, so it stays deletable. */
+    @Test
+    void aDownloadedJarIsStillDeletedWhenItLeavesTheManifest(@TempDir Path game) throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        Stub stub = new Stub();
+        try {
+            stub.blob = "downloaded bytes".getBytes(StandardCharsets.UTF_8);
+            stub.manifest("{\"mods\":[{\"file\":\"something-1.0.jar\",\"url\":\"" + stub.blobUrl()
+                    + "\",\"sha256\":\"" + sha256(stub.blob) + "\",\"size\":1}]}");
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+            assertTrue(Files.exists(dir.resolve("something-1.0.jar")));
+
+            stub.manifest("{\"mods\":[]}");
+            new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
+
+            assertFalse(Files.exists(dir.resolve("something-1.0.jar")));
+            assertEquals(0, countJars(dir.resolve(Migrator.REPLACED)),
+                    "nothing to preserve: HOPPER put it there and HOPPER can take it away");
+        } finally {
+            stub.stop();
+        }
+    }
+
+    private static int countJars(Path dir) throws IOException {
+        if (!Files.isDirectory(dir)) return 0;
+        int n = 0;
+        java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(dir);
+        try {
+            for (Path p : ds) if (Files.isRegularFile(p) && !p.getFileName().toString().endsWith(".txt")) n++;
+        } finally {
+            ds.close();
+        }
+        return n;
+    }
+
     @Test
     void aDeferredModIsNotDownloadedNotWantedAndItsOldCopyIsSwept(@TempDir Path game)
             throws Exception {
