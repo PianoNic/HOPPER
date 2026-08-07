@@ -1,5 +1,7 @@
 package ch.pianonic.hopper;
 
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforgespi.ILaunchContext;
 import net.neoforged.neoforgespi.locating.IDiscoveryPipeline;
@@ -43,7 +45,7 @@ public final class HopperNeoLocator implements IModFileCandidateLocator {
 
     @Override
     public void findCandidates(ILaunchContext context, IDiscoveryPipeline pipeline) {
-        Hopper.Result result = Hopper.run(gameDir(), LaunchArgs.username(), LOG, null);
+        Hopper.Result result = Hopper.run(gameDir(), LaunchArgs.username(), LOG, null, true, side());
 
         warnAboutSurvivors(result);
 
@@ -71,6 +73,10 @@ public final class HopperNeoLocator implements IModFileCandidateLocator {
                     + " from " + result.dir + "; it WILL be loaded this launch."
                     + " Remove it by hand if that is not what you want.", null);
         }
+    }
+
+    private static Side side() {
+        return FMLEnvironment.dist == Dist.DEDICATED_SERVER ? Side.SERVER : Side.CLIENT;
     }
 
     private static Path gameDir() {

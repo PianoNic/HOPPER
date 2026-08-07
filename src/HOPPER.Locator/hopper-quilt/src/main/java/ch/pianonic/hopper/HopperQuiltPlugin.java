@@ -1,7 +1,9 @@
 package ch.pianonic.hopper;
 
+import net.fabricmc.api.EnvType;
 import org.quiltmc.loader.api.LoaderValue;
 import org.quiltmc.loader.api.plugin.QuiltLoaderPlugin;
+import org.quiltmc.loader.api.minecraft.MinecraftQuiltLoader;
 import org.quiltmc.loader.api.plugin.QuiltPluginContext;
 
 import java.nio.file.Path;
@@ -21,7 +23,7 @@ public final class HopperQuiltPlugin implements QuiltLoaderPlugin {
 
         Path gameDir = gameDir(context);
 
-        Hopper.Result result = Hopper.run(gameDir, LaunchArgs.username(), LOG, null);
+        Hopper.Result result = Hopper.run(gameDir, LaunchArgs.username(), LOG, null, true, side());
 
         boolean isNew = context.addFolderToScan(result.dir);
         if (!isNew) {
@@ -35,6 +37,10 @@ public final class HopperQuiltPlugin implements QuiltLoaderPlugin {
 
     @Override
     public void unload(Map<String, LoaderValue> data) {
+    }
+
+    private static Side side() {
+        return MinecraftQuiltLoader.getEnvironmentType() == EnvType.SERVER ? Side.SERVER : Side.CLIENT;
     }
 
     private static Path gameDir(QuiltPluginContext context) {

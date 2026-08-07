@@ -47,6 +47,15 @@ public final class Hopper {
 
     public static Result run(Path gameDir, String username, HopperLog log,
             Consumer<String> progress, boolean hopperDirIsLoaded) {
+        return run(gameDir, username, log, progress, hopperDirIsLoaded, Side.CLIENT);
+    }
+
+    /**
+     * @param side which side is asking. A dedicated server receives the server set; a client
+     *        receives what every jar in the field already receives.
+     */
+    public static Result run(Path gameDir, String username, HopperLog log,
+            Consumer<String> progress, boolean hopperDirIsLoaded, Side side) {
         Path dir = gameDir.resolve(DIR);
         Consumer<String> sink = progress == null ? NO_PROGRESS : progress;
 
@@ -63,7 +72,7 @@ public final class Hopper {
                     + " (server " + (cfg.serverId() == null ? "unset" : cfg.serverId()) + ")");
 
             Syncer syncer = new Syncer(cfg.manifestUrl(), cfg.token(), dir,
-                    hopperDirIsLoaded ? gameDir.resolve("mods") : null, sink, log);
+                    hopperDirIsLoaded ? gameDir.resolve("mods") : null, sink, log, side);
             Set<String> wanted = syncer.sync();
             log.info("[HOPPER] " + wanted.size() + " mod(s) ready");
 

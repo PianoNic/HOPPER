@@ -1,5 +1,6 @@
 package ch.pianonic.hopper;
 
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
 import org.apache.logging.log4j.LogManager;
@@ -38,7 +39,7 @@ public final class HopperPreLaunch implements PreLaunchEntrypoint {
 
         boolean mirrorMods = mirrorMods(gameDir);
 
-        Hopper.Result result = Hopper.run(gameDir, username(fabric), LOG, null, mirrorMods);
+        Hopper.Result result = Hopper.run(gameDir, username(fabric), LOG, null, mirrorMods, side(fabric));
 
         if (!mirrorMods) {
             declineToTouchModsFolder(result);
@@ -112,6 +113,10 @@ public final class HopperPreLaunch implements PreLaunchEntrypoint {
         }
 
         LOG.info("[HOPPER] " + result.count + " mod(s) already up to date - no restart needed.");
+    }
+
+    private static Side side(FabricLoader fabric) {
+        return fabric.getEnvironmentType() == EnvType.SERVER ? Side.SERVER : Side.CLIENT;
     }
 
     private static String username(FabricLoader fabric) {

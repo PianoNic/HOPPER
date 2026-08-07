@@ -58,7 +58,7 @@ public final class HopperCallHook implements IFMLCallHook {
         Path gameDir = gameDirFile.toPath();
 
         Map<String, Object> args = launchArgs();
-        Hopper.Result result = Hopper.run(gameDir, username(args), log, null);
+        Hopper.Result result = Hopper.run(gameDir, username(args), log, null, true, side());
 
         List<String> jars = jarsOnDisk(result, log);
         if (jars.isEmpty()) {
@@ -114,6 +114,12 @@ public final class HopperCallHook implements IFMLCallHook {
             sb.append(e);
         }
         args.put(MODS_ARG, sb.toString());
+    }
+
+    private static Side side() {
+        return net.minecraftforge.fml.relauncher.FMLLaunchHandler.side().isServer()
+                ? Side.SERVER
+                : Side.CLIENT;
     }
 
     private static String username(Map<String, Object> args) {
