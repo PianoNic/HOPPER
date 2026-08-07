@@ -16,6 +16,7 @@ import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
+import { ClientDrift, diffClient, OFFLINE_AFTER_LABEL } from '../shared/utils/drift';
 import { ServersService } from '../api/api/servers.service';
 import { ServerClientsService } from '../api/api/serverClients.service';
 import { ServerModsService } from '../api/api/serverMods.service';
@@ -23,8 +24,6 @@ import { ClientDto } from '../api/model/clientDto';
 import { ModDto } from '../api/model/modDto';
 import { ServerDto } from '../api/model/serverDto';
 import { serverIdSignal } from './server-route';
-
-const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 @Component({
   selector: 'app-server-overview',
@@ -106,23 +105,26 @@ export class ServerOverview {
   protected readonly loading = signal(false);
   protected readonly building = signal(false);
 
+  private readonly now = signal(Date.now());
+
   protected readonly serverName = computed(() => this.server()?.name ?? '');
+
+  protected readonly drift = computed<ReadonlyArray<ClientDrift>>(() => {
+    const mods = this.mods();
+    const now = this.now();
+    return this.clients().map((client) => diffClient(client, mods, now));
+  });
 
   protected readonly stats = computed(() => {
     const mods = this.mods();
     const clients = this.clients();
     const totalBytes = mods.reduce((sum, m) => sum + toNumber(m.size), 0);
 
-    const cutoff = Date.now() - ACTIVE_WINDOW_MS;
-    const active = clients.filter((c) => Date.parse(c.lastSeenAt) >= cutoff);
-
     const distinct = new Set(mods.map((m) => m.sha256));
-    const drifting = active.filter((c) => {
-      const reported = new Set(c.mods.map((m) => m.sha256));
-      const missing = mods.some((m) => !reported.has(m.sha256));
-      const unknown = c.mods.some((m) => !m.known);
-      return missing || unknown;
-    });
+
+    const rows = this.drift();
+    const active = rows.filter((r) => r.status !== 'offline');
+    const drifting = rows.filter((r) => r.status === 'drift');
 
     return [
       {
@@ -138,7 +140,7 @@ export class ServerOverview {
         icon: 'lucideHardDrive',
       },
       {
-        label: 'Clients (24h)',
+        label: `Clients (${OFFLINE_AFTER_LABEL})`,
         value: `${active.length}`,
         hint: `${clients.length} known in total`,
         icon: 'lucideUsers',
@@ -179,6 +181,7 @@ export class ServerOverview {
         this.server.set(result.server);
         this.mods.set(result.mods);
         this.clients.set(result.clients);
+        this.now.set(Date.now());
         this.loading.set(false);
       },
       error: (err) => {

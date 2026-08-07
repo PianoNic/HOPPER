@@ -91,4 +91,28 @@ describe('diffClient', () => {
     const result = diffClient(client([], 'not-a-date'), [], NOW);
     expect(result.status).toBe('offline');
   });
+
+  it('counts a drifting client seen inside the window as active', () => {
+    const required = [mod('jei.jar', 'aa')];
+    const recent = new Date(NOW - OFFLINE_AFTER_MS + 1000).toISOString();
+    const result = diffClient(client([], recent), required, NOW);
+
+    expect(result.status).toBe('drift');
+    expect(result.status !== 'offline').toBe(true);
+  });
+
+  it('leaves an unparseable last-seen out of the active count', () => {
+    const result = diffClient(client([], 'not-a-date'), [], NOW);
+    expect(result.status !== 'offline').toBe(false);
+  });
+
+  it('never reports a client as drifting once it is offline, even with jars missing', () => {
+    const required = [mod('jei.jar', 'aa'), mod('rei.jar', 'bb')];
+    const stale = new Date(NOW - OFFLINE_AFTER_MS - 1000).toISOString();
+    const result = diffClient(client([reported('cheats.jar', 'zz', false)], stale), required, NOW);
+
+    expect(result.missing).toHaveLength(2);
+    expect(result.unknown).toBe(1);
+    expect(result.status !== 'drift').toBe(true);
+  });
 });
