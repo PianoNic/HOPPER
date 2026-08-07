@@ -129,6 +129,9 @@ type ExportOption = {
                     <span class="text-muted-foreground font-mono">{{ sizeLabel(option) }}</span>
                   </span>
                   <span class="text-muted-foreground text-xs">{{ option.hint }}</span>
+                  @if (option.split.withheld > 0) {
+                    <span class="text-xs text-amber-700 dark:text-amber-500">{{ withheldLabel(option) }}</span>
+                  }
                 </span>
               </button>
             </li>
@@ -200,7 +203,7 @@ export class ExportPackDialog {
         format: PackFormat.PrismInstance,
         label: 'Prism instance (.zip)',
         icon: 'hopperPrism',
-        hint: 'A ready-to-import instance directory. It has no manifest to reference anything from, so every jar is a real file in minecraft/mods/.',
+        hint: 'A ready-to-import instance directory. It has no manifest to reference anything from, so every jar is a real file in minecraft/mods/, and only the jars a player gets go in.',
         split: packSplit(mods, PackFormat.PrismInstance),
       },
     ];
@@ -211,6 +214,12 @@ export class ExportPackDialog {
   );
 
   protected readonly downloadLabel = computed(() => `Download ${this.sizeLabel(this.selected())}`);
+
+  protected withheldLabel(option: ExportOption): string {
+    const count = option.split.withheld;
+
+    return `Leaves out ${count} server-only jar${count === 1 ? '' : 's'} - a Prism instance is a client game directory.`;
+  }
 
   protected bundledLabel(option: ExportOption): string {
     const count = option.split.bundledFiles;

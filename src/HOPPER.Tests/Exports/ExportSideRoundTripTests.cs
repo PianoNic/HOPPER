@@ -159,6 +159,57 @@ namespace HOPPER.Tests.Exports
         }
 
         [Test]
+        public async Task PrismInstance_LeavesOutServerOnlyJarsAndSaysSo()
+        {
+            // A Prism instance is one machine's game directory rather than a distributable, and in
+            // practice a client one, so a server-only jar in minecraft/mods/ is one the game loads
+            // and should not. The omission is stated rather than silent.
+            using var fixture = new Fixture();
+
+            var exporter = new PrismInstanceExporter(fixture.Db, fixture.Blobs, fixture.Configuration);
+            var result = await exporter.ExportAsync(fixture.ServerId, CancellationToken.None);
+
+            var buffer = new MemoryStream();
+            await using (result.Content)
+                await result.Content.CopyToAsync(buffer);
+
+            buffer.Position = 0;
+            using var archive = new ZipArchive(buffer, ZipArchiveMode.Read);
+            var entries = archive.Entries.Select(e => e.FullName).ToList();
+
+            await Assert.That(entries).Contains("minecraft/mods/linked-both.jar");
+            await Assert.That(entries).Contains("minecraft/mods/linked-client.jar");
+            await Assert.That(entries).Contains("minecraft/mods/bundled-client.jar");
+
+            await Assert.That(entries).DoesNotContain("minecraft/mods/linked-server.jar");
+            await Assert.That(entries).DoesNotContain("minecraft/mods/bundled-server.jar");
+
+            await Assert.That(result.Warnings.Any(w => w.Contains("server-only"))).IsTrue();
+        }
+
+        [Test]
+        public async Task CurseForgePack_ShipsBothSides()
+        {
+            // Unlike a Prism instance, a CurseForge pack is a distributable a server operator
+            // installs too, so withholding a side would be the wrong call here.
+            using var fixture = new Fixture();
+
+            var exporter = new CurseForgePackExporter(fixture.Db, fixture.Blobs, fixture.Configuration);
+            var result = await exporter.ExportAsync(fixture.ServerId, CancellationToken.None);
+
+            var buffer = new MemoryStream();
+            await using (result.Content)
+                await result.Content.CopyToAsync(buffer);
+
+            buffer.Position = 0;
+            using var archive = new ZipArchive(buffer, ZipArchiveMode.Read);
+            var names = archive.Entries.Select(e => e.FullName.Split('/')[^1]).ToList();
+
+            await Assert.That(names).Contains("bundled-client.jar");
+            await Assert.That(names).Contains("bundled-server.jar");
+        }
+
+        [Test]
         [Arguments(ModSide.Both)]
         [Arguments(ModSide.ClientOnly)]
         [Arguments(ModSide.ServerOnly)]
