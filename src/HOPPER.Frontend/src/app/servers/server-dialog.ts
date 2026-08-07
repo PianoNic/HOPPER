@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  Injectable,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { catchError, EMPTY, switchMap } from 'rxjs';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { toast } from '@spartan-ng/brain/sonner';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -15,6 +25,8 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ModrinthService } from '../api/api/modrinth.service';
 import { ServersService } from '../api/api/servers.service';
 import { ModrinthGameVersionDto } from '../api/model/modrinthGameVersionDto';
+import { LoaderVersionDto } from '../api/model/loaderVersionDto';
+import { LoadersService } from '../api/api/loaders.service';
 import { ServerDto } from '../api/model/serverDto';
 import { messageFrom } from '../shared/utils/format';
 import { MOD_LOADER, modLoaderLabel } from './mod-labels';
@@ -114,15 +126,43 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
 
       <div class="flex flex-col gap-1.5">
         <label hlmLabel for="server-loader-version">Loader version</label>
-        <input
-          hlmInput
-          id="server-loader-version"
-          class="w-full font-mono"
-          placeholder="47.4.10"
-          [value]="loaderVersion()"
-          [disabled]="saving()"
-          (input)="onLoaderVersion($event)"
-        />
+
+        <!-- The dropdown only when the list arrived. An air-gapped deployment, or a build too new
+             for the metadata, still has to be enterable, so the text input is the fallback rather
+             than a dead field. -->
+        @if (loaderVersions().length > 0) {
+          <hlm-select
+            id="server-loader-version"
+            [value]="loaderVersion()"
+            (valueChange)="onLoaderVersionPicked($event)"
+          >
+            <hlm-select-trigger class="w-full font-mono">
+              <hlm-select-value placeholder="Not set" />
+            </hlm-select-trigger>
+            <ng-template hlmSelectPortal>
+              <hlm-select-content>
+                @for (v of loaderVersions(); track v.version) {
+                  <hlm-select-item [value]="v.version" class="font-mono">
+                    {{ v.version }}
+                    @if (v.recommended) {
+                      <span class="text-muted-foreground ml-2 font-sans text-xs">recommended</span>
+                    }
+                  </hlm-select-item>
+                }
+              </hlm-select-content>
+            </ng-template>
+          </hlm-select>
+        } @else {
+          <input
+            hlmInput
+            id="server-loader-version"
+            class="w-full font-mono"
+            placeholder="47.4.10"
+            [value]="loaderVersion()"
+            [disabled]="saving()"
+            (input)="onLoaderVersion($event)"
+          />
+        }
         <p class="text-muted-foreground text-xs">
           The loader's own version, with no Minecraft prefix - <code class="font-mono">47.4.10</code
           >, not <code class="font-mono">1.20.1-47.4.10</code>. Each pack format prepends whatever it
@@ -145,6 +185,8 @@ export class ServerDialog {
   private readonly ref = inject(BrnDialogRef);
   private readonly api = inject(ServersService);
   private readonly modrinth = inject(ModrinthService);
+  private readonly loaders$ = inject(LoadersService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly ctx = injectBrnDialogContext<ServerDialogContext>();
 
   protected readonly creating = this.ctx.mode === 'create';
@@ -164,6 +206,7 @@ export class ServerDialog {
   );
 
   protected readonly gameVersions = signal<ReadonlyArray<ModrinthGameVersionDto>>([]);
+  protected readonly loaderVersions = signal<ReadonlyArray<LoaderVersionDto>>([]);
 
   protected readonly loaderLabel = computed(() => modLoaderLabel(this.loader()));
 
@@ -185,6 +228,36 @@ export class ServerDialog {
       },
       error: () => this.gameVersions.set([]),
     });
+
+    // Refetched whenever the loader or the Minecraft version moves, because the answer depends on
+    // both: a Forge build exists for one Minecraft version and a NeoForge build encodes it.
+    toObservable(computed(() => ({ loader: this.loader(), minecraft: this.minecraftVersion() })))
+      .pipe(
+        switchMap(({ loader, minecraft }) => {
+          this.loaderVersions.set([]);
+          if (loader === MOD_LOADER.unknown) return EMPTY;
+
+          return this.loaders$.apiLoadersLoaderVersionsGet(loader, minecraft || undefined).pipe(
+            catchError((err: unknown) => {
+              // A state, not a blocker: the text input takes over and the dialog still saves.
+              toast.error(messageFrom(err, 'Could not load the list of loader builds'));
+              return EMPTY;
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((versions) => {
+        this.loaderVersions.set(versions);
+
+        // Only when nothing has been chosen yet, or when what was chosen no longer exists for this
+        // combination. Editing a server must not move a build the admin picked on purpose.
+        const current = this.loaderVersion();
+        if (current !== '' && versions.some((v) => v.version === current)) return;
+
+        const recommended = versions.find((v) => v.recommended)?.version ?? versions[0]?.version;
+        this.loaderVersion.set(recommended ?? '');
+      });
   }
 
   protected readonly canSave = computed(() => this.name().trim() !== '');
@@ -200,6 +273,10 @@ export class ServerDialog {
   protected onLoader(value: unknown): void {
     const match = LOADERS.find((l) => l.label === value);
     if (match) this.loader.set(match.value);
+  }
+
+  protected onLoaderVersionPicked(value: unknown): void {
+    if (typeof value === 'string') this.loaderVersion.set(value);
   }
 
   protected onLoaderVersion(event: Event): void {

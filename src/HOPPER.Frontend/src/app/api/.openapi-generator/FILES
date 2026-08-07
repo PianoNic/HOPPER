@@ -6,6 +6,7 @@ api/api.ts
 api/app.service.ts
 api/blobs.service.ts
 api/clients.service.ts
+api/loaders.service.ts
 api/manifest.service.ts
 api/modrinth.service.ts
 api/serverClients.service.ts
@@ -30,6 +31,7 @@ model/createServerRequest.ts
 model/entityTagHeaderValue.ts
 model/failedUploadDto.ts
 model/fileResult.ts
+model/loaderVersionDto.ts
 model/manifestDto.ts
 model/manifestModDto.ts
 model/manifestModDtoSize.ts

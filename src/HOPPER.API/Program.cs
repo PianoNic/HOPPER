@@ -6,6 +6,7 @@ using HOPPER.API.OpenApi;
 using HOPPER.Application;
 using HOPPER.Application.Exports;
 using HOPPER.Application.Imports;
+using HOPPER.Application.Loaders;
 using HOPPER.Application.Maintenance;
 using HOPPER.Application.ModMetadata;
 using HOPPER.Application.Modrinth;
@@ -54,6 +55,7 @@ builder.Services.AddPackImports();
 builder.Services.AddBlobReclaim();
 
 builder.Services.AddModrinth();
+builder.Services.AddLoaderVersions();
 
 builder.Services.AddPackExports();
 
@@ -174,6 +176,10 @@ app.Use(async (context, next) =>
     }
 
     catch (ModrinthApiException ex) when (!context.Response.HasStarted)
+    {
+        await Answer(context, StatusCodes.Status502BadGateway, ex);
+    }
+    catch (LoaderVersionUnavailableException ex) when (!context.Response.HasStarted)
     {
         await Answer(context, StatusCodes.Status502BadGateway, ex);
     }

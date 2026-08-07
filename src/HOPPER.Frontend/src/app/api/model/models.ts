@@ -10,6 +10,7 @@ export * from './createServerRequest';
 export * from './entityTagHeaderValue';
 export * from './failedUploadDto';
 export * from './fileResult';
+export * from './loaderVersionDto';
 export * from './manifestDto';
 export * from './manifestModDto';
 export * from './manifestModDtoSize';
