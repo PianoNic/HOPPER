@@ -15,9 +15,15 @@ import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
-import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
+import { formatBytes, messageFrom } from '../shared/utils/format';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
-import { ClientDrift, countDrift, diffClient, OFFLINE_AFTER_LABEL } from '../shared/utils/drift';
+import {
+  ClientDrift,
+  countDrift,
+  diffClient,
+  downloadSizes,
+  OFFLINE_AFTER_LABEL,
+} from '../shared/utils/drift';
 import { ServersService } from '../api/api/servers.service';
 import { ServerClientsService } from '../api/api/serverClients.service';
 import { ServerModsService } from '../api/api/serverMods.service';
@@ -121,7 +127,8 @@ export class ServerOverview {
   protected readonly stats = computed(() => {
     const mods = this.mods();
     const clients = this.clients();
-    const totalBytes = mods.reduce((sum, m) => sum + toNumber(m.size), 0);
+    const sizes = downloadSizes(mods);
+    const sameBothWays = sizes.client === sizes.server;
 
     const distinct = new Set(mods.map((m) => m.sha256));
 
@@ -135,9 +142,13 @@ export class ServerOverview {
         icon: 'lucidePackage',
       },
       {
-        label: 'Distributed size',
-        value: formatBytes(totalBytes),
-        hint: 'Downloaded once per client, then cached by hash',
+        label: 'Download size',
+        value: sameBothWays
+          ? formatBytes(sizes.client)
+          : `${formatBytes(sizes.client)} / ${formatBytes(sizes.server)}`,
+        hint: sameBothWays
+          ? 'Fetched once, then cached by hash'
+          : `To a player / to a dedicated server, of ${formatBytes(sizes.stored)} stored`,
         icon: 'lucideHardDrive',
       },
       {

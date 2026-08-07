@@ -224,7 +224,6 @@ export class ServerClients {
   private readonly now = signal(Date.now());
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
-  protected readonly requiredCount = computed(() => this.requiredMods().length);
 
   protected readonly rows = computed<ReadonlyArray<ClientDrift>>(() => {
     const required = this.requiredMods();
