@@ -25,6 +25,9 @@ import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
+import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
+import { HlmContextMenuImports } from '@spartan-ng/helm/context-menu';
+import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { CopyButton } from '../shared/components/copy-button/copy-button';
@@ -58,6 +61,9 @@ import { UploadModsDialogService } from './upload-mods-dialog';
     HlmInputImports,
     HlmTableImports,
     HlmBadgeImports,
+    HlmCheckboxImports,
+    HlmContextMenuImports,
+    HlmDropdownMenuImports,
   ],
   providers: [
     provideIcons({
@@ -195,13 +201,11 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             <thead hlmTableHeader>
               <tr hlmTableRow>
                 <th hlmTableHead class="w-8">
-                  <input
-                    type="checkbox"
-                    class="size-3.5 align-middle"
+                  <hlm-checkbox
                     aria-label="Select every mod shown"
                     [checked]="allShownSelected()"
                     [indeterminate]="someShownSelected()"
-                    (change)="toggleAllShown()"
+                    (checkedChange)="toggleAllShown()"
                   />
                 </th>
                 <th hlmTableHead class="w-10"><span class="sr-only">Icon</span></th>
@@ -217,14 +221,16 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             </thead>
             <tbody hlmTableBody>
               @for (m of filteredMods(); track m.id) {
-                <tr hlmTableRow>
+                <tr
+                  hlmTableRow
+                  [hlmContextMenuTrigger]="sideMenu"
+                  [hlmContextMenuTriggerData]="{ $implicit: m }"
+                >
                   <td hlmTableCell>
-                    <input
-                      type="checkbox"
-                      class="size-3.5 align-middle"
+                    <hlm-checkbox
                       [attr.aria-label]="'Select ' + m.fileName"
                       [checked]="isSelected(m.id)"
-                      (change)="toggle(m.id)"
+                      (checkedChange)="toggle(m.id)"
                     />
                   </td>
                   <td hlmTableCell>
@@ -322,6 +328,23 @@ import { UploadModsDialogService } from './upload-mods-dialog';
         }
       </div>
     </section>
+
+    <ng-template #sideMenu let-mod>
+      <div hlmDropdownMenu class="w-52">
+        <div hlmDropdownMenuLabel>{{ contextLabel(mod) }}</div>
+        <div hlmDropdownMenuSeparator></div>
+        @for (choice of sideChoices; track choice.side) {
+          <button
+            hlmDropdownMenuItem
+            type="button"
+            [disabled]="settingSide()"
+            (click)="setSideFor(mod, choice.side)"
+          >
+            {{ choice.label }}
+          </button>
+        }
+      </div>
+    </ng-template>
   `,
 })
 export class ServerMods {
@@ -419,12 +442,30 @@ export class ServerMods {
   }
 
   protected setSide(side: ModSide): void {
-    const ids = [...this.selected()];
+    this.applySide([...this.selected()], side);
+  }
+
+  // Right-clicking a row the selection does not contain acts on that row alone. Right-clicking one
+  // it does acts on the whole selection, which is what every table that offers both does.
+  protected setSideFor(mod: ModDto, side: ModSide): void {
+    const selection = this.selected();
+
+    this.applySide(selection.has(mod.id) ? [...selection] : [mod.id], side);
+  }
+
+  protected contextLabel(mod: ModDto): string {
+    const selection = this.selected();
+    if (!selection.has(mod.id)) return mod.fileName;
+
+    return `${selection.size} selected`;
+  }
+
+  private applySide(ids: ReadonlyArray<string>, side: ModSide): void {
     if (ids.length === 0) return;
 
     this.settingSide.set(true);
     this.api
-      .apiServersIdModsSidePatch(this.serverId(), { modIds: ids, side })
+      .apiServersIdModsSidePatch(this.serverId(), { modIds: [...ids], side })
       .subscribe({
         next: (result) => {
           this.settingSide.set(false);
