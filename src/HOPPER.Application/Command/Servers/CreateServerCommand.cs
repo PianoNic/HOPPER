@@ -31,6 +31,11 @@ namespace HOPPER.Application.Command.Servers
             if (!Enum.IsDefined(command.Loader))
                 throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");
 
+            // Not on update: an existing server may already have none, and requiring one there
+            // would mean a legacy server could not be renamed until its loader was guessed at.
+            if (command.Loader == ModLoader.Unknown)
+                throw new ArgumentException("Pick the loader this server runs. Without one HOPPER cannot browse for its mods or build it a client jar.");
+
             var server = new Server
             {
                 Name = name,

@@ -33,13 +33,25 @@ import { MOD_LOADER, modLoaderLabel } from './mod-labels';
 
 export type ServerDialogContext = { mode: 'create' } | { mode: 'rename'; server: ServerDto };
 
-const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
-  MOD_LOADER.unknown,
+const REAL_LOADERS: ReadonlyArray<number> = [
   MOD_LOADER.forge,
   MOD_LOADER.neoForge,
   MOD_LOADER.fabric,
   MOD_LOADER.quilt,
-].map((value) => ({ value, label: modLoaderLabel(value) }));
+];
+
+// "Not set" is offered only when editing. A server without a loader cannot be browsed for, cannot
+// hand out a client jar and has no version list, so it is not a state worth being able to create.
+// An existing one may already be in it, and opening its dialog must not change that by itself.
+const LOADERS: ReadonlyArray<{ value: number; label: string }> = REAL_LOADERS.map((value) => ({
+  value,
+  label: modLoaderLabel(value),
+}));
+
+const LOADERS_WITH_UNSET: ReadonlyArray<{ value: number; label: string }> = [
+  { value: MOD_LOADER.unknown, label: modLoaderLabel(MOD_LOADER.unknown) },
+  ...LOADERS,
+];
 
 @Component({
   selector: 'app-server-dialog',
@@ -162,12 +174,15 @@ const LOADERS: ReadonlyArray<{ value: number; label: string }> = [
             [disabled]="saving()"
             (input)="onLoaderVersion($event)"
           />
+
+          <!-- Only beside the input. Nobody typing is nobody getting the format wrong, and the
+               dropdown's own entries are already in it. -->
+          <p class="text-muted-foreground text-xs">
+            The loader's own version, with no Minecraft prefix -
+            <code class="font-mono">47.4.10</code>, not
+            <code class="font-mono">1.20.1-47.4.10</code>.
+          </p>
         }
-        <p class="text-muted-foreground text-xs">
-          The loader's own version, with no Minecraft prefix - <code class="font-mono">47.4.10</code
-          >, not <code class="font-mono">1.20.1-47.4.10</code>. Each pack format prepends whatever it
-          wants.
-        </p>
       </div>
     </div>
 
@@ -190,7 +205,7 @@ export class ServerDialog {
   private readonly ctx = injectBrnDialogContext<ServerDialogContext>();
 
   protected readonly creating = this.ctx.mode === 'create';
-  protected readonly loaders = LOADERS;
+  protected readonly loaders = this.creating ? LOADERS : LOADERS_WITH_UNSET;
 
   protected readonly name = signal(this.ctx.mode === 'rename' ? this.ctx.server.name : '');
   protected readonly saving = signal(false);
@@ -199,7 +214,7 @@ export class ServerDialog {
     this.ctx.mode === 'rename' ? (this.ctx.server.minecraftVersion ?? '') : '',
   );
   protected readonly loader = signal(
-    this.ctx.mode === 'rename' ? this.ctx.server.loader : MOD_LOADER.unknown,
+    this.ctx.mode === 'rename' ? this.ctx.server.loader : MOD_LOADER.forge,
   );
   protected readonly loaderVersion = signal(
     this.ctx.mode === 'rename' ? (this.ctx.server.loaderVersion ?? '') : '',
@@ -271,7 +286,7 @@ export class ServerDialog {
   }
 
   protected onLoader(value: unknown): void {
-    const match = LOADERS.find((l) => l.label === value);
+    const match = this.loaders.find((l) => l.label === value);
     if (match) this.loader.set(match.value);
   }
 
