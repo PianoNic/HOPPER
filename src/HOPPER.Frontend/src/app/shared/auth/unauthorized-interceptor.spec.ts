@@ -13,4 +13,11 @@ describe('isApiRequest', () => {
       isApiRequest('https://keycloak.example/realms/hopper/protocol/openid-connect/token'),
     ).toBe(false);
   });
+
+  it('ignores an identity provider reverse-proxied onto the API origin', () => {
+    expect(
+      isApiRequest('http://localhost:5170/auth/realms/hopper/protocol/openid-connect/token'),
+    ).toBe(false);
+    expect(isApiRequest('http://localhost:5170/')).toBe(false);
+  });
 });

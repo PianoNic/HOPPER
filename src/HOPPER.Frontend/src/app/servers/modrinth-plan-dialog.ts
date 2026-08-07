@@ -157,11 +157,8 @@ const REPLAN_DEBOUNCE_MS = 300;
               size="28"
               class="text-muted-foreground opacity-60"
             />
-            <p class="text-sm">Could not work out what this mod needs.</p>
-            <p class="text-muted-foreground max-w-md text-xs">
-              HOPPER asks Modrinth for the dependency tree before it downloads anything. Nothing has
-              been added to this server.
-            </p>
+            <!-- A state, not a message: the failure itself is reported by the toast the same code
+                 path already fires, and the dashboard has no inline error messages. -->
             <button hlmBtn variant="outline" size="sm" type="button" (click)="retry()">
               Try again
             </button>
@@ -492,6 +489,10 @@ export class ModrinthPlanDialog {
   }
 
   protected retry(): void {
+    // Here rather than only in the debounced projection, which is 300ms away: without it the click
+    // leaves the failure panel on screen unacknowledged and a second click looks like a dead button.
+    this.failed.set(false);
+    this.loading.set(true);
     this.retryTick.update((tick) => tick + 1);
   }
 

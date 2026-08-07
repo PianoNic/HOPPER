@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffClient, OFFLINE_AFTER_MS } from './drift';
+import { countDrift, diffClient, OFFLINE_AFTER_LABEL, OFFLINE_AFTER_MS } from './drift';
 import { ClientDto } from '../../api/model/clientDto';
 import { ClientModDto } from '../../api/model/clientModDto';
 import { ModDto } from '../../api/model/modDto';
@@ -92,20 +92,6 @@ describe('diffClient', () => {
     expect(result.status).toBe('offline');
   });
 
-  it('counts a drifting client seen inside the window as active', () => {
-    const required = [mod('jei.jar', 'aa')];
-    const recent = new Date(NOW - OFFLINE_AFTER_MS + 1000).toISOString();
-    const result = diffClient(client([], recent), required, NOW);
-
-    expect(result.status).toBe('drift');
-    expect(result.status !== 'offline').toBe(true);
-  });
-
-  it('leaves an unparseable last-seen out of the active count', () => {
-    const result = diffClient(client([], 'not-a-date'), [], NOW);
-    expect(result.status !== 'offline').toBe(false);
-  });
-
   it('never reports a client as drifting once it is offline, even with jars missing', () => {
     const required = [mod('jei.jar', 'aa'), mod('rei.jar', 'bb')];
     const stale = new Date(NOW - OFFLINE_AFTER_MS - 1000).toISOString();
@@ -114,5 +100,30 @@ describe('diffClient', () => {
     expect(result.missing).toHaveLength(2);
     expect(result.unknown).toBe(1);
     expect(result.status !== 'drift').toBe(true);
+  });
+});
+
+describe('countDrift', () => {
+  const required = [mod('jei.jar', 'aa')];
+  const recent = new Date(NOW - OFFLINE_AFTER_MS + 1000).toISOString();
+  const stale = new Date(NOW - OFFLINE_AFTER_MS - 1000).toISOString();
+
+  it('counts what the Overview tiles show', () => {
+    const rows = [
+      diffClient(client([reported('jei.jar', 'aa', true)], recent), required, NOW),
+      diffClient(client([], recent), required, NOW),
+      diffClient(client([], stale), required, NOW),
+      diffClient(client([], 'not-a-date'), required, NOW),
+    ];
+
+    expect(countDrift(rows)).toEqual({ active: 2, drifting: 1 });
+  });
+
+  it('counts nothing when no client has ever reported', () => {
+    expect(countDrift([])).toEqual({ active: 0, drifting: 0 });
+  });
+
+  it('names the same window it counts', () => {
+    expect(OFFLINE_AFTER_LABEL).toBe(`${OFFLINE_AFTER_MS / 3600000}h`);
   });
 });

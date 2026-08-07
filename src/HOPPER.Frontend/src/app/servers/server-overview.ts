@@ -16,7 +16,7 @@ import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
-import { ClientDrift, diffClient, OFFLINE_AFTER_LABEL } from '../shared/utils/drift';
+import { ClientDrift, countDrift, diffClient, OFFLINE_AFTER_LABEL } from '../shared/utils/drift';
 import { ServersService } from '../api/api/servers.service';
 import { ServerClientsService } from '../api/api/serverClients.service';
 import { ServerModsService } from '../api/api/serverMods.service';
@@ -122,9 +122,7 @@ export class ServerOverview {
 
     const distinct = new Set(mods.map((m) => m.sha256));
 
-    const rows = this.drift();
-    const active = rows.filter((r) => r.status !== 'offline');
-    const drifting = rows.filter((r) => r.status === 'drift');
+    const { active, drifting } = countDrift(this.drift());
 
     return [
       {
@@ -141,15 +139,15 @@ export class ServerOverview {
       },
       {
         label: `Clients (${OFFLINE_AFTER_LABEL})`,
-        value: `${active.length}`,
+        value: `${active}`,
         hint: `${clients.length} known in total`,
         icon: 'lucideUsers',
       },
       {
         label: 'Showing drift',
-        value: `${drifting.length}`,
+        value: `${drifting}`,
         hint:
-          drifting.length === 0
+          drifting === 0
             ? 'Every recent client matches the manifest'
             : 'Missing or unrecognised jars on disk',
         icon: 'lucideTriangleAlert',
