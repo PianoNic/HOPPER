@@ -4,18 +4,16 @@ namespace HOPPER.Domain.Enums
 {
     public static class ModSideRules
     {
-        public static bool Reaches(ModSide mod, SyncSide caller) => mod switch
-        {
-            ModSide.ClientOnly => caller == SyncSide.Client,
-            ModSide.ServerOnly => caller == SyncSide.Server,
-            _ => true,
-        };
+        public static ModSide WithheldFrom(SyncSide caller) =>
+            caller == SyncSide.Server ? ModSide.ClientOnly : ModSide.ServerOnly;
 
-        public static Expression<Func<Mod, bool>> ReachesExpression(SyncSide caller) => caller switch
+        public static bool Reaches(ModSide mod, SyncSide caller) => mod != WithheldFrom(caller);
+
+        public static Expression<Func<Mod, bool>> ReachesExpression(SyncSide caller)
         {
-            SyncSide.Server => m => m.Side == ModSide.Both || m.Side == ModSide.ServerOnly,
-            _ => m => m.Side == ModSide.Both || m.Side == ModSide.ClientOnly,
-        };
+            var withheld = WithheldFrom(caller);
+            return m => m.Side != withheld;
+        }
 
         public static bool TryParse(string? value, out SyncSide side)
         {

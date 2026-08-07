@@ -149,6 +149,31 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        [Arguments(ModSide.Both, SyncSide.Client)]
+        [Arguments(ModSide.Both, SyncSide.Server)]
+        [Arguments(ModSide.ClientOnly, SyncSide.Client)]
+        [Arguments(ModSide.ClientOnly, SyncSide.Server)]
+        [Arguments(ModSide.ServerOnly, SyncSide.Client)]
+        [Arguments(ModSide.ServerOnly, SyncSide.Server)]
+        [Arguments((ModSide)99, SyncSide.Client)]
+        [Arguments((ModSide)99, SyncSide.Server)]
+        public async Task ReachesExpression_AgreesWithReaches(ModSide mod, SyncSide caller)
+        {
+            var compiled = ModSideRules.ReachesExpression(caller).Compile();
+
+            var row = new Mod
+            {
+                ServerId = ServerId,
+                FileName = "a.jar",
+                Sha256 = new string('a', 64),
+                Size = 1,
+                Side = mod,
+            };
+
+            await Assert.That(compiled(row)).IsEqualTo(ModSideRules.Reaches(mod, caller));
+        }
+
+        [Test]
         [Arguments(null, SyncSide.Client)]
         [Arguments("", SyncSide.Client)]
         [Arguments("   ", SyncSide.Client)]
