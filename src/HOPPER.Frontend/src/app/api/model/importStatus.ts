@@ -10,10 +10,10 @@
 
 
 export const ImportStatus = {
-    Queued: 0,
-    Running: 1,
-    Completed: 2,
-    Failed: 3
+    Queued: 'Queued',
+    Running: 'Running',
+    Completed: 'Completed',
+    Failed: 'Failed'
 } as const;
 export type ImportStatus = typeof ImportStatus[keyof typeof ImportStatus];
 

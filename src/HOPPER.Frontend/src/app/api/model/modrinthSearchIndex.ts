@@ -10,11 +10,11 @@
 
 
 export const ModrinthSearchIndex = {
-    Relevance: 0,
-    Downloads: 1,
-    Follows: 2,
-    Newest: 3,
-    Updated: 4
+    Relevance: 'Relevance',
+    Downloads: 'Downloads',
+    Follows: 'Follows',
+    Newest: 'Newest',
+    Updated: 'Updated'
 } as const;
 export type ModrinthSearchIndex = typeof ModrinthSearchIndex[keyof typeof ModrinthSearchIndex];
 

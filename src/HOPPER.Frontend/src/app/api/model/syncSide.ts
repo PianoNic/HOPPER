@@ -10,8 +10,8 @@
 
 
 export const SyncSide = {
-    Client: 0,
-    Server: 1
+    Client: 'Client',
+    Server: 'Server'
 } as const;
 export type SyncSide = typeof SyncSide[keyof typeof SyncSide];
 

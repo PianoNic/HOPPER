@@ -89,7 +89,7 @@ describe('packSplit', () => {
   });
 
   it('quotes the worst case for a format it does not know', () => {
-    expect(packSplit(mods, 99).bundledFiles).toBe(3);
+    expect(packSplit(mods, 'Technic' as PackFormat).bundledFiles).toBe(3);
   });
 
   it('answers zero for a server with no mods', () => {

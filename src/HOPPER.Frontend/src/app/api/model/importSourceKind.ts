@@ -10,8 +10,8 @@
 
 
 export const ImportSourceKind = {
-    Upload: 0,
-    Url: 1
+    Upload: 'Upload',
+    Url: 'Url'
 } as const;
 export type ImportSourceKind = typeof ImportSourceKind[keyof typeof ImportSourceKind];
 

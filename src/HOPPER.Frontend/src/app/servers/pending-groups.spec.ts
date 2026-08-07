@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { groupPendingByImport } from './pending-groups';
+import { ImportSourceKind } from '../api/model/importSourceKind';
 import { ImportStatus } from '../api/model/importStatus';
 import { PackFormat } from '../api/model/packFormat';
 import { PendingReason } from '../api/model/pendingReason';
@@ -26,7 +27,7 @@ function imported(id: string, sourceName: string, createdAt: string): ModImportD
   return {
     id,
     sourceName,
-    sourceKind: 0,
+    sourceKind: ImportSourceKind.Upload,
     format: PackFormat.CurseForge,
     status: ImportStatus.Completed,
     importedCount: 0,

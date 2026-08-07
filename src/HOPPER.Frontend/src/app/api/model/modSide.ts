@@ -10,9 +10,9 @@
 
 
 export const ModSide = {
-    Both: 0,
-    ClientOnly: 1,
-    ServerOnly: 2
+    Both: 'Both',
+    ClientOnly: 'ClientOnly',
+    ServerOnly: 'ServerOnly'
 } as const;
 export type ModSide = typeof ModSide[keyof typeof ModSide];
 

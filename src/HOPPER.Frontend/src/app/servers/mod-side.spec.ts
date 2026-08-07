@@ -10,11 +10,11 @@ describe('modSideLabel', () => {
   });
 
   it('falls back to Both for anything unknown', () => {
-    expect(modSideLabel(99)).toBe('Both');
+    expect(modSideLabel('Proxy' as ModSide)).toBe('Both');
   });
 });
 
-export function sideCounts(sides: ReadonlyArray<number>): { clients: number; servers: number } {
+export function sideCounts(sides: ReadonlyArray<ModSide>): { clients: number; servers: number } {
   return {
     clients: sides.filter((s) => s !== ModSide.ServerOnly).length,
     servers: sides.filter((s) => s !== ModSide.ClientOnly).length,

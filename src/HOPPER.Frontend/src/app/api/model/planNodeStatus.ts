@@ -10,10 +10,10 @@
 
 
 export const PlanNodeStatus = {
-    New: 0,
-    AlreadyInstalled: 1,
-    OtherVersionInstalled: 2,
-    FileNameTaken: 3
+    New: 'New',
+    AlreadyInstalled: 'AlreadyInstalled',
+    OtherVersionInstalled: 'OtherVersionInstalled',
+    FileNameTaken: 'FileNameTaken'
 } as const;
 export type PlanNodeStatus = typeof PlanNodeStatus[keyof typeof PlanNodeStatus];
 

@@ -10,11 +10,11 @@
 
 
 export const ModLoader = {
-    Unknown: 0,
-    Forge: 1,
-    NeoForge: 2,
-    Fabric: 3,
-    Quilt: 4
+    Unknown: 'Unknown',
+    Forge: 'Forge',
+    NeoForge: 'NeoForge',
+    Fabric: 'Fabric',
+    Quilt: 'Quilt'
 } as const;
 export type ModLoader = typeof ModLoader[keyof typeof ModLoader];
 

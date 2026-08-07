@@ -4,7 +4,7 @@ import { PendingReason } from '../api/model/pendingReason';
 import { PendingModDto } from '../api/model/pendingModDto';
 import { toNumber } from '../shared/utils/format';
 
-export function importStatusLabel(status: number): string {
+export function importStatusLabel(status: ImportStatus): string {
   switch (status) {
     case ImportStatus.Queued:
       return 'Queued';
@@ -19,11 +19,11 @@ export function importStatusLabel(status: number): string {
   }
 }
 
-export function isImportPending(status: number): boolean {
+export function isImportPending(status: ImportStatus): boolean {
   return status === ImportStatus.Queued || status === ImportStatus.Running;
 }
 
-export function packFormatLabel(format: number): string {
+export function packFormatLabel(format: PackFormat): string {
   switch (format) {
     case PackFormat.Modrinth:
       return 'Modrinth pack';
@@ -38,7 +38,7 @@ export function packFormatLabel(format: number): string {
   }
 }
 
-export function pendingReasonLabel(reason: number): string {
+export function pendingReasonLabel(reason: PendingReason): string {
   switch (reason) {
     case PendingReason.NoApiKey:
       return 'No CurseForge key';
@@ -53,7 +53,7 @@ export function pendingReasonLabel(reason: number): string {
   }
 }
 
-export function pendingReasonDetail(reason: number): string {
+export function pendingReasonDetail(reason: PendingReason): string {
   switch (reason) {
     case PendingReason.NoApiKey:
       return 'A CurseForge pack names its mods by project and file id only - no filename, no URL, no hash. Without CurseForge:ApiKey configured, HOPPER cannot resolve them, so download this file yourself and upload it with the others.';

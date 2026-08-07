@@ -31,7 +31,7 @@ describe('importStatusLabel', () => {
   });
 
   it('does not pass an unknown status off as a known one', () => {
-    expect(importStatusLabel(99)).toBe('Unknown');
+    expect(importStatusLabel('Abandoned' as ImportStatus)).toBe('Unknown');
   });
 });
 
@@ -44,7 +44,7 @@ describe('isImportPending', () => {
   });
 
   it('stops polling on a status this build does not know', () => {
-    expect(isImportPending(42)).toBe(false);
+    expect(isImportPending('Abandoned' as ImportStatus)).toBe(false);
   });
 });
 
@@ -67,7 +67,15 @@ describe('pendingReasonLabel / pendingReasonDetail', () => {
   });
 
   it('has wording for every reason, including one it does not recognise', () => {
-    for (const reason of [0, 1, 2, 3, 77]) {
+    const reasons: ReadonlyArray<PendingReason> = [
+      PendingReason.NoApiKey,
+      PendingReason.Blocked,
+      PendingReason.DownloadFailed,
+      PendingReason.HashMismatch,
+      'Quarantined' as PendingReason,
+    ];
+
+    for (const reason of reasons) {
       expect(pendingReasonLabel(reason).length).toBeGreaterThan(0);
       expect(pendingReasonDetail(reason).length).toBeGreaterThan(0);
     }

@@ -10,11 +10,11 @@
 
 
 export const PackFormat = {
-    Unknown: 0,
-    Modrinth: 1,
-    CurseForge: 2,
-    PrismInstance: 3,
-    JarArchive: 4
+    Unknown: 'Unknown',
+    Modrinth: 'Modrinth',
+    CurseForge: 'CurseForge',
+    PrismInstance: 'PrismInstance',
+    JarArchive: 'JarArchive'
 } as const;
 export type PackFormat = typeof PackFormat[keyof typeof PackFormat];
 
