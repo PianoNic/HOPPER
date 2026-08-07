@@ -95,7 +95,6 @@
      that host is display: block with auto height, so any flex-1 inside measures against the
      auto-sized host instead of main. Making the host a flex column with h-full passes the
      height the whole way down. A new route MUST be added here or its layout collapses. */
-  app-home,
   app-servers,
   app-server-overview,
   app-server-mods,
@@ -139,5 +138,46 @@
 
   *::-webkit-scrollbar-corner {
     background: transparent;
+  }
+}
+
+/* The busy state of a button, drawn from the [loading] directive's data attribute. A pseudo-element
+   rather than a component, so no template has to make room for it: hlmBtn is inline-flex with a gap
+   already, so this becomes the first flex item and the label slides over by itself. */
+@layer components {
+  [data-slot='button'][data-loading='true']::before {
+    content: '';
+    width: 0.875em;
+    height: 0.875em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: hopper-spin 0.6s linear infinite;
+  }
+
+  /* Reduced motion still needs to say "working", so it pulses rather than freezing. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot='button'][data-loading='true']::before {
+      animation: hopper-pulse 1.4s ease-in-out infinite;
+    }
+  }
+}
+
+/* Outside @layer on purpose: ng-icon sets display:block from its own component styles, which are
+   unlayered and therefore beat anything inside a layer however specific. The spinner takes the
+   icon's place rather than sitting next to it, which is what a loading button does everywhere. */
+[data-slot='button'][data-loading='true'] ng-icon {
+  display: none;
+}
+
+@keyframes hopper-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hopper-pulse {
+  50% {
+    opacity: 0.3;
   }
 }

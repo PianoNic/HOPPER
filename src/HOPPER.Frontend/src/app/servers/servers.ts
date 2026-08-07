@@ -14,6 +14,7 @@ import {
   lucideTrash2,
 } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -32,6 +33,7 @@ import { ServerDialogService } from './server-dialog';
     DatePipe,
     NgIcon,
     HlmButtonImports,
+    ButtonLoading,
     HlmInputImports,
     HlmTableImports,
   ],
@@ -73,6 +75,7 @@ import { ServerDialogService } from './server-dialog';
             />
           </div>
           <button
+            [loading]="loading()"
             hlmBtn
             variant="outline"
             size="sm"
@@ -81,7 +84,7 @@ import { ServerDialogService } from './server-dialog';
             [disabled]="loading()"
           >
             <ng-icon name="lucideRefreshCw" size="14" />
-            {{ loading() ? 'Loading…' : 'Refresh' }}
+            {{ loading() ? 'Loading' : 'Refresh' }}
           </button>
           <button hlmBtn size="sm" type="button" (click)="create()">
             <ng-icon name="lucidePlus" size="14" />

@@ -6,6 +6,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
 import { lucideCircleCheck, lucideRefreshCw } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { messageFrom } from '../shared/utils/format';
 import { ServersService } from '../api/api/servers.service';
@@ -20,7 +21,8 @@ import { PendingMods } from './pending-mods';
 
 @Component({
   selector: 'app-server-pending',
-  imports: [ContentHeader, DatePipe, NgIcon, HlmButtonImports, PendingMods],
+  imports: [ContentHeader, DatePipe, NgIcon, HlmButtonImports,
+    ButtonLoading, PendingMods],
   providers: [provideIcons({ lucideCircleCheck, lucideRefreshCw })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -35,6 +37,7 @@ import { PendingMods } from './pending-mods';
           <span class="text-muted-foreground font-normal">{{ summary() }}</span>
         </h2>
         <button
+          [loading]="loading()"
           hlmBtn
           variant="outline"
           size="sm"
@@ -43,7 +46,7 @@ import { PendingMods } from './pending-mods';
           [disabled]="loading()"
         >
           <ng-icon name="lucideRefreshCw" size="14" />
-          {{ loading() ? 'Loading…' : 'Refresh' }}
+          {{ loading() ? 'Loading' : 'Refresh' }}
         </button>
       </header>
 

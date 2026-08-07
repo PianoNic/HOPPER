@@ -4,6 +4,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
 import { lucideDownload, lucideEye, lucideEyeOff, lucideRotateCw } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { CopyButton } from '../shared/components/copy-button/copy-button';
@@ -16,7 +17,8 @@ import { serverIdSignal } from './server-route';
 
 @Component({
   selector: 'app-server-setup',
-  imports: [ContentHeader, CopyButton, NgIcon, HlmButtonImports, HlmCardImports],
+  imports: [ContentHeader, CopyButton, NgIcon, HlmButtonImports,
+    ButtonLoading, HlmCardImports],
   providers: [provideIcons({ lucideDownload, lucideEye, lucideEyeOff, lucideRotateCw })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -44,9 +46,9 @@ import { serverIdSignal } from './server-route';
               </p>
             </div>
             <div hlmCardContent>
-              <button hlmBtn size="sm" type="button" [disabled]="building()" (click)="downloadJar()">
+              <button hlmBtn size="sm" type="button" [disabled]="building()" (click)="downloadJar()" [loading]="building()">
                 <ng-icon name="lucideDownload" size="14" />
-                {{ building() ? 'Building…' : jarName() }}
+                {{ building() ? 'Building' : jarName() }}
               </button>
             </div>
           </section>
@@ -74,6 +76,7 @@ import { serverIdSignal } from './server-route';
               </div>
               <div>
                 <button
+                  [loading]="revealing()"
                   hlmBtn
                   variant="outline"
                   size="sm"
@@ -82,7 +85,7 @@ import { serverIdSignal } from './server-route';
                   (click)="toggleToken()"
                 >
                   <ng-icon [name]="token() ? 'lucideEyeOff' : 'lucideEye'" size="14" />
-                  {{ revealing() ? 'Fetching…' : token() ? 'Hide token' : 'Reveal token' }}
+                  {{ revealing() ? 'Fetching' : token() ? 'Hide token' : 'Reveal token' }}
                 </button>
               </div>
             </div>
@@ -111,6 +114,7 @@ import { serverIdSignal } from './server-route';
             </div>
             <div hlmCardContent>
               <button
+                [loading]="rotating()"
                 hlmBtn
                 variant="destructive"
                 size="sm"
@@ -119,7 +123,7 @@ import { serverIdSignal } from './server-route';
                 (click)="rotate()"
               >
                 <ng-icon name="lucideRotateCw" size="14" />
-                {{ rotating() ? 'Rotating…' : 'Rotate token' }}
+                {{ rotating() ? 'Rotating' : 'Rotate token' }}
               </button>
             </div>
           </section>

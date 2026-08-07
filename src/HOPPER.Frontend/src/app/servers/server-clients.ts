@@ -25,6 +25,7 @@ import { toast } from '@spartan-ng/brain/sonner';
 import { lucideRefreshCw, lucideSearch, lucideUsers } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -55,6 +56,7 @@ const POLL_MS = 10000;
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
+    ButtonLoading,
     HlmInputImports,
     HlmTableImports,
   ],
@@ -93,6 +95,7 @@ const POLL_MS = 10000;
             type="button"
             (click)="reload()"
             [disabled]="loading()"
+            [loading]="loading()"
           >
             <ng-icon name="lucideRefreshCw" size="14" />
             {{ refreshLabel() }}
@@ -234,7 +237,7 @@ export class ServerClients {
   // The paused poll has to stay visible after the toast expires, and a relabelled control that
   // already existed says so without an inline error message.
   protected readonly refreshLabel = computed(() => {
-    if (this.loading()) return 'Loading…';
+    if (this.loading()) return 'Loading';
     return this.pollFailed() ? 'Reconnect' : 'Refresh';
   });
 

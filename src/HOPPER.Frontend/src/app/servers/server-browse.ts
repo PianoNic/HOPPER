@@ -27,6 +27,7 @@ import {
 import { simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -79,6 +80,7 @@ type SearchKey = {
     RouterLink,
     HlmBadgeImports,
     HlmButtonImports,
+    ButtonLoading,
     HlmInputImports,
     HlmSelectImports,
   ],
@@ -181,7 +183,7 @@ type SearchKey = {
               The browser filters by both, so it needs them before it can show anything worth
               installing. Set them on the Servers page and come back.
             </p>
-            <a hlmBtn variant="outline" size="sm" routerLink="/servers">
+            <a hlmBtn variant="outline" size="sm" routerLink="/">
               <ng-icon name="lucideSettings" size="14" />
               Go to Servers
             </a>
@@ -265,13 +267,14 @@ type SearchKey = {
                     </button>
                   } @else {
                     <button
+                      [loading]="picking() === h.projectId"
                       hlmBtn
                       size="sm"
                       type="button"
                       [disabled]="picking() === h.projectId"
                       (click)="addLatest(h)"
                     >
-                      {{ picking() === h.projectId ? 'Resolving…' : 'Add' }}
+                      {{ picking() === h.projectId ? 'Resolving' : 'Add' }}
                     </button>
                   }
                 </div>

@@ -13,6 +13,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCheck, lucideFileArchive, lucideUpload, lucideX } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import {
   HlmDialogDescription,
   HlmDialogHeader,
@@ -47,6 +48,7 @@ const MAX_ROW_ERRORS = 3;
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
+    ButtonLoading,
     HlmDialogHeader,
     HlmDialogTitle,
     HlmDialogDescription,
@@ -174,6 +176,7 @@ const MAX_ROW_ERRORS = 3;
           hlmBtn
           type="button"
           [disabled]="running() || queuedCount() === 0"
+          [loading]="running()"
           (click)="start()"
         >
           {{ label() }}
@@ -212,7 +215,7 @@ export class UploadModsDialog {
 
   protected readonly label = computed(() => {
     const queued = this.queuedCount();
-    if (this.running()) return 'Uploading…';
+    if (this.running()) return 'Uploading';
     if (queued === 0) return 'Upload';
     return queued === 1 ? 'Upload' : `Upload ${queued} files`;
   });
@@ -234,7 +237,7 @@ export class UploadModsDialog {
   protected readonly overallLabel = computed(() => {
     const list = this.items();
     const done = list.filter((i) => i.state !== 'queued' && i.state !== 'uploading').length;
-    return `Uploading ${done + 1} of ${list.length}…`;
+    return `Uploading ${done + 1} of ${list.length}`;
   });
 
   protected readonly outcome = computed(() => {

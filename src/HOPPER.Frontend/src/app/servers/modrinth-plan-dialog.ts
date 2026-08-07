@@ -22,6 +22,7 @@ import {
 } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 import {
   HlmDialogDescription,
@@ -56,6 +57,7 @@ const REPLAN_DEBOUNCE_MS = 300;
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
+    ButtonLoading,
     HlmCheckboxImports,
     HlmDialogHeader,
     HlmDialogTitle,
@@ -372,7 +374,13 @@ const REPLAN_DEBOUNCE_MS = 300;
         <!-- Hidden rather than disabled: a dead "Nothing to add" next to the body's Try again is
              two controls arguing about what the dialog is for. -->
         @if (!failed()) {
-          <button hlmBtn type="button" [disabled]="!canInstall()" (click)="install()">
+          <button
+            hlmBtn
+            type="button"
+            [disabled]="!canInstall()"
+            [loading]="installing() || loading()"
+            (click)="install()"
+          >
             {{ confirmLabel() }}
           </button>
         }
@@ -440,8 +448,8 @@ export class ModrinthPlanDialog {
   });
 
   protected readonly confirmLabel = computed(() => {
-    if (this.installing()) return 'Downloading from Modrinth…';
-    if (this.loading()) return 'Resolving…';
+    if (this.installing()) return 'Downloading from Modrinth';
+    if (this.loading()) return 'Resolving';
 
     const p = this.plan();
     if (p?.blocked) return 'Cannot add - incompatible mods';
