@@ -166,6 +166,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
           <table hlmTable>
             <thead hlmTableHeader>
               <tr hlmTableRow>
+                <th hlmTableHead class="w-10"><span class="sr-only">Icon</span></th>
                 <th hlmTableHead>File</th>
                 <th hlmTableHead>Source</th>
                 <th hlmTableHead>SHA-256</th>
@@ -178,6 +179,25 @@ import { UploadModsDialogService } from './upload-mods-dialog';
             <tbody hlmTableBody>
               @for (m of filteredMods(); track m.id) {
                 <tr hlmTableRow>
+                  <td hlmTableCell>
+                    <!-- The placeholder keeps the column from collapsing on a server whose jars
+                         carry no icon, which is every hand-built pack until the backfill runs. -->
+                    @if (m.iconSha256 && !iconFailed()[m.id]) {
+                      <img
+                        [src]="'/api/icons/' + m.iconSha256"
+                        [alt]="m.fileName"
+                        loading="lazy"
+                        class="size-7 rounded object-cover"
+                        (error)="onIconError(m.id)"
+                      />
+                    } @else {
+                      <span
+                        class="bg-muted text-muted-foreground flex size-7 items-center justify-center rounded text-xs"
+                        aria-hidden="true"
+                        >?</span
+                      >
+                    }
+                  </td>
                   <td hlmTableCell class="font-medium">{{ m.fileName }}</td>
                   <!-- Where the jar came from, and where it goes in an exported pack: a mod with
                        Modrinth provenance becomes a manifest entry with its real CDN URL, and
@@ -311,6 +331,14 @@ export class ServerMods {
 
   protected size(mod: ModDto): string {
     return formatBytes(toNumber(mod.size));
+  }
+
+  // A stored icon can still fail to render: the blob may have been swept, or it may be a format
+  // the browser refuses. Falling back to the same placeholder beats a broken-image glyph.
+  protected readonly iconFailed = signal<Record<string, boolean>>({});
+
+  protected onIconError(modId: string): void {
+    this.iconFailed.update((failed) => ({ ...failed, [modId]: true }));
   }
 
   protected onFilter(event: Event): void {

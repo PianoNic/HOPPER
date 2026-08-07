@@ -208,6 +208,7 @@ namespace HOPPER.Application.Command.Modrinth
                     UploadedBy = currentUser.Name,
 
                     ModIds = ModIdReader.FromStaged(blobs, staged),
+                    IconSha256 = await ModIconStore.FromStagedJarAsync(blobs, staged, cancellationToken),
                 };
 
                 ApplyProvenance(entry, version, file, title, sha1, sha512);

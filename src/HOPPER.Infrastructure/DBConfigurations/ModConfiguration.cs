@@ -12,6 +12,8 @@ namespace HOPPER.Infrastructure.DBConfigurations
 
             builder.Property(m => m.Sha256).HasMaxLength(64);
 
+            builder.Property(m => m.IconSha256).HasMaxLength(64);
+
             builder.Property(m => m.Sha1).HasMaxLength(40);
 
             builder.Property(m => m.Sha512).HasMaxLength(128);

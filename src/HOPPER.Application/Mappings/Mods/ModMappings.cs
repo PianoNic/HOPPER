@@ -18,6 +18,7 @@ namespace HOPPER.Application.Mappings.Mods
             VersionId = m.VersionId,
             ProjectName = m.ProjectName,
             DownloadUrl = m.DownloadUrl,
+            IconSha256 = m.IconSha256,
         };
     }
 }

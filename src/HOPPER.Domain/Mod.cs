@@ -29,5 +29,12 @@ namespace HOPPER.Domain
         public string? Sha512 { get; set; }
 
         public string[]? ModIds { get; set; }
+
+        /// <summary>
+        /// The mod's own icon, in the blob store rather than as a URL. Content-addressed, so the
+        /// same icon across servers costs one copy, and served by HOPPER, so a dashboard on a
+        /// network that cannot reach Modrinth still shows it.
+        /// </summary>
+        public string? IconSha256 { get; set; }
     }
 }
