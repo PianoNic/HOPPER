@@ -3,7 +3,11 @@
 ## Prerequisites
 
 - .NET 10 SDK
-- Bun
+- Bun, on the version `src/HOPPER.Frontend/package.json` declares in `packageManager`. CI reads that
+  field rather than pinning its own, and refuses a build whose Dockerfile disagrees with it, so the
+  three cannot drift apart. Install it with `bun upgrade --to <version>`. A different Bun may rewrite
+  `bun.lock` on `bun install`, and CI installs with `--frozen-lockfile`, so a rewritten lockfile
+  fails there as what looks like a dependency problem rather than a version-skew one.
 - Docker, for Postgres, the dev IdP and the test suite
 - JDK 21 through 24, only if you want to build the locator templates. Gradle 8.14.3 refuses to start on JDK 25 with "Unsupported class file major version 69", which is why the Dockerfile pins `eclipse-temurin:21-jdk`.
 
