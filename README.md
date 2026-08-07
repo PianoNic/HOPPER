@@ -8,8 +8,7 @@
 <p align="center">
   <a href="https://github.com/PianoNic/HOPPER"><img src="https://badgetrack.pianonic.ch/badge?tag=hopper&label=visits&color=0b1220&style=flat" alt="visits" /></a>
   <a href="docs/self-host.md"><img src="https://img.shields.io/badge/Self--Host-Instructions-0b1220.svg" alt="Self-hosting" /></a>
-  <img src="https://img.shields.io/badge/.NET-10-0b1220.svg" alt=".NET 10" />
-  <img src="https://img.shields.io/badge/Angular-21-0b1220.svg" alt="Angular 21" />
+  <img src="https://img.shields.io/badge/Forge%20%7C%20NeoForge%20%7C%20Fabric%20%7C%20Quilt-supported-0b1220.svg" alt="Loaders" />
 </p>
 
 ---
@@ -18,35 +17,61 @@
 
 ## What is HOPPER?
 
-HOPPER keeps every player's mods in sync with one list you control on the server. Add a mod in the dashboard, and it is on every client the next time they launch - no zip files in Discord, no "did you update yet?", and no restart. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
+HOPPER keeps every player's mods in sync with one list you control on the server. Add a mod in the dashboard, and it is on every client the next time they launch - no zip files in Discord, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/mods.png" width="49%" alt="One server's mod list" />
+  <img src="assets/screenshots/browse.png" width="49%" alt="Modrinth browser with dependency resolution" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/clients.png" width="49%" alt="Clients, with drift against the manifest" />
+  <img src="assets/screenshots/servers.png" width="49%" alt="Servers, each with its own list and token" />
+</p>
+
+<details>
+<summary><strong>Show more screenshots</strong></summary>
+
+<p align="center">
+  <img src="assets/screenshots/setup.png" width="49%" alt="Client setup: download the jar, or configure by hand" />
+  <img src="assets/screenshots/home.png" width="49%" alt="Overview across every server" />
+</p>
+
+</details>
 
 ## Features
 
-- **No restart**: mods are downloaded before Forge scans for them, so they load in the same launch. See [how it works](docs/how-it-works.md).
+- **No restart**: on Forge and NeoForge, mods are downloaded before the loader scans for them, so they load in the same launch. See [how it works](docs/how-it-works.md).
+- **Every loader generation**: Forge 1.12.2 through current, NeoForge, Fabric and Quilt, from one shared core plus a thin adapter each.
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.
+- **Leaves your own mods alone**: downloads land in `hoppermods/`, never in `mods/`. A required mod already installed by hand is moved over rather than downloaded again, and a jar HOPPER did not download is parked, never deleted.
 - **Multiple servers**: each with its own mod list, token and jar; a client only ever sees its own.
-- **Pack import**: Modrinth `.mrpack`, CurseForge and Prism exports, by file or by URL.
+- **Browse and import**: search Modrinth with dependency resolution, or import a Modrinth, CurseForge or Prism pack by file or URL.
 - **Verified downloads**: every jar is checked against its SHA-256 before it is installed.
 - **Never blocks the launch**: offline or server down, the game starts on the last good set.
 - **OIDC auth**: bring your own provider or use the bundled Keycloak-compatible mock.
 
+## Loader support
+
+| Loader | Same launch |
+| --- | --- |
+| Forge 1.12.2 and older | yes |
+| Forge 1.13 to 1.16.x | yes |
+| Forge 1.17 and 1.18 | yes |
+| Forge 1.19 and newer | yes |
+| NeoForge 1.20.2+ | yes |
+| Quilt | opt-in, see below |
+| Fabric | no, sync then restart |
+
+Fabric has no public hook that runs before mod discovery, so HOPPER syncs from the `preLaunch` entrypoint and tells the player a restart is needed when something changed. Quilt has the right hook but refuses to parse a plugin jar unless the player sets `-Dloader.experimental.allow_loading_plugins=true`, so a Quilt server gets the Fabric jar by default and the plugin jar only on request. [The details](docs/how-it-works.md#loader-coverage).
+
 ## Get started
 
 - 📦 **[Self-hosting guide](docs/self-host.md)** - run the image with `docker compose`.
-- 🛠️ **[Developer setup](docs/dev-setup.md)** - local dev with `dotnet run` + Bun, migrations, tests.
+- 🛠️ **[Developer setup](docs/dev-setup.md)** - local dev, migrations, tests.
 - 🧩 **[How it works](docs/how-it-works.md)** - the locator, the generated jar, and version coverage.
-
-<details>
-<summary><strong>Tech stack</strong></summary>
-
-- **.NET 10** ASP.NET Core API (Mediator, EF Core, Clean Architecture).
-- **Angular 21** + Signals + Spartan UI.
-- **PostgreSQL** via Npgsql; **Testcontainers** so tests run on the engine that ships.
-- **Java 17** Forge mod locator, built with Gradle and patched per server as a plain zip.
-- **TUnit** + **vitest** for tests; **OpenAPI** client via `bun run apigen`.
-
-</details>
 
 ## License
 
