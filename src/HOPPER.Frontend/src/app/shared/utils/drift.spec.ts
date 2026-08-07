@@ -3,7 +3,7 @@ import { countDrift, diffClient, OFFLINE_AFTER_LABEL, OFFLINE_AFTER_MS } from '.
 import { ClientDto } from '../../api/model/clientDto';
 import { ClientModDto } from '../../api/model/clientModDto';
 import { ModDto } from '../../api/model/modDto';
-import { MOD_SIDE, MOD_SOURCE } from '../../servers/mod-labels';
+import { MOD_SIDE, MOD_SOURCE, SYNC_SIDE } from '../../servers/mod-labels';
 
 const NOW = Date.parse('2026-08-05T12:00:00Z');
 
@@ -24,16 +24,25 @@ function reported(fileName: string, sha256: string, known: boolean): ClientModDt
   return { fileName, sha256, known };
 }
 
-function client(mods: ClientModDto[], lastSeenAt = '2026-08-05T11:59:00Z'): ClientDto {
+function client(
+  mods: ClientModDto[],
+  lastSeenAt = '2026-08-05T11:59:00Z',
+  side: number = SYNC_SIDE.client,
+): ClientDto {
   return {
     id: 'row-id',
     clientId: 'client-id',
     username: 'steve',
+    side,
     lastSeenAt,
     lastIpAddress: null,
     mods,
     createdAt: '2026-08-01T00:00:00Z',
   };
+}
+
+function sidedMod(fileName: string, sha256: string, side: number): ModDto {
+  return { ...mod(fileName, sha256), side };
 }
 
 describe('diffClient', () => {
@@ -126,5 +135,50 @@ describe('countDrift', () => {
 
   it('names the same window it counts', () => {
     expect(OFFLINE_AFTER_LABEL).toBe(`${OFFLINE_AFTER_MS / 3600000}h`);
+  });
+});
+
+describe('diffClient and sides', () => {
+  // Measured against a real dedicated server before this was fixed: it reported 2 of 3 mods, was
+  // marked missing the client-only jar it was deliberately never sent, and showed DRIFT.
+  it('does not fault a server for the mods only clients get', () => {
+    const required = [
+      sidedMod('both.jar', 'aaa', MOD_SIDE.both),
+      sidedMod('client-only.jar', 'bbb', MOD_SIDE.clientOnly),
+      sidedMod('server-only.jar', 'ccc', MOD_SIDE.serverOnly),
+    ];
+    const server = client(
+      [reported('both.jar', 'aaa', true), reported('server-only.jar', 'ccc', true)],
+      '2026-08-05T11:59:00Z',
+      SYNC_SIDE.server,
+    );
+
+    const drift = diffClient(server, required, NOW);
+
+    expect(drift.missing).toEqual([]);
+    expect(drift.status).toBe('in sync');
+  });
+
+  it('does not fault a player for the mods only servers get', () => {
+    const required = [
+      sidedMod('both.jar', 'aaa', MOD_SIDE.both),
+      sidedMod('server-only.jar', 'ccc', MOD_SIDE.serverOnly),
+    ];
+    const player = client([reported('both.jar', 'aaa', true)]);
+
+    expect(diffClient(player, required, NOW).status).toBe('in sync');
+  });
+
+  it('still reports a mod the client should have and does not', () => {
+    const required = [
+      sidedMod('both.jar', 'aaa', MOD_SIDE.both),
+      sidedMod('client-only.jar', 'bbb', MOD_SIDE.clientOnly),
+    ];
+    const player = client([reported('both.jar', 'aaa', true)]);
+
+    const drift = diffClient(player, required, NOW);
+
+    expect(drift.missing.map((m) => m.fileName)).toEqual(['client-only.jar']);
+    expect(drift.status).toBe('drift');
   });
 });

@@ -182,7 +182,7 @@ final class Syncer {
 
     void report(String username) {
         try {
-            String body = reportBody(clientId(), username, new ArrayList<Mod>(installed));
+            String body = reportBody(clientId(), username, side, new ArrayList<Mod>(installed));
             http.post(reportUrl(manifestUrl).toString(), body.getBytes(StandardCharsets.UTF_8),
                     CONNECT_MS, REPORT_READ_MS);
         } catch (Exception e) {
@@ -190,12 +190,14 @@ final class Syncer {
         }
     }
 
-    static String reportBody(String clientId, String username, List<Mod> mods) {
+    static String reportBody(String clientId, String username, Side side, List<Mod> mods) {
         StringBuilder sb = new StringBuilder(64 + mods.size() * 96);
         sb.append("{\"clientId\":");
         Json.write(sb, clientId);
         sb.append(",\"username\":");
         Json.write(sb, username);
+        sb.append(",\"side\":");
+        Json.write(sb, (side == null ? Side.CLIENT : side).wire());
         sb.append(",\"mods\":[");
         for (int i = 0; i < mods.size(); i++) {
             if (i > 0) sb.append(',');

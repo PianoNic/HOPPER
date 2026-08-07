@@ -10,6 +10,7 @@ namespace HOPPER.Application.Mappings.Clients
             Id = c.Id,
             ClientId = c.ClientId,
             Username = c.Username,
+            Side = c.Side,
             LastSeenAt = c.LastSeenAt,
             LastIpAddress = c.LastIpAddress,
             Mods = mods,

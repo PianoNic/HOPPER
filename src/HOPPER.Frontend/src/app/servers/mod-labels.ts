@@ -10,6 +10,11 @@ export const MOD_SIDE = {
   serverOnly: 2,
 } as const;
 
+export const SYNC_SIDE = {
+  client: 0,
+  server: 1,
+} as const;
+
 export const MOD_LOADER = {
   unknown: 0,
   forge: 1,

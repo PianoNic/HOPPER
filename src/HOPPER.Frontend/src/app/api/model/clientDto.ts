@@ -14,6 +14,7 @@ export interface ClientDto {
     id: string;
     clientId: string;
     username?: string | null;
+    side: number;
     lastSeenAt: string;
     lastIpAddress?: string | null;
     mods: Array<ClientModDto>;

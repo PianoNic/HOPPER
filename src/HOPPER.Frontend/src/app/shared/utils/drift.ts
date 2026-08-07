@@ -1,5 +1,6 @@
 import { ClientDto } from '../../api/model/clientDto';
 import { ModDto } from '../../api/model/modDto';
+import { MOD_SIDE, SYNC_SIDE } from '../../servers/mod-labels';
 
 export type ClientDrift = {
   client: ClientDto;
@@ -24,13 +25,22 @@ export function countDrift(rows: ReadonlyArray<ClientDrift>): { active: number; 
   };
 }
 
+// The same rule ModSideRules.Reaches applies on the server. A client is only ever missing a mod it
+// was actually sent - before this, a dedicated server was marked drifting for every client-only jar
+// it was deliberately never given, and a player for every server-only one.
+export function reaches(mod: ModDto, side: number): boolean {
+  if (mod.side === MOD_SIDE.clientOnly) return side === SYNC_SIDE.client;
+  if (mod.side === MOD_SIDE.serverOnly) return side === SYNC_SIDE.server;
+  return true;
+}
+
 export function diffClient(
   client: ClientDto,
   required: ReadonlyArray<ModDto>,
   now: number,
 ): ClientDrift {
   const reported = new Set(client.mods.map((m) => m.sha256));
-  const missing = required.filter((m) => !reported.has(m.sha256));
+  const missing = required.filter((m) => reaches(m, client.side) && !reported.has(m.sha256));
 
   const unknown = client.mods.filter((m) => !m.known).length;
 
