@@ -39,7 +39,6 @@ export type ClientModsDialogContext = {
         }
       </p>
     </hlm-dialog-header>
-
     <div class="max-h-96 overflow-auto">
       <table hlmTable>
         <thead hlmTableHeader>
@@ -66,8 +65,6 @@ export type ClientModsDialogContext = {
             </tr>
           }
 
-          <!-- Rows the client has not got. These are not in client.mods by definition, so they are
-               appended from the required set rather than filtered out of it. -->
           @for (m of ctx.missing; track m.id) {
             <tr hlmTableRow class="opacity-70">
               <td hlmTableCell class="font-medium">{{ m.fileName }}</td>
@@ -81,12 +78,10 @@ export type ClientModsDialogContext = {
           }
         </tbody>
       </table>
-
       @if (ctx.client.mods.length === 0 && ctx.missing.length === 0) {
         <p class="text-muted-foreground p-4 text-sm">This client reported no jars at all.</p>
       }
     </div>
-
     <div class="flex justify-end">
       <button hlmBtn variant="outline" type="button" (click)="close()">Close</button>
     </div>

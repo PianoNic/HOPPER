@@ -32,7 +32,6 @@ import {
             </span>
             <span class="text-muted-foreground text-xs">{{ why(entry) }}</span>
           </span>
-
           <span class="flex shrink-0 items-center gap-1">
             @if (link(entry); as href) {
               <a
@@ -48,10 +47,6 @@ import {
               </a>
             }
 
-            <!-- The hidden input is the file chooser; the button is what the admin sees. One input
-                 per row rather than one shared one, so the file that comes back is unambiguously
-                 this entry's - a shared input would need the click and the change event to agree
-                 about which row was current. -->
             <input
               #picker
               type="file"

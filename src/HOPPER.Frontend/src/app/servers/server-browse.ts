@@ -147,7 +147,6 @@ type SearchKey = {
     <app-content-header>
       <span slot="left" class="truncate text-sm font-medium">{{ serverName() }}</span>
     </app-content-header>
-
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex flex-wrap items-center justify-between gap-2 border-b py-2">
         <h2 class="flex items-center gap-1.5 text-sm font-medium">
@@ -155,7 +154,6 @@ type SearchKey = {
           Browse Modrinth
           <span class="text-muted-foreground font-normal">{{ summary() }}</span>
         </h2>
-
         @if (platformReady()) {
           <div class="flex flex-wrap items-center gap-2">
             <div class="relative">
@@ -172,7 +170,6 @@ type SearchKey = {
                 (input)="onTerm($event)"
               />
             </div>
-
             <hlm-select [value]="gameVersion()" (valueChange)="onGameVersion($event)">
               <hlm-select-trigger size="sm" class="w-32 text-xs">
                 <hlm-select-value placeholder="Version" />
@@ -185,7 +182,6 @@ type SearchKey = {
                 </hlm-select-content>
               </ng-template>
             </hlm-select>
-
             <hlm-select [value]="loader()" (valueChange)="onLoader($event)">
               <hlm-select-trigger size="sm" class="w-32 text-xs">
                 <hlm-select-value placeholder="Loader" />
@@ -198,7 +194,6 @@ type SearchKey = {
                 </hlm-select-content>
               </ng-template>
             </hlm-select>
-
             <hlm-select [value]="sortValue()" (valueChange)="onSort($event)">
               <hlm-select-trigger size="sm" class="w-32 text-xs">
                 <hlm-select-value placeholder="Sort" />
@@ -214,7 +209,6 @@ type SearchKey = {
           </div>
         }
       </header>
-
       <hlm-resizable-group direction="horizontal" class="min-h-0 flex-1">
       <hlm-resizable-panel
         [defaultSize]="70"
@@ -222,13 +216,8 @@ type SearchKey = {
         class="min-h-0"
         [class.max-lg:hidden]="selected() !== null"
       >
-        <!-- The scroll lives here and not on the panel: BrnResizablePanel writes overflow:hidden
-             as an inline style, which no class can outrank, and the results would just be clipped. -->
         <div #scrollBox class="h-full overflow-auto px-4">
         @if (!platformReady()) {
-          <!-- A state, not an error. The server has never been told what it runs, so there is no
-               honest filter to apply: searching every loader at once would offer jars this server
-               cannot load. -->
           <div
             class="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm"
           >
@@ -266,10 +255,6 @@ type SearchKey = {
                 [class.border-primary]="selected()?.projectId === h.projectId"
                 [class.bg-accent/40]="selected()?.projectId === h.projectId"
               >
-                <!-- Stretched over the card rather than wrapped around it: the title is a link and
-                     the actions are buttons, and neither may be nested inside a button. This gives
-                     the card one tab stop and a keyboard way into the pane, and everything
-                     interactive is raised above it. -->
                 <button
                   type="button"
                   class="absolute inset-0 rounded-md"
@@ -294,8 +279,6 @@ type SearchKey = {
 
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <div class="flex flex-wrap items-center gap-2">
-                    <!-- The title is the link out to Modrinth here too; the rest of the card opens
-                         the pane, so the click must not do both. -->
                     @if (projectUrl(h); as url) {
                       <a
                         class="relative truncate text-sm font-medium hover:underline"
@@ -324,10 +307,6 @@ type SearchKey = {
                     }
                   </div>
                 </div>
-
-                <!-- stopPropagation, because the card itself opens the pane and a click on Add
-                     is not a click on the card. The Modrinth link is not here: it lives in the
-                     pane, which is where someone reading about a mod already is. -->
                 <div class="relative flex shrink-0 items-center gap-1">
                   <button hlmBtn variant="outline" size="sm" type="button" (click)="versions(h)">
                     Versions
@@ -350,10 +329,6 @@ type SearchKey = {
               </li>
             }
           </ul>
-
-          <!-- One viewport tall and observed, so the next page is usually already there by the
-               time the reader arrives. The button stays: a container that never scrolls never
-               intersects, and then it is the only way on. -->
           <div #sentinel class="flex justify-center pb-6">
             @if (loading()) {
               <hlm-spinner aria-label="Loading more results" />
@@ -368,10 +343,6 @@ type SearchKey = {
         }
         </div>
       </hlm-resizable-panel>
-
-      <!-- Selection is a signal, not a route: on a route the back button would close the pane
-           instead of leaving the page, and the grid would re-query on every click. Full width
-           below lg, where two columns would squeeze the grid to one card per row. -->
       @if (selected(); as sel) {
         <hlm-resizable-handle withHandle class="max-lg:hidden" />
         <hlm-resizable-panel
@@ -390,7 +361,6 @@ type SearchKey = {
               />
             }
             <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <!-- The title is the way out to Modrinth, so the pane needs no button for it. -->
               @if (projectUrl(sel); as url) {
                 <a
                   class="text-sm font-medium hover:underline"
@@ -417,15 +387,12 @@ type SearchKey = {
               <ng-icon name="lucideX" size="14" />
             </button>
           </div>
-
           @if (detailLoading()) {
             <p class="text-muted-foreground flex items-center gap-2 p-4 text-xs">
               <hlm-spinner aria-label="Loading details" />
               Loading details
             </p>
           } @else if (detailFailed()) {
-            <!-- A state, not a message: the failure itself was the toast, and a toast is gone in
-                 seconds while an empty pane is not. -->
             <div class="flex flex-col items-center gap-2 p-8 text-center">
               <ng-icon name="lucideTriangleAlert" size="24" class="text-muted-foreground opacity-60" />
               <button hlmBtn variant="outline" size="sm" type="button" (click)="retryDetail()">
@@ -447,16 +414,12 @@ type SearchKey = {
                   <span>updated {{ sel.dateModified | when: 'date' }}</span>
                 }
               </div>
-
               <div class="-mt-1 flex items-center gap-2">
                 <div class="flex flex-1 flex-wrap items-center gap-1">
                   @for (c of p.categories; track c) {
                     <span hlmBadge variant="outline" class="text-xs">{{ c }}</span>
                   }
                 </div>
-
-                <!-- The forge the source is hosted on, named by its own mark. A host nobody
-                     recognises still gets the generic git icon rather than no way through. -->
                 <div class="flex shrink-0 items-center gap-1">
                   @if (p.sourceUrl) {
                     <a
@@ -486,10 +449,7 @@ type SearchKey = {
                   }
                 </div>
               </div>
-
               @if (body(); as html) {
-                <!-- innerHTML on purpose: Angular's sanitiser runs on it, which is what makes a
-                     third party's Markdown safe to show at all. -->
                 <div class="hopper-markdown text-xs leading-relaxed" [innerHTML]="html"></div>
               } @else if (p.description) {
                 <p class="text-muted-foreground text-xs">{{ p.description }}</p>

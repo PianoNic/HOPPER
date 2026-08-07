@@ -1,14 +1,6 @@
 <app-sidenav>
-  <!-- overflow-hidden + a fixed height lock the shell to the viewport so the page itself never
-       scrolls. Each route owns its own scroll surface (a table body, a card list), which keeps the
-       sidenav and page header fixed and avoids the double-scrollbar trap. flex-col lets child
-       layouts fill whatever is left after the content-header with min-h-0 + flex-1 instead of
-       hand-computed viewport math. -->
   <main hlmSidebarInset class="h-[calc(100vh-17px)] overflow-hidden flex flex-col">
     <router-outlet />
   </main>
 </app-sidenav>
-
-<!-- Mounted once on the shell rather than per page: a toast fired while a route is being torn
-     down (a failed load that resolves after navigation) still has somewhere to render. -->
 <hlm-toaster />

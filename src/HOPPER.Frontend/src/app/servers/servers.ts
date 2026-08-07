@@ -56,7 +56,6 @@ import { ServerDialogService } from './server-dialog';
     <app-content-header>
       <span slot="left" class="truncate text-sm font-medium">Servers</span>
     </app-content-header>
-
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <h2 class="text-sm font-medium">
@@ -96,7 +95,6 @@ import { ServerDialogService } from './server-dialog';
           </button>
         </div>
       </header>
-
       <div class="min-h-0 flex-1 overflow-auto px-4">
         @if (filteredServers().length === 0 && !loading()) {
           @if (servers().length === 0) {
@@ -137,8 +135,6 @@ import { ServerDialogService } from './server-dialog';
                         <span class="text-muted-foreground font-mono">{{ p.version }}</span>
                       </span>
                     } @else {
-                      <!-- Not blank: this is the state that makes the browse page refuse to search,
-                           so the list is where it should be noticed. -->
                       <span class="text-muted-foreground">Not set</span>
                     }
                   </td>

@@ -79,10 +79,7 @@ const REPLAN_DEBOUNCE_MS = 300;
       <h3 hlmDialogTitle>Add to this server</h3>
       <p hlmDialogDescription>{{ headline() }}</p>
     </hlm-dialog-header>
-
     @if (result() !== null) {
-      <!-- Done. The outcome is per row rather than a count: a batch where one jar's hash did not
-           match Modrinth's is a partial success, and the admin has to be told which one. -->
       <div class="max-h-96 min-h-0 flex-1 overflow-auto text-sm">
         <div class="flex flex-col gap-4">
           @if (installedCount() > 0) {
@@ -141,15 +138,11 @@ const REPLAN_DEBOUNCE_MS = 300;
           }
         </div>
       </div>
-
       <div class="flex justify-end gap-2">
         <button hlmBtn type="button" (click)="finish()">Done</button>
       </div>
     } @else {
       <div class="max-h-[26rem] min-h-0 flex-1 overflow-auto">
-        <!-- Ahead of the plan branch on purpose. When a replan fails the previous plan is still in
-             the signal, and rendering it would offer a confirm button over a set the server has
-             not agreed to. -->
         @if (failed()) {
           <div class="flex h-full flex-col items-center justify-center gap-2 p-10 text-center">
             <ng-icon
@@ -157,8 +150,6 @@ const REPLAN_DEBOUNCE_MS = 300;
               size="28"
               class="text-muted-foreground opacity-60"
             />
-            <!-- A state, not a message: the failure itself is reported by the toast the same code
-                 path already fires, and the dashboard has no inline error messages. -->
             <button hlmBtn variant="outline" size="sm" type="button" (click)="retry()">
               Try again
             </button>
@@ -170,15 +161,12 @@ const REPLAN_DEBOUNCE_MS = 300;
           </p>
         } @else if (plan(); as p) {
           <div class="flex flex-col gap-4" [class.opacity-60]="loading()">
-            <!-- 1. Will be added. Not tickable: these are required, and hiding a requirement behind
-                 a checkbox invites installing a set that does not run. -->
             <section class="flex flex-col gap-1.5">
               <h4 class="flex items-center gap-1.5 text-sm font-medium">
                 <ng-icon name="lucideDownload" size="14" />
                 Will be added
                 <span class="text-muted-foreground font-normal">{{ addSummary() }}</span>
               </h4>
-
               @if (newNodes().length === 0) {
                 <p class="text-muted-foreground pl-5 text-xs">
                   Nothing new - everything picked is already on this server.
@@ -218,9 +206,6 @@ const REPLAN_DEBOUNCE_MS = 300;
                 }
               }
             </section>
-
-            <!-- 2. Optional. Unticked. Ticking one re-runs the whole plan with it as a root, so
-                 whatever IT requires shows up above before the confirm button can be pressed. -->
             @if (p.optional.length > 0) {
               <section class="flex flex-col gap-1.5">
                 <h4 class="text-sm font-medium">
@@ -259,8 +244,6 @@ const REPLAN_DEBOUNCE_MS = 300;
               </section>
             }
 
-            <!-- 3. Already here. Two of the four statuses are a decision, and each of those carries
-                 its own Replace tick - replacing is never the default. -->
             @if (existingNodes().length > 0) {
               <section class="flex flex-col gap-1.5">
                 <h4 class="text-sm font-medium">Already on this server</h4>
@@ -295,8 +278,6 @@ const REPLAN_DEBOUNCE_MS = 300;
               </section>
             }
 
-            <!-- 4. Incompatible. A pair that applies disables the confirm button outright; a pair
-                 that names a mod this server does not carry is a note, not a block. -->
             @if (p.incompatible.length > 0) {
               <section class="flex flex-col gap-1.5">
                 <h4
@@ -323,8 +304,6 @@ const REPLAN_DEBOUNCE_MS = 300;
               </section>
             }
 
-            <!-- 5. Named by a dependency but not identifiable through the API. Surfaced rather than
-                 swallowed: the admin decides whether the pack needs it. -->
             @if (p.unresolvable.length > 0) {
               <section class="flex flex-col gap-1.5">
                 <h4 class="flex items-center gap-1.5 text-sm font-medium">
@@ -340,8 +319,6 @@ const REPLAN_DEBOUNCE_MS = 300;
               </section>
             }
 
-            <!-- 6. Bundled. Never added: the classes are already inside the parent jar and a second
-                 copy is how a loader ends up refusing to start. -->
             @if (p.embedded.length > 0) {
               <section class="flex flex-col gap-1.5">
                 <h4 class="flex items-center gap-1.5 text-sm font-medium">
@@ -367,13 +344,10 @@ const REPLAN_DEBOUNCE_MS = 300;
           </div>
         }
       </div>
-
       <div class="flex items-center justify-end gap-2">
         <button hlmBtn variant="ghost" type="button" [disabled]="installing()" (click)="cancel()">
           Cancel
         </button>
-        <!-- Hidden rather than disabled: a dead "Nothing to add" next to the body's Try again is
-             two controls arguing about what the dialog is for. -->
         @if (!failed()) {
           <button
             hlmBtn
