@@ -1,28 +1,27 @@
 package ch.pianonic.hopper;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
 final class ModsFolderMirror {
-    private static final String LIST = "mods-mirror.txt";
+    private static final String HEADER =
+            "Written by HOPPER. Every file named here is one HOPPER put into mods/ and is\n"
+            + "therefore one HOPPER may replace or delete. Anything not named here is yours\n"
+            + "and is never touched. Delete this file to make HOPPER forget the claim - it\n"
+            + "will then leave every one of them alone.";
 
     private static final String STALE = ".hopper-stale";
-
-    private static final char COMMENT = '#';
 
     private final Path modsDir;
     private final Path hopperDir;
     private final HopperLog log;
+    private final Ledger ledger;
 
     private final Set<String> nowOwned = new LinkedHashSet<String>();
 
@@ -37,6 +36,7 @@ final class ModsFolderMirror {
         this.modsDir = modsDir;
         this.hopperDir = hopperDir;
         this.log = log;
+        this.ledger = new Ledger(hopperDir.resolve(Syncer.MIRROR_LIST), HEADER, log);
     }
 
     int copied() {
@@ -61,7 +61,7 @@ final class ModsFolderMirror {
 
     int reconcile(Set<String> wanted) throws IOException {
         Set<String> target = wanted == null ? jarsIn(hopperDir) : new LinkedHashSet<String>(wanted);
-        Set<String> owned = readList();
+        Set<String> owned = ledger.read();
 
         Files.createDirectories(modsDir);
 
@@ -74,7 +74,7 @@ final class ModsFolderMirror {
             removeFrom(name);
         }
 
-        writeList(nowOwned);
+        ledger.write(nowOwned);
 
         if (skipped > 0) {
             log.warn("[HOPPER] " + skipped + " mod(s) could not be mirrored into " + modsDir
@@ -160,51 +160,6 @@ final class ModsFolderMirror {
             }
         } catch (IOException e) {
             log.warn("[HOPPER] could not clean up " + parked, e);
-        }
-    }
-
-    private Set<String> readList() {
-        Path f = hopperDir.resolve(LIST);
-        Set<String> out = new LinkedHashSet<String>();
-        if (!Files.isRegularFile(f)) return out;
-
-        try {
-            String text = new String(Files.readAllBytes(f), StandardCharsets.UTF_8);
-            for (String line : text.split("\n")) {
-                String name = line.trim();
-                if (name.isEmpty() || name.charAt(0) == COMMENT) continue;
-
-                try {
-                    out.add(Syncer.sanitize(name));
-                } catch (RuntimeException rejected) {
-                    log.warn("[HOPPER] ignoring an illegal entry in " + f + ": " + name, null);
-                }
-            }
-        } catch (IOException e) {
-            log.warn("[HOPPER] could not read " + f + "; no file in " + modsDir
-                    + " will be replaced or removed this launch", e);
-            return new LinkedHashSet<String>();
-        }
-        return out;
-    }
-
-    private void writeList(Set<String> claimed) {
-        Path f = hopperDir.resolve(LIST);
-        StringBuilder sb = new StringBuilder(claimed.size() * 32 + 128);
-        sb.append(COMMENT).append(" Written by HOPPER. Every file named here is one HOPPER put into mods/\n");
-        sb.append(COMMENT).append(" and is therefore one HOPPER may replace or delete. Anything not named\n");
-        sb.append(COMMENT).append(" here is yours and is never touched. Delete this file to make HOPPER\n");
-        sb.append(COMMENT).append(" forget the claim - it will then leave every one of them alone.\n");
-        List<String> sorted = new ArrayList<String>(claimed);
-        Collections.sort(sorted);
-        for (String name : sorted) {
-            sb.append(name).append('\n');
-        }
-        try {
-            Files.write(f, sb.toString().getBytes(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            log.warn("[HOPPER] could not write " + f + "; the next launch will not know which"
-                    + " files in " + modsDir + " are HOPPER's", e);
         }
     }
 

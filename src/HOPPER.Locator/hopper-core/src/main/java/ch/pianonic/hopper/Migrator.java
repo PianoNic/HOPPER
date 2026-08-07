@@ -46,8 +46,9 @@ final class Migrator {
 
         /**
          * Names in hopperDir that came out of the player's own mods folder rather than from a
-         * download. The stale sweep parks these instead of unlinking them: they are the player's
-         * property, and once a mod leaves the manifest nothing else holds a copy.
+         * download. The sync drops these from the downloaded ledger, so that when one of them
+         * later leaves the manifest the stale sweep parks it instead of unlinking it: it is the
+         * player's property, and once a mod leaves the manifest nothing else holds a copy.
          */
         final Set<String> migrated;
 
@@ -276,10 +277,10 @@ final class Migrator {
         Path f = dir.resolve(README);
         if (Files.exists(f)) return;
 
-        String text = "Files in this folder are mods HOPPER found in your mods folder that the\n"
-                + "server distributes a different build of. Nothing here was deleted and nothing\n"
-                + "here is loaded. To put one back, move it into mods/ and remove the "
-                + PARKED_SUFFIX + "\n"
+        String text = "Files in this folder are mods HOPPER moved out of the way: either a different\n"
+                + "build of one the server distributes, or one that was in " + Hopper.DIR + "/ and is\n"
+                + "no longer on the server's list. Nothing here was deleted and nothing here is\n"
+                + "loaded. To put one back, move it into mods/ and remove the " + PARKED_SUFFIX + "\n"
                 + "suffix from the end of its name - but the server's build will then load as\n"
                 + "well, and the game will refuse to start with two copies of the same mod.\n";
 

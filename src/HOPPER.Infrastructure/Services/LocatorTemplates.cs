@@ -17,16 +17,30 @@ namespace HOPPER.Infrastructure.Services
         private static readonly Template NeoForge = new("hopper-neoforge.jar", NeoForgeService);
         private static readonly Template Fabric = new("hopper-fabric.jar", "fabric.mod.json");
 
-        public static Template For(ModLoader loader, string? minecraftVersion) => loader switch
+        private static readonly Template QuiltPlugin = new("hopper-quilt-plugin.jar", "quilt.mod.json");
+
+        public const string QuiltPluginVariant = "quilt-plugin";
+
+        public static Template For(ModLoader loader, string? minecraftVersion, string? variant = null)
         {
-            ModLoader.Forge => ForForge(minecraftVersion),
-            ModLoader.NeoForge => NeoForge,
-            ModLoader.Fabric => Fabric,
+            if (!string.IsNullOrWhiteSpace(variant))
+            {
+                return loader == ModLoader.Quilt && string.Equals(variant, QuiltPluginVariant, StringComparison.Ordinal)
+                    ? QuiltPlugin
+                    : throw new LocatorVariantNotAvailableException(variant, loader);
+            }
 
-            ModLoader.Quilt => Fabric,
+            return loader switch
+            {
+                ModLoader.Forge => ForForge(minecraftVersion),
+                ModLoader.NeoForge => NeoForge,
+                ModLoader.Fabric => Fabric,
 
-            _ => throw new LocatorLoaderNotConfiguredException(),
-        };
+                ModLoader.Quilt => Fabric,
+
+                _ => throw new LocatorLoaderNotConfiguredException(),
+            };
+        }
 
         private static Template ForForge(string? minecraftVersion) => MinorOf(minecraftVersion) switch
         {
@@ -53,4 +67,9 @@ namespace HOPPER.Infrastructure.Services
 
     public sealed class LocatorLoaderNotConfiguredException()
         : InvalidOperationException("Set this server's loader before downloading its client jar.");
+
+    public sealed class LocatorVariantNotAvailableException(string variant, ModLoader loader)
+        : InvalidOperationException($"There is no '{variant}' client jar for a {loader} server. "
+            + "The Quilt plugin jar is Quilt-only and needs -Dloader.experimental.allow_loading_plugins=true; "
+            + "without that flag use the default download.");
 }

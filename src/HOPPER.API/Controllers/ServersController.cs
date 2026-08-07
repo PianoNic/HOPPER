@@ -84,14 +84,16 @@ namespace HOPPER.API.Controllers
         [Produces("application/java-archive")]
         [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-        public async Task<IActionResult> Jar(Guid id, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Jar(Guid id, [FromQuery] string? variant = null,
+            CancellationToken cancellationToken = default)
         {
             var baseUrl = configuration["Hopper:PublicBaseUrl"] is { Length: > 0 } configured
                 ? configured
                 : $"{Request.Scheme}://{Request.Host}";
 
-            var jar = await mediator.Send(new GenerateLocatorJarQuery(id, baseUrl), cancellationToken);
+            var jar = await mediator.Send(new GenerateLocatorJarQuery(id, baseUrl, variant), cancellationToken);
 
             return File(jar.Content, "application/java-archive", jar.FileName);
         }

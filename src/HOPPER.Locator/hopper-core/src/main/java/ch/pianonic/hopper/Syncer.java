@@ -20,6 +20,21 @@ import java.util.function.Consumer;
 final class Syncer {
     private static final String CLIENT_ID = "client-id";
 
+    /** The list of jars HOPPER downloaded itself, and may therefore delete again. */
+    static final String DOWNLOADED = "downloaded";
+
+    /** ModsFolderMirror's own ledger. It lives in hoppermods/ and the sweep must not eat it. */
+    static final String MIRROR_LIST = "mods-mirror.txt";
+
+    private static final String PART_SUFFIX = ".part";
+
+    private static final String DOWNLOADED_HEADER =
+            "Written by HOPPER. Every file named here is one HOPPER downloaded into this\n"
+            + "folder and is therefore one HOPPER may delete once the server stops listing\n"
+            + "it. Anything not named here is yours - it is moved to " + Migrator.REPLACED + "/\n"
+            + "instead of being deleted. Delete this file to make HOPPER forget the claim: it\n"
+            + "will then park everything rather than delete it.";
+
     private static final int CONNECT_MS = 10_000;
     private static final int MANIFEST_READ_MS = 20_000;
     private static final int DOWNLOAD_READ_MS = 60_000;
@@ -60,14 +75,15 @@ final class Syncer {
         Migrator migrator = new Migrator(modsDir, dir, log);
         Migrator.Result migration = migrator.run(mods);
 
-        // Persisted, because a migration and the day that mod leaves the manifest are almost never
-        // the same launch. Without this the sweep below would delete the player's own jar weeks
-        // later, which is exactly the bug this guards against.
-        MigratedIndex migratedIndex = new MigratedIndex(dir, log);
-        for (String name : migration.migrated) migratedIndex.add(name);
-        migratedIndex.save();
         migrated = migration.moved;
         deferred = migration.deferred;
+
+        Ledger ledger = new Ledger(dir.resolve(DOWNLOADED), DOWNLOADED_HEADER, log);
+        Set<String> owned = ledger.read();
+
+        // A jar that just came out of the player's mods folder is theirs from now on, whatever an
+        // older ledger claimed about a download of the same name.
+        owned.removeAll(migration.migrated);
 
         for (Entry e : mods) {
             String name = sanitize(e.file);
@@ -80,6 +96,7 @@ final class Syncer {
             String have = Files.exists(target) ? sha256(target) : null;
             if (have == null || !have.equalsIgnoreCase(e.sha256)) {
                 have = download(e, target);
+                owned.add(name);
                 added++;
             }
 
@@ -92,9 +109,8 @@ final class Syncer {
             for (Path p : listing) {
                 if (!Files.isRegularFile(p)) continue;
                 String name = p.getFileName().toString();
-                if (wanted.contains(name) || CLIENT_ID.equals(name)
-                        || MigratedIndex.FILE.equals(name)
-                        || Migrator.REPLACED.equals(name)) {
+                if (wanted.contains(name) || CLIENT_ID.equals(name) || DOWNLOADED.equals(name)
+                        || MIRROR_LIST.equals(name) || Migrator.REPLACED.equals(name)) {
                     continue;
                 }
                 stale.add(p);
@@ -105,33 +121,33 @@ final class Syncer {
         for (Path p : stale) {
             String name = p.getFileName().toString();
 
-            // A jar that came out of the player's mods folder is theirs, not ours. Once it leaves
-            // the manifest no other copy exists, so it is parked rather than unlinked. Deleting it
-            // would destroy a file the player installed themselves, which HOPPER must never do.
-            if (migratedIndex.contains(name)) {
-                try {
-                    Path parked = migrator.park(p);
-                    migratedIndex.remove(name);
+            // Ours, so deleting it destroys nothing: the server still has it and the next sync
+            // fetches it again. A leftover .part is a half-finished download of ours as well.
+            if (owned.contains(name) || name.endsWith(PART_SUFFIX)) {
+                if (Files.deleteIfExists(p)) {
                     removed++;
-                    log.info("[HOPPER] " + name + " is no longer required; it came from " + modsDir
-                            + ", so it was moved to " + parked + " rather than deleted");
-                } catch (IOException ex) {
-                    log.warn("[HOPPER] could not move " + name + " to "
-                            + dir.resolve(Migrator.REPLACED) + "; leaving it in place rather than"
-                            + " deleting a file that is not ours", ex);
+                    log.info("[HOPPER] removed " + name);
                 }
                 continue;
             }
 
-            if (Files.deleteIfExists(p)) {
+            // Not ours. Either the player dropped it in, or it came out of their mods folder. Once
+            // it leaves the manifest no other copy exists, so it is parked, never unlinked.
+            // Deleting a file a person put there is the one thing HOPPER must never do.
+            try {
+                Path parked = migrator.park(p);
                 removed++;
-                log.info("[HOPPER] removed " + name);
+                log.info("[HOPPER] " + name + " is no longer required and HOPPER did not download"
+                        + " it, so it was moved to " + parked + " rather than deleted");
+            } catch (IOException ex) {
+                log.warn("[HOPPER] could not move " + name + " to "
+                        + dir.resolve(Migrator.REPLACED) + "; leaving it in place rather than"
+                        + " deleting a file that is not ours", ex);
             }
         }
 
-        // Again after the sweep: parking a jar drops it from the index, and that has to reach disk
-        // or the next launch would still think a file it no longer owns belongs to the player.
-        migratedIndex.save();
+        owned.retainAll(wanted);
+        ledger.write(owned);
 
         return wanted;
     }

@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Text;
 using HOPPER.Application.Imports;
 using HOPPER.Domain.Enums;
 
@@ -18,21 +17,8 @@ namespace HOPPER.Tests.Imports
                 Task.FromResult<Uri?>(null);
         }
 
-        private static ZipArchive ArchiveOf(params (string Path, string Content)[] entries)
-        {
-            var buffer = new MemoryStream();
-            using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
-            {
-                foreach (var (path, content) in entries)
-                {
-                    using var stream = archive.CreateEntry(path).Open();
-                    stream.Write(Encoding.UTF8.GetBytes(content));
-                }
-            }
-
-            buffer.Position = 0;
-            return new ZipArchive(buffer, ZipArchiveMode.Read);
-        }
+        private static ZipArchive ArchiveOf(params (string Path, string Content)[] entries) =>
+            PackArchive.Of(entries);
 
         [Test]
         public async Task Detect_MrpackWithADecoyManifestInsideOverrides_IsStillModrinth()

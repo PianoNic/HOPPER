@@ -7,11 +7,13 @@
 // -Dloader.experimental.allow_loading_plugins=true is unset.
 //
 // So two jars ship for Quilt and that is not optional:
-//   hopper-fabric-1.0.0.jar         - the DEFAULT. Quilt runs Fabric mods through
-//                                     StandardFabricPlugin and a preLaunch entrypoint works
-//                                     unchanged. Degraded, restart required.
-//   hopper-quilt-plugin-1.0.0.jar   - the opt-in upgrade for anyone willing to add one JVM
-//                                     argument. Real same-launch loading.
+//   hopper-fabric.jar        - the DEFAULT. Quilt runs Fabric mods through StandardFabricPlugin
+//                              and a preLaunch entrypoint works unchanged. Degraded, restart
+//                              required.
+//   hopper-quilt-plugin.jar  - the opt-in upgrade for anyone willing to add one JVM argument.
+//                              Real same-launch loading. Both are collected by the root
+//                              `templates` task; LocatorTemplates.For serves this one only when
+//                              the download asks for the quilt-plugin variant by name.
 //
 // 8: quilt-loader's own .module metadata declares "org.gradle.jvm.version": 8.
 tasks.withType(JavaCompile).configureEach {
