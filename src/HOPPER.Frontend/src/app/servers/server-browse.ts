@@ -1,11 +1,14 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
@@ -276,7 +279,10 @@ type SearchKey = {
             }
           </ul>
 
-          <div class="flex justify-center pb-6">
+          <!-- One viewport tall and observed, so the next page is usually already there by the
+               time the reader arrives. The button stays: a container that never scrolls never
+               intersects, and then it is the only way on. -->
+          <div #sentinel class="flex justify-center pb-6">
             @if (loading()) {
               <p class="text-muted-foreground text-xs">Loading…</p>
             } @else if (hasMore()) {
@@ -319,6 +325,9 @@ export class ServerBrowse {
 
   private readonly reloadTick = signal(0);
 
+  private readonly sentinel = viewChild<ElementRef<HTMLElement>>('sentinel');
+  private observer: IntersectionObserver | null = null;
+
   protected readonly serverName = computed(() => this.server()?.name ?? '');
 
   protected readonly platformReady = computed(
@@ -358,6 +367,20 @@ export class ServerBrowse {
       const id = this.serverId();
       if (id !== '') this.load(id);
     });
+
+    // afterNextRender rather than the constructor: there is no IntersectionObserver on the server,
+    // and the sentinel does not exist until the results have rendered at least once.
+    afterNextRender(() => this.observe());
+
+    // Re-observes when the sentinel is replaced by a new search, and stops once there is nothing
+    // left to fetch, so an idle page at the end of the results costs nothing.
+    effect(() => {
+      this.sentinel();
+      if (this.hasMore()) this.observe();
+      else this.disconnect();
+    });
+
+    this.destroyRef.onDestroy(() => this.disconnect());
 
     toObservable(this.searchKey)
       .pipe(
@@ -437,6 +460,30 @@ export class ServerBrowse {
     this.offset.set(this.hits().length);
   }
 
+  private observe(): void {
+    const target = this.sentinel()?.nativeElement;
+    if (!target) return;
+
+    // Reconnected rather than reused when the sentinel is recreated: it lives inside the @if that
+    // the empty and error states replace, so the node identity does not survive a new search.
+    this.observer?.disconnect();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) this.loadMore();
+      },
+      { rootMargin: '100% 0px' },
+    );
+
+    observer.observe(target);
+    this.observer = observer;
+  }
+
+  private disconnect(): void {
+    this.observer?.disconnect();
+    this.observer = null;
+  }
+
   protected async versions(hit: ModrinthSearchHitDto): Promise<void> {
     const pick = await this.versionDialog.open({
       serverId: this.serverId(),
@@ -483,7 +530,7 @@ export class ServerBrowse {
   }
 
   private async plan(versionId: string, title: string): Promise<void> {
-    const result = await this.planDialog.open({
+    const result = await this.planDialog.add({
       serverId: this.serverId(),
       rootVersionIds: [versionId],
       rootTitles: [title],
@@ -491,7 +538,16 @@ export class ServerBrowse {
     if (!result) return;
 
     const added = result.installed.length + result.adopted.length + result.replaced.length;
-    if (added > 0) toast.success(`Added ${added} mod${added === 1 ? '' : 's'} to this server`);
+    if (added > 0) {
+      // Names the mod, because add() may have skipped the dialog entirely and four files arriving
+      // after one click with no feedback is worse than the extra click it replaced.
+      const extra = added - 1;
+      toast.success(
+        extra > 0
+          ? `Added ${title} and ${extra} required dependenc${extra === 1 ? 'y' : 'ies'}`
+          : `Added ${title} to this server`,
+      );
+    }
 
     this.refreshHits();
   }

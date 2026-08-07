@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, debounceTime, EMPTY, switchMap } from 'rxjs';
+import { catchError, debounceTime, EMPTY, firstValueFrom, switchMap } from 'rxjs';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { toast } from '@spartan-ng/brain/sonner';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -606,6 +606,47 @@ export class ModrinthPlanDialog {
 @Injectable({ providedIn: 'root' })
 export class ModrinthPlanDialogService {
   private readonly dialog = inject(HlmDialogService);
+  private readonly api = inject(ServerModrinthService);
+
+  /**
+   * Plans first and opens the dialog only when the admin is actually being asked something. In the
+   * ordinary case - one mod, its requirements, nothing optional and nothing to report - the dialog
+   * would show a list nobody can change and ask for a click with one possible answer.
+   */
+  async add(context: ModrinthPlanDialogContext): Promise<ModrinthInstallResultDto | null> {
+    let plan: ModrinthInstallPlanDto;
+    try {
+      plan = await firstValueFrom(
+        this.api.apiServersIdModrinthPlanPost(context.serverId, {
+          versionIds: [...context.rootVersionIds],
+          optionalVersionIds: [],
+        }),
+      );
+    } catch (err: unknown) {
+      // The plan is what turns Add into a decision rather than a guess, so a failed plan is a
+      // failed Add and has to say so rather than falling through to the dialog with nothing in it.
+      toast.error(messageFrom(err, 'Failed to resolve the dependencies of this mod'));
+      return null;
+    }
+
+    if (needsADecision(plan)) return this.open(context);
+
+    try {
+      const result = await firstValueFrom(
+        this.api.apiServersIdModrinthInstallPost(context.serverId, {
+          items: plan.nodes.map((n) => ({ versionId: n.versionId, replace: false })),
+        }),
+      );
+
+      if (result.failed.length > 0) {
+        toast.error(`${result.failed.length} of ${plan.nodes.length} could not be added`);
+      }
+      return result;
+    } catch (err: unknown) {
+      toast.error(messageFrom(err, 'Failed to add the mods'));
+      return null;
+    }
+  }
 
   open(context: ModrinthPlanDialogContext): Promise<ModrinthInstallResultDto | null> {
     return new Promise((resolve) => {
@@ -613,4 +654,22 @@ export class ModrinthPlanDialogService {
       ref.closed$.subscribe((result) => resolve((result as ModrinthInstallResultDto | null) ?? null));
     });
   }
+}
+
+/**
+ * Anything the admin could answer differently, or anything they should see before it happens. The
+ * bar is deliberately low: a replace, an embedded jar or a warning is worth a dialog, and only a
+ * plan that is purely "these are the files, all of them new" is worth skipping it for.
+ */
+export function needsADecision(plan: ModrinthInstallPlanDto): boolean {
+  return (
+    plan.blocked
+    || plan.nodes.length === 0
+    || plan.optional.length > 0
+    || plan.incompatible.length > 0
+    || plan.unresolvable.length > 0
+    || plan.embedded.length > 0
+    || plan.warnings.length > 0
+    || plan.nodes.some((n) => n.status !== PLAN_NODE_STATUS.new)
+  );
 }
