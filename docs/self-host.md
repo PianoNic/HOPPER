@@ -119,6 +119,8 @@ Rename the role with `Oidc__AdminRole`, or set it empty to accept any authentica
 | `Oidc__AdminRole` | `hopper-admin` | Role an account must carry to administer HOPPER. Empty means any authenticated user. |
 | `Oidc__ValidAudiences__0` | `Oidc__ClientId` | Accepted `aud` values. Set when your issuer stamps something else. |
 | `Oidc__InternalAuthority` | unset | Set when the API reaches the IdP on a different address than the browser does. |
+| `Otel__Endpoint` | *(unset)* | OTLP collector, for example `http://collector:4317`. Unset registers no exporter at all rather than retrying against a collector that is not there. |
+| `Otel__ServiceName` | `hopper` | Service name on the exported traces and metrics. |
 | `CurseForge__ApiKey` | *(unset)* | Optional. Without it, CurseForge imports list unresolvable mods for manual upload. |
 
 HOPPER runs as a single API instance. The import queue lives in that process, so a queued or running import
@@ -126,6 +128,17 @@ does not survive a restart. HOPPER ends those imports at startup and frees their
 replicas against one database would have each of them end the other's live imports.
 
 `.env.example` documents every setting.
+
+## Health checks
+
+The image carries a `HEALTHCHECK`, so `docker ps` reports the container's real state and other services can wait on `condition: service_healthy`. Two endpoints, both anonymous:
+
+| Path | Answers |
+| --- | --- |
+| `/health/live` | 200 as long as the process is up. Runs no check, on purpose: restarting the container because Postgres is down turns one outage into a crash loop. |
+| `/health/ready` | 200 only when the database answers, the blob directory is writable and the locator templates are present. This is the one to point a load balancer at. |
+
+Docker does not restart an unhealthy container by itself, so this reports rather than repairs. Wire it to whatever does the restarting in your setup.
 
 ## Behind a reverse proxy
 

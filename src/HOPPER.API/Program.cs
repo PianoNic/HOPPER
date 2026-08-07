@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpLogging;
 using HOPPER.API;
 using HOPPER.API.Auth;
 using HOPPER.API.Extensions;
@@ -64,6 +65,22 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
         .WithExposedHeaders("Content-Disposition", "X-Hopper-Export-Warnings")));
 
+builder.Services.AddHopperHealthChecks();
+builder.Services.AddHopperTelemetry(builder.Configuration);
+
+// One line per request: method, path, status, duration. The framework's own request lines are
+// suppressed by appsettings.json's Microsoft.AspNetCore: Warning, and raising that would bring
+// back a great deal else. Bodies and headers are deliberately not in the set: the client token
+// travels in the Authorization header.
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = HttpLoggingFields.RequestMethod
+        | HttpLoggingFields.RequestPath
+        | HttpLoggingFields.ResponseStatusCode
+        | HttpLoggingFields.Duration;
+    options.CombineLogs = true;
+});
+
 builder.Services.AddHopperAuthentication(builder.Configuration);
 builder.Services.AddHopperAuthorization(builder.Configuration);
 
@@ -95,10 +112,24 @@ app.UseStaticFiles();
 if (app.Environment.IsProduction())
     app.UseSpaStaticFiles();
 
+app.UseHttpLogging();
 app.UseRouting();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// One place, so a handled failure is both an answer and a log line. Without this an operator
+// watching the container sees nothing at all: appsettings.json sets Microsoft.AspNetCore to
+// Warning, which suppresses the request lines that would otherwise show the status.
+async Task Answer(HttpContext context, int status, Exception ex)
+{
+    app.Logger.Log(status >= 500 ? LogLevel.Error : LogLevel.Information, ex,
+        "{Method} {Path} answered {Status}: {Message}",
+        context.Request.Method, context.Request.Path, status, ex.Message);
+
+    context.Response.StatusCode = status;
+    await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+}
 
 app.Use(async (context, next) =>
 {
@@ -108,87 +139,74 @@ app.Use(async (context, next) =>
     }
     catch (DuplicateModFileNameException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status409Conflict;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status409Conflict, ex);
     }
     catch (DuplicateServerSlugException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status409Conflict;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status409Conflict, ex);
     }
     catch (ServerNotFoundException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status404NotFound, ex);
     }
     catch (ImportNotFoundException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status404NotFound, ex);
     }
     catch (PendingModNotFoundException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status404NotFound, ex);
     }
 
     catch (ModrinthProjectNotFoundException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status404NotFound, ex);
     }
 
     catch (IncompatibleModException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status409Conflict;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status409Conflict, ex);
     }
 
     catch (ServerPlatformNotConfiguredException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status400BadRequest, ex);
     }
 
     catch (ModrinthApiException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status502BadGateway;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status502BadGateway, ex);
     }
     catch (PackImportException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status400BadRequest, ex);
     }
 
     catch (LocatorTemplateMissingException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status503ServiceUnavailable, ex);
     }
 
     catch (LocatorLoaderNotConfiguredException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status400BadRequest, ex);
     }
     catch (LocatorVariantNotAvailableException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status400BadRequest, ex);
     }
 
     catch (ContentTooLargeException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status413PayloadTooLarge, ex);
     }
     catch (ArgumentException ex) when (!context.Response.HasStarted)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        await Answer(context, StatusCodes.Status400BadRequest, ex);
     }
 });
+
+app.MapHopperHealthChecks();
 
 app.MapControllers();
 

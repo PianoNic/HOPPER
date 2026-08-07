@@ -18,6 +18,8 @@ final class ModsFolderMirror {
 
     private static final String STALE = ".hopper-stale";
 
+    private static final String PART = ".part";
+
     private final Path modsDir;
     private final Path hopperDir;
     private final HopperLog log;
@@ -112,7 +114,22 @@ final class ModsFolderMirror {
                 }
             }
 
-            Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+            // Through a .part first: a copy that dies halfway leaves a truncated zip under a name
+            // the loader scans, which kills the next launch before preLaunch can repair it. On a
+            // first copy the name is not in owned yet, so the repair pass would not even look at it.
+            Path part = modsDir.resolve(name + PART);
+            try {
+                Files.copy(from, part, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+                Files.move(part, to, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                try {
+                    Files.deleteIfExists(part);
+                } catch (IOException ignored) {
+                    // Left behind, but under a name no loader reads, and the sweep takes it.
+                }
+                throw e;
+            }
+
             nowOwned.add(name);
             copied++;
             log.info("[HOPPER] copied " + name + " into " + modsDir);
@@ -126,6 +143,11 @@ final class ModsFolderMirror {
 
     private void removeFrom(String name) {
         Path victim = modsDir.resolve(name);
+
+        // Unconditionally, unlike the parked copy below: a .part is a half-finished write of ours
+        // and never something to keep, whether or not the jar itself is still there to delete.
+        sweep(modsDir.resolve(name + PART));
+
         try {
             if (Files.deleteIfExists(victim)) {
                 deleted++;
@@ -153,13 +175,16 @@ final class ModsFolderMirror {
     }
 
     private void sweepParked(String name) {
-        Path parked = modsDir.resolve(name + STALE);
+        sweep(modsDir.resolve(name + STALE));
+    }
+
+    private void sweep(Path leftover) {
         try {
-            if (Files.deleteIfExists(parked)) {
-                log.info("[HOPPER] cleaned up " + parked.getFileName());
+            if (Files.deleteIfExists(leftover)) {
+                log.info("[HOPPER] cleaned up " + leftover.getFileName());
             }
         } catch (IOException e) {
-            log.warn("[HOPPER] could not clean up " + parked, e);
+            log.warn("[HOPPER] could not clean up " + leftover, e);
         }
     }
 
