@@ -73,9 +73,17 @@ import { serverIdSignal } from './server-route';
             <ng-icon name="lucideRefreshCw" size="14" />
             {{ loading() ? 'Loading' : 'Refresh' }}
           </button>
-          <button hlmBtn size="sm" type="button" [disabled]="building()" (click)="downloadJar()" [loading]="building()">
+          <button
+            hlmBtn
+            size="sm"
+            type="button"
+            title="The same file goes in a player's mods folder and a dedicated server's - it works out which side it is on by itself"
+            [disabled]="building()"
+            (click)="downloadJar()"
+            [loading]="building()"
+          >
             <ng-icon name="lucideDownload" size="14" />
-            {{ building() ? 'Building' : 'Download client jar' }}
+            {{ building() ? 'Building' : 'Download jar' }}
           </button>
         </div>
       </header>
@@ -215,7 +223,7 @@ export class ServerOverview {
         this.building.set(false);
       },
       error: async (err) => {
-        toast.error(await messageFromBlobError(err, 'Failed to build the client jar'));
+        toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
         this.building.set(false);
       },
     });

@@ -38,7 +38,7 @@ Settings merge **per key**, jar first:
 GET  /api/manifest              the mod list, for the token's server
 GET  /api/blobs/{sha256}        the jar bytes
 POST /api/clients/report        what this client ended up with
-GET  /api/servers/{id}/jar      a client jar with all of the above baked in
+GET  /api/servers/{id}/jar      the jar with all of the above baked in
 ```
 
 None of the three client endpoints carries a server segment, and that is deliberate: the Java client derives its report URL from its manifest URL, so a segment on one would silently move the other. The server is resolved from the bearer token instead.

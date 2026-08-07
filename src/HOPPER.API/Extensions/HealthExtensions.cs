@@ -79,13 +79,13 @@ namespace HOPPER.API.Extensions
                 return Task.FromResult(HealthCheckResult.Healthy("not configured, so the built-in location is used"));
 
             if (!Directory.Exists(directory))
-                return Task.FromResult(HealthCheckResult.Unhealthy($"{directory} does not exist, so every client jar download 503s"));
+                return Task.FromResult(HealthCheckResult.Unhealthy($"{directory} does not exist, so every jar download 503s"));
 
             var jars = Directory.EnumerateFiles(directory, "*.jar").Take(1).Any();
 
             return Task.FromResult(jars
                 ? HealthCheckResult.Healthy($"{directory} holds templates")
-                : HealthCheckResult.Unhealthy($"{directory} holds no template jars, so every client jar download 503s"));
+                : HealthCheckResult.Unhealthy($"{directory} holds no template jars, so every jar download 503s"));
         }
     }
 }

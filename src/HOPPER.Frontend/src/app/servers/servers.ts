@@ -166,7 +166,7 @@ import { ServerDialogService } from './server-dialog';
                         variant="ghost"
                         size="sm"
                         type="button"
-                        title="Download client jar"
+                        title="Download jar - the same file for a player and a dedicated server"
                         [disabled]="busy()[s.id]"
                         (click)="downloadJar(s, $event)"
                       >
@@ -318,7 +318,7 @@ export class Servers {
         this.setBusy(server.id, false);
       },
       error: async (err) => {
-        toast.error(await messageFromBlobError(err, 'Failed to build the client jar'));
+        toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
         this.setBusy(server.id, false);
       },
     });
