@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using HOPPER.Application.Exports;
 using HOPPER.Application.Imports;
 using HOPPER.Domain.Enums;
 
@@ -16,6 +17,21 @@ namespace HOPPER.Tests.Imports
             public Task<Uri?> FindOnModrinthBySha1Async(string sha1, CancellationToken cancellationToken) =>
                 Task.FromResult<Uri?>(null);
         }
+
+        private sealed class ConfiguredCurseForge(params CurseForgeFile[] files) : ICurseForgeClient
+        {
+            public bool IsConfigured => true;
+
+            public Task<IReadOnlyDictionary<int, CurseForgeFile>> ResolveAsync(IReadOnlyList<int> fileIds, CancellationToken cancellationToken) =>
+                Task.FromResult<IReadOnlyDictionary<int, CurseForgeFile>>(
+                    files.Where(f => fileIds.Contains(f.FileId)).ToDictionary(f => f.FileId));
+
+            public Task<Uri?> FindOnModrinthBySha1Async(string sha1, CancellationToken cancellationToken) =>
+                Task.FromResult<Uri?>(null);
+        }
+
+        private static PackPlanContext For(ModLoader loader, string? minecraftVersion) =>
+            new() { Target = new PackPlatform(minecraftVersion, loader) };
 
         private static ZipArchive ArchiveOf(params (string Path, string Content)[] entries) =>
             PackArchive.Of(entries);
@@ -108,7 +124,7 @@ namespace HOPPER.Tests.Imports
                 ]}
                 """));
 
-            var plan = ModrinthPlanner.Plan(archive, string.Empty);
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
             var file = plan.Files.Single();
 
             await Assert.That(file.FileName).IsEqualTo("LeavesBeGone.jar");
@@ -130,7 +146,7 @@ namespace HOPPER.Tests.Imports
                 ("client-overrides/mods/client-only.jar", "PK client"),
                 ("server-overrides/mods/server-only.jar", "PK server"));
 
-            var plan = ModrinthPlanner.Plan(archive, string.Empty);
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "client-only.jar", "custom-thing.jar" });
@@ -148,7 +164,7 @@ namespace HOPPER.Tests.Imports
                 ]}
                 """));
 
-            var plan = ModrinthPlanner.Plan(archive, string.Empty);
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "keep.jar" });
             await Assert.That(plan.Skipped).IsEqualTo(2);
@@ -165,7 +181,7 @@ namespace HOPPER.Tests.Imports
                 ]}
                 """));
 
-            var plan = ModrinthPlanner.Plan(archive, string.Empty);
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "no-env.jar" });
         }
@@ -175,7 +191,7 @@ namespace HOPPER.Tests.Imports
         {
             using var archive = ArchiveOf(("modrinth.index.json", """{"formatVersion":2,"game":"minecraft","files":[]}"""));
 
-            await Assert.That(() => ModrinthPlanner.Plan(archive, string.Empty)).Throws<PackImportException>();
+            await Assert.That(() => ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default)).Throws<PackImportException>();
         }
 
         [Test]
@@ -191,7 +207,7 @@ namespace HOPPER.Tests.Imports
                  """),
                 ("overrides/mods/cc-tweaked.jar", "PK cc"));
 
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, new KeylessCurseForge(), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None);
 
             await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "cc-tweaked.jar" });
             await Assert.That(plan.Pending).Count().IsEqualTo(2);
@@ -211,7 +227,7 @@ namespace HOPPER.Tests.Imports
                  """),
                 ("custom/mods/hidden.jar", "PK hidden"));
 
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, new KeylessCurseForge(), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None);
 
             await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "hidden.jar" });
         }
@@ -226,7 +242,7 @@ namespace HOPPER.Tests.Imports
                  """),
                 ("modlist.html", "<ul><li><a href=\"x\">Just Enough Items (by mezz)</a></li><li><a href=\"y\">REI</a></li></ul>"));
 
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, new KeylessCurseForge(), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None);
 
             await Assert.That(plan.Pending[0].DisplayName).IsEqualTo("Just Enough Items (by mezz)");
             await Assert.That(plan.Pending[1].DisplayName).IsEqualTo("REI");
@@ -242,7 +258,7 @@ namespace HOPPER.Tests.Imports
                  """),
                 ("modlist.html", "<ul><li><a href=\"x\">Only One</a></li></ul>"));
 
-            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, new KeylessCurseForge(), CancellationToken.None);
+            var plan = await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None);
 
             await Assert.That(plan.Pending.All(p => p.DisplayName is null)).IsTrue();
         }
@@ -252,7 +268,7 @@ namespace HOPPER.Tests.Imports
         {
             using var archive = ArchiveOf(("manifest.json", """{"manifestType":"somethingElse","manifestVersion":1}"""));
 
-            await Assert.That(async () => await CurseForgePlanner.PlanAsync(archive, string.Empty, new KeylessCurseForge(), CancellationToken.None))
+            await Assert.That(async () => await CurseForgePlanner.PlanAsync(archive, string.Empty, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None))
                 .Throws<PackImportException>();
         }
 
@@ -265,7 +281,7 @@ namespace HOPPER.Tests.Imports
                 ("minecraft/config/jei.toml", "x = 1"),
                 ("minecraft/saves/world/level.dat", "junk"));
 
-            var plan = PrismPlanner.Plan(archive, string.Empty);
+            var plan = PrismPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "jei.jar" });
         }
@@ -277,10 +293,305 @@ namespace HOPPER.Tests.Imports
                 ("instance.cfg", "[General]\nname=legacy\n"),
                 (".minecraft/mods/jei.jar", "PK jei"));
 
-            var plan = PrismPlanner.Plan(archive, string.Empty);
+            var plan = PrismPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "jei.jar" });
         }
+
+        [Test]
+        public async Task Plan_MrpackIndexLargerThanTheMetadataLimit_IsRejected()
+        {
+            using var archive = ArchiveOf(("modrinth.index.json", Padded("""{"formatVersion":1,"game":"minecraft","files":[]}""")));
+
+            var exception = await Assert.That(() => ModrinthPlanner.Plan(archive, string.Empty, Tiny))
+                .Throws<PackImportException>();
+
+            await Assert.That(exception!.Message).Contains("MaxPackMetadataBytes");
+        }
+
+        [Test]
+        public async Task Plan_CurseForgeManifestLargerThanTheMetadataLimit_IsRejected()
+        {
+            using var archive = ArchiveOf(("manifest.json", Padded("""{"manifestType":"minecraftModpack","manifestVersion":1,"files":[]}""")));
+
+            var exception = await Assert.That(async () =>
+                    await CurseForgePlanner.PlanAsync(archive, string.Empty, Tiny, new KeylessCurseForge(), CancellationToken.None))
+                .Throws<PackImportException>();
+
+            await Assert.That(exception!.Message).Contains("MaxPackMetadataBytes");
+        }
+
+        [Test]
+        public async Task Plan_CurseForgeModlistLargerThanTheMetadataLimit_PlansWithoutLabels()
+        {
+            using var archive = ArchiveOf(
+                ("manifest.json", """
+                 {"manifestType":"minecraftModpack","manifestVersion":1,
+                  "files":[{"projectID":1,"fileID":10}]}
+                 """),
+                ("modlist.html", Padded("<ul><li><a href=\"x\">Just Enough Items</a></li></ul>")));
+
+            var plan = await CurseForgePlanner.PlanAsync(
+                archive,
+                string.Empty,
+                new PackPlanContext { MaxMetadataBytes = 4096 },
+                new KeylessCurseForge(),
+                CancellationToken.None);
+
+            await Assert.That(plan.Pending.Single().DisplayName).IsNull();
+        }
+
+        [Test]
+        public async Task ModrinthPlan_OverrideJarReplacingAFilesEntry_DropsTheCdnCopy()
+        {
+            using var archive = ArchiveOf(
+                ("modrinth.index.json", """
+                 {"formatVersion":1,"game":"minecraft","files":[
+                   {"path":"mods/patched.jar","hashes":{"sha1":"a"},"downloads":["https://cdn.modrinth.com/patched.jar"],"fileSize":1}
+                 ]}
+                 """),
+                ("overrides/mods/patched.jar", "PK patched"));
+
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
+            var file = plan.Files.Single();
+
+            await Assert.That(file.FileName).IsEqualTo("patched.jar");
+            await Assert.That(file.ZipEntry).IsEqualTo("overrides/mods/patched.jar");
+            await Assert.That(file.Downloads).IsEmpty();
+        }
+
+        [Test]
+        public async Task ModrinthPlan_OverrideJarReplacingAFilesEntry_DoesNotCountItAsSkipped()
+        {
+            using var archive = ArchiveOf(
+                ("modrinth.index.json", """
+                 {"formatVersion":1,"game":"minecraft","files":[
+                   {"path":"mods/patched.jar","hashes":{"sha1":"a"},"downloads":["https://cdn.modrinth.com/patched.jar"],"fileSize":1},
+                   {"path":"resourcepacks/pretty.zip","hashes":{"sha1":"b"},"downloads":["https://cdn.modrinth.com/pretty.zip"],"fileSize":1}
+                 ]}
+                 """),
+                ("overrides/mods/patched.jar", "PK patched"));
+
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
+
+            await Assert.That(plan.Skipped).IsEqualTo(1);
+        }
+
+        [Test]
+        public async Task ModrinthPlan_ClientOverrideAndOverrideOfTheSameJar_KeepsTheClientOverride()
+        {
+            using var archive = ArchiveOf(
+                ("modrinth.index.json", """{"formatVersion":1,"game":"minecraft","files":[]}"""),
+                ("overrides/mods/both.jar", "PK server side"),
+                ("client-overrides/mods/both.jar", "PK client side"));
+
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
+            var file = plan.Files.Single();
+
+            await Assert.That(file.ZipEntry).IsEqualTo("client-overrides/mods/both.jar");
+        }
+
+        [Test]
+        public async Task ModrinthPlan_OverrideJarWithNoMatchingFilesEntry_IsPlannedAsBefore()
+        {
+            using var archive = ArchiveOf(
+                ("modrinth.index.json", """
+                 {"formatVersion":1,"game":"minecraft","files":[
+                   {"path":"mods/from-cdn.jar","hashes":{"sha1":"a"},"downloads":["https://cdn.modrinth.com/from-cdn.jar"],"fileSize":1}
+                 ]}
+                 """),
+                ("overrides/mods/custom-thing.jar", "PK custom"));
+
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
+
+            await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
+                .IsEquivalentTo(new[] { "custom-thing.jar", "from-cdn.jar" });
+        }
+
+        [Test]
+        public async Task CurseForgePlan_WithAConfiguredKey_PlansTheForgeCdnDownload()
+        {
+            using var archive = ArchiveOf(("manifest.json", """
+                {"manifestType":"minecraftModpack","manifestVersion":1,
+                 "files":[{"projectID":238222,"fileID":5678,"required":true}]}
+                """));
+
+            var resolved = new CurseForgeFile(
+                238222, 5678, "jei.jar", new Uri("https://edge.forgecdn.net/files/5/678/jei.jar"), 4242, "abc", "Just Enough Items");
+
+            var plan = await CurseForgePlanner.PlanAsync(
+                archive, string.Empty, PackPlanContext.Default, new ConfiguredCurseForge(resolved), CancellationToken.None);
+
+            var file = plan.Files.Single();
+
+            await Assert.That(file.FileName).IsEqualTo("jei.jar");
+            await Assert.That(file.Downloads.Single().Host).IsEqualTo("edge.forgecdn.net");
+            await Assert.That(PackDownloadHosts.Allowed(TestLimits.Config).Contains(file.Downloads.Single().Host)).IsTrue();
+        }
+
+        [Test]
+        public async Task CurseForgePlan_WithAConfiguredKey_DoesNotEmitADownloadFailedPending()
+        {
+            using var archive = ArchiveOf(("manifest.json", """
+                {"manifestType":"minecraftModpack","manifestVersion":1,
+                 "files":[{"projectID":238222,"fileID":5678,"required":true}]}
+                """));
+
+            var resolved = new CurseForgeFile(
+                238222, 5678, "jei.jar", new Uri("https://mediafilez.forgecdn.net/files/5/678/jei.jar"), 4242, "abc", null);
+
+            var plan = await CurseForgePlanner.PlanAsync(
+                archive, string.Empty, PackPlanContext.Default, new ConfiguredCurseForge(resolved), CancellationToken.None);
+
+            await Assert.That(plan.Pending).IsEmpty();
+        }
+
+        [Test]
+        public async Task PrismPlan_InstanceForAnotherLoader_IsRejected()
+        {
+            using var archive = PrismInstance("net.minecraftforge", "47.4.20", "1.20.1");
+
+            var exception = await Assert.That(() => PrismPlanner.Plan(archive, string.Empty, For(ModLoader.Fabric, "1.21")))
+                .Throws<PackImportException>();
+
+            await Assert.That(exception!.Message).Contains("Forge");
+            await Assert.That(exception.Message).Contains("Fabric");
+        }
+
+        [Test]
+        public async Task PrismPlan_InstanceForADifferentMinecraftVersion_PlansWithAWarning()
+        {
+            using var archive = PrismInstance("net.minecraftforge", "47.4.20", "1.20.1");
+
+            var plan = PrismPlanner.Plan(archive, string.Empty, For(ModLoader.Forge, "1.20.4"));
+
+            await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "jei.jar" });
+            await Assert.That(plan.Warnings.Single()).Contains("1.20.1");
+            await Assert.That(plan.Warnings.Single()).Contains("1.20.4");
+        }
+
+        [Test]
+        public async Task PrismPlan_InstanceForTheSamePlatform_PlansWithoutAWarning()
+        {
+            using var archive = PrismInstance("net.fabricmc.fabric-loader", "0.15.11", "1.21");
+
+            var plan = PrismPlanner.Plan(archive, string.Empty, For(ModLoader.Fabric, "1.21"));
+
+            await Assert.That(plan.Warnings).IsEmpty();
+        }
+
+        [Test]
+        public async Task PrismPlan_InstanceWithNoMmcPack_PlansUnchanged()
+        {
+            using var archive = ArchiveOf(
+                ("instance.cfg", "[General]\nname=1.20.1\n"),
+                ("minecraft/mods/jei.jar", "PK jei"));
+
+            var plan = PrismPlanner.Plan(archive, string.Empty, For(ModLoader.Fabric, "1.21"));
+
+            await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "jei.jar" });
+            await Assert.That(plan.Warnings).IsEmpty();
+        }
+
+        [Test]
+        public async Task PrismPlan_ServerWithNoLoaderConfigured_SkipsThePlatformCheck()
+        {
+            using var archive = PrismInstance("net.minecraftforge", "47.4.20", "1.20.1");
+
+            var plan = PrismPlanner.Plan(archive, string.Empty, PackPlanContext.Default);
+
+            await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "jei.jar" });
+            await Assert.That(plan.Warnings).IsEmpty();
+        }
+
+        [Test]
+        public async Task CurseForgePlan_ManifestForAnotherLoader_IsRejected()
+        {
+            using var archive = ArchiveOf(("manifest.json", """
+                {"manifestType":"minecraftModpack","manifestVersion":1,
+                 "minecraft":{"version":"1.20.1","modLoaders":[{"id":"forge-47.4.0","primary":true}]},
+                 "files":[]}
+                """));
+
+            var exception = await Assert.That(async () => await CurseForgePlanner.PlanAsync(
+                    archive, string.Empty, For(ModLoader.NeoForge, "1.20.1"), new KeylessCurseForge(), CancellationToken.None))
+                .Throws<PackImportException>();
+
+            await Assert.That(exception!.Message).Contains("NeoForge");
+        }
+
+        [Test]
+        public async Task CurseForgePlan_ManifestForTheSamePlatform_PlansCleanly()
+        {
+            using var archive = ArchiveOf(
+                ("manifest.json", """
+                 {"manifestType":"minecraftModpack","manifestVersion":1,
+                  "minecraft":{"version":"1.20.1","modLoaders":[{"id":"forge-47.4.0","primary":true}]},
+                  "files":[],"overrides":"overrides"}
+                 """),
+                ("overrides/mods/cc-tweaked.jar", "PK cc"));
+
+            var plan = await CurseForgePlanner.PlanAsync(
+                archive, string.Empty, For(ModLoader.Forge, "1.20.1"), new KeylessCurseForge(), CancellationToken.None);
+
+            await Assert.That(plan.Files.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "cc-tweaked.jar" });
+            await Assert.That(plan.Warnings).IsEmpty();
+        }
+
+        [Test]
+        public async Task ModrinthPlan_DependenciesForAnotherLoader_IsRejected()
+        {
+            using var archive = ArchiveOf(("modrinth.index.json", """
+                {"formatVersion":1,"game":"minecraft",
+                 "dependencies":{"minecraft":"1.20.1","forge":"47.4.0"},
+                 "files":[]}
+                """));
+
+            var exception = await Assert.That(() =>
+                    ModrinthPlanner.Plan(archive, string.Empty, For(ModLoader.Fabric, "1.20.1")))
+                .Throws<PackImportException>();
+
+            await Assert.That(exception!.Message).Contains("Forge");
+        }
+
+        [Test]
+        public async Task ModrinthPlan_DependenciesForADifferentMinecraftVersion_PlansWithAWarning()
+        {
+            using var archive = ArchiveOf(("modrinth.index.json", """
+                {"formatVersion":1,"game":"minecraft",
+                 "dependencies":{"minecraft":"1.20.1","fabric-loader":"0.15.11"},
+                 "files":[]}
+                """));
+
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, For(ModLoader.Fabric, "1.21"));
+
+            await Assert.That(plan.Warnings.Single()).Contains("1.20.1");
+        }
+
+        [Test]
+        public async Task ModrinthPlan_WithNoDependenciesBlock_SkipsThePlatformCheck()
+        {
+            using var archive = ArchiveOf(("modrinth.index.json", """{"formatVersion":1,"game":"minecraft","files":[]}"""));
+
+            var plan = ModrinthPlanner.Plan(archive, string.Empty, For(ModLoader.Fabric, "1.21"));
+
+            await Assert.That(plan.Warnings).IsEmpty();
+        }
+
+        private static readonly PackPlanContext Tiny = new() { MaxMetadataBytes = 64 };
+
+        private static string Padded(string json) => json + new string(' ', 8192);
+
+        private static ZipArchive PrismInstance(string loaderUid, string loaderVersion, string minecraftVersion) =>
+            ArchiveOf(
+                ("instance.cfg", $"[General]\nname={minecraftVersion}\n"),
+                ("mmc-pack.json", $$"""
+                 {"formatVersion":1,"components":[
+                   {"uid":"{{LoaderIds.MinecraftUid}}","version":"{{minecraftVersion}}","important":true},
+                   {"uid":"{{loaderUid}}","version":"{{loaderVersion}}"}
+                 ]}
+                 """),
+                ("minecraft/mods/jei.jar", "PK jei"));
 
         [Test]
         public async Task JarArchivePlan_TakesEveryJarByBasename()

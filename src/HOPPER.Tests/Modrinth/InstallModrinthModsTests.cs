@@ -60,7 +60,7 @@ namespace HOPPER.Tests.Modrinth
             }
 
             public InstallModrinthModsCommandHandler Handler() =>
-                new(Db, Blobs, Client, new StubUser("alex"));
+                new(Db, Blobs, Client, new StubUser("alex"), TestLimits.Config);
 
             public async Task<Dtos> RunAsync(params ModrinthInstallItem[] items) =>
                 new(await Handler().Handle(new InstallModrinthModsCommand(ServerId, items), CancellationToken.None));
@@ -170,7 +170,7 @@ namespace HOPPER.Tests.Modrinth
         {
             using var fixture = new Fixture();
             var bytes = Jar("shared");
-            var (sha256, size) = await fixture.Blobs.SaveAsync(new MemoryStream(bytes));
+            var (sha256, size) = await fixture.Blobs.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             fixture.Db.Mods.Add(new Mod
             {
@@ -320,7 +320,7 @@ namespace HOPPER.Tests.Modrinth
         public async Task Install_FileNameTakenByAHandUploadedJar_IsSkippedUnlessReplaceIsTicked()
         {
             using var fixture = new Fixture();
-            var (sha256, size) = await fixture.Blobs.SaveAsync(new MemoryStream(Jar("manual")));
+            var (sha256, size) = await fixture.Blobs.StoreAsync(new MemoryStream(Jar("manual")), TestLimits.MaxBytes);
 
             fixture.Db.Mods.Add(new Mod
             {
@@ -345,7 +345,7 @@ namespace HOPPER.Tests.Modrinth
         {
             using var fixture = new Fixture();
             var bytes = Jar("identical");
-            var (sha256, size) = await fixture.Blobs.SaveAsync(new MemoryStream(bytes));
+            var (sha256, size) = await fixture.Blobs.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
 
             fixture.Db.Mods.Add(new Mod
             {

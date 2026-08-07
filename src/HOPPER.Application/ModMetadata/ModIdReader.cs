@@ -81,6 +81,19 @@ namespace HOPPER.Application.ModMetadata
                 return Read(stream);
         }
 
+        public static string[]? FromStaged(IBlobStorage blobs, StagedBlob staged)
+        {
+            try
+            {
+                using var stream = blobs.OpenStaged(staged);
+                return Read(stream);
+            }
+            catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
         public static string[] FromFabricJson(string text)
         {
             try

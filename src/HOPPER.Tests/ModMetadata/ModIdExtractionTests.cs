@@ -88,7 +88,7 @@ namespace HOPPER.Tests.ModMetadata
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser("alex"));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser("alex"), TestLimits.Config);
 
             await handler.Handle(new UploadModsCommand(Guid.NewGuid(),
                 [new UploadFile("jei.jar", new MemoryStream(ForgeJar("jei")))]), CancellationToken.None);
@@ -102,7 +102,7 @@ namespace HOPPER.Tests.ModMetadata
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             await handler.Handle(new UploadModsCommand(Guid.NewGuid(),
             [
@@ -121,7 +121,7 @@ namespace HOPPER.Tests.ModMetadata
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var jar = Zip(("META-INF/mods.toml", """
                 [[mods]]
@@ -146,7 +146,7 @@ namespace HOPPER.Tests.ModMetadata
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             await handler.Handle(new UploadModsCommand(Guid.NewGuid(),
                 [new UploadFile("lib.jar", new MemoryStream(Zip(("com/example/Lib.class", "x"))))]),
@@ -162,7 +162,7 @@ namespace HOPPER.Tests.ModMetadata
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             await handler.Handle(new UploadModsCommand(Guid.NewGuid(),
                 [new UploadFile("fake.jar", new MemoryStream(Encoding.UTF8.GetBytes("PK pretend forge jar payload")))]),
@@ -253,7 +253,7 @@ namespace HOPPER.Tests.ModMetadata
             db.PendingMods.Add(pending);
             await db.SaveChangesAsync();
 
-            var handler = new ResolvePendingModCommandHandler(db, StorageIn(dir.Path), new StubUser("alex"));
+            var handler = new ResolvePendingModCommandHandler(db, StorageIn(dir.Path), new StubUser("alex"), TestLimits.Config);
 
             await handler.Handle(
                 new ResolvePendingModCommand(serverId, pending.Id, "jei.jar", new MemoryStream(ForgeJar("jei"))),
@@ -290,7 +290,7 @@ namespace HOPPER.Tests.ModMetadata
             }
 
             public InstallModrinthModsCommandHandler Handler() =>
-                new(Db, Blobs, Client, new StubUser("alex"));
+                new(Db, Blobs, Client, new StubUser("alex"), TestLimits.Config);
 
             public void Dispose()
             {
@@ -330,7 +330,7 @@ namespace HOPPER.Tests.ModMetadata
 
             await fixture.Db.SaveChangesAsync();
             await using (var stream = new MemoryStream(bytes))
-                await fixture.Blobs.SaveAsync(stream, CancellationToken.None);
+                await fixture.Blobs.StoreAsync(stream, TestLimits.MaxBytes, CancellationToken.None);
 
             fixture.Client.AddDownloadableMod("u6dRKJwZ", "mcC2LhSG", "Just Enough Items", "jei.jar", bytes);
 
@@ -362,7 +362,7 @@ namespace HOPPER.Tests.ModMetadata
 
             await fixture.Db.SaveChangesAsync();
             await using (var stream = new MemoryStream(bytes))
-                await fixture.Blobs.SaveAsync(stream, CancellationToken.None);
+                await fixture.Blobs.StoreAsync(stream, TestLimits.MaxBytes, CancellationToken.None);
 
             fixture.Client.AddDownloadableMod("u6dRKJwZ", "mcC2LhSG", "Just Enough Items", "jei.jar", bytes);
 

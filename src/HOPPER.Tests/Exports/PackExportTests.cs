@@ -66,7 +66,7 @@ namespace HOPPER.Tests.Exports
             private void Add(string fileName, string content, ModSource source, string? projectId, string? versionId, string? title)
             {
                 var bytes = Encoding.UTF8.GetBytes(content);
-                var (sha256, size) = Blobs.SaveAsync(new MemoryStream(bytes)).GetAwaiter().GetResult();
+                var (sha256, size) = Blobs.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes).GetAwaiter().GetResult();
 
                 Db.Mods.Add(new Mod
                 {

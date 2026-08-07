@@ -42,11 +42,7 @@ namespace HOPPER.Application.Command.Servers
             await db.SaveChangesAsync(cancellationToken);
 
             foreach (var hash in hashes)
-            {
-                var stillReferenced = await db.Mods.AnyAsync(m => m.Sha256 == hash, cancellationToken);
-                if (!stillReferenced)
-                    blobs.Delete(hash);
-            }
+                await BlobCollector.CollectAsync(db, blobs, hash, cancellationToken);
 
             return Unit.Value;
         }

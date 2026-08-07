@@ -28,7 +28,8 @@ namespace HOPPER.Tests.Api
             var handler = new UploadModsCommandHandler(
                 db,
                 scope.ServiceProvider.GetRequiredService<IBlobStorage>(),
-                scope.ServiceProvider.GetRequiredService<ICurrentUserService>());
+                scope.ServiceProvider.GetRequiredService<ICurrentUserService>(),
+                scope.ServiceProvider.GetRequiredService<IConfiguration>());
 
             await handler.Handle(
                 new UploadModsCommand(serverId, [new UploadFile(fileName, new MemoryStream(bytes))]),

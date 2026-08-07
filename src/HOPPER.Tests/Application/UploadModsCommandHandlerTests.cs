@@ -58,7 +58,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser("alex"));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser("alex"), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -78,7 +78,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -94,7 +94,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -109,7 +109,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -125,7 +125,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -145,7 +145,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             await handler.Handle(new UploadModsCommand(ServerId, [new UploadFile("jei.jar", Jar("first"))]), CancellationToken.None);
 
@@ -167,7 +167,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
             var otherServer = Guid.NewGuid();
 
             await handler.Handle(new UploadModsCommand(ServerId, [new UploadFile("jei.jar", Jar("a"))]), CancellationToken.None);
@@ -182,7 +182,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -198,7 +198,7 @@ namespace HOPPER.Tests.Application
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [
@@ -209,11 +209,95 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        public async Task Handle_FileNameDifferingOnlyInCaseFromAnExistingMod_LandsInFailed()
+        {
+            using var dir = new TempDir();
+            await using var db = NewDb();
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
+
+            await handler.Handle(new UploadModsCommand(ServerId, [new UploadFile("jei.jar", Jar("first"))]), CancellationToken.None);
+
+            var result = await handler.Handle(new UploadModsCommand(ServerId,
+            [
+                new UploadFile("JEI.jar", Jar("second")),
+                new UploadFile("rei.jar", Jar("rei")),
+            ]), CancellationToken.None);
+
+            await Assert.That(result.Failed.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "JEI.jar" });
+            await Assert.That(result.Uploaded.Select(u => u.FileName).ToList()).IsEquivalentTo(new[] { "rei.jar" });
+        }
+
+        [Test]
+        public async Task Handle_SingleJarLargerThanTheJarLimit_LandsInFailedNotAnException()
+        {
+            using var dir = new TempDir();
+            await using var db = NewDb();
+            var handler = new UploadModsCommandHandler(
+                db, StorageIn(dir.Path), new StubUser(null), TestLimits.ConfigWith(("Hopper:MaxModBytes", "8")));
+
+            var result = await handler.Handle(new UploadModsCommand(ServerId,
+            [
+                new UploadFile("huge.jar", new MemoryStream(new byte[64])),
+                new UploadFile("small.jar", new MemoryStream(new byte[4])),
+            ]), CancellationToken.None);
+
+            await Assert.That(result.Failed.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "huge.jar" });
+            await Assert.That(result.Failed[0].Error).Contains("8 byte limit");
+            await Assert.That(result.Uploaded.Select(u => u.FileName).ToList()).IsEquivalentTo(new[] { "small.jar" });
+        }
+
+        [Test]
+        public async Task Handle_SingleJarLargerThanTheJarLimit_StoresNoBlobForIt()
+        {
+            using var dir = new TempDir();
+            await using var db = NewDb();
+            var handler = new UploadModsCommandHandler(
+                db, StorageIn(dir.Path), new StubUser(null), TestLimits.ConfigWith(("Hopper:MaxModBytes", "8")));
+
+            await handler.Handle(new UploadModsCommand(ServerId,
+            [
+                new UploadFile("huge.jar", new MemoryStream(new byte[64])),
+            ]), CancellationToken.None);
+
+            await Assert.That(await db.Mods.CountAsync()).IsEqualTo(0);
+            await Assert.That(Directory.GetFiles(dir.Path, "*", SearchOption.AllDirectories)).IsEmpty();
+        }
+
+        [Test]
+        public async Task Handle_ZipEntryLargerThanTheJarLimit_FailsThatEntryAndImportsTheRest()
+        {
+            using var dir = new TempDir();
+            await using var db = NewDb();
+            var handler = new UploadModsCommandHandler(
+                db, StorageIn(dir.Path), new StubUser(null), TestLimits.ConfigWith(("Hopper:MaxModBytes", "16")));
+
+            var buffer = new MemoryStream();
+            using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using (var stream = archive.CreateEntry("bomb.jar").Open())
+                    stream.Write(new byte[4096]);
+
+                using (var stream = archive.CreateEntry("jei.jar").Open())
+                    stream.Write(Encoding.UTF8.GetBytes("PK jei"));
+            }
+
+            buffer.Position = 0;
+
+            var result = await handler.Handle(new UploadModsCommand(ServerId,
+            [
+                new UploadFile("pack.zip", buffer),
+            ]), CancellationToken.None);
+
+            await Assert.That(result.Failed.Select(f => f.FileName).ToList()).IsEquivalentTo(new[] { "bomb.jar" });
+            await Assert.That(result.Uploaded.Select(u => u.FileName).ToList()).IsEquivalentTo(new[] { "jei.jar" });
+        }
+
+        [Test]
         public async Task Handle_SameBytesTwiceUnderTwoNames_StoresOneBlob()
         {
             using var dir = new TempDir();
             await using var db = NewDb();
-            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null));
+            var handler = new UploadModsCommandHandler(db, StorageIn(dir.Path), new StubUser(null), TestLimits.Config);
 
             var result = await handler.Handle(new UploadModsCommand(ServerId,
             [

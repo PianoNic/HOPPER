@@ -103,15 +103,27 @@ Rename the role with `Oidc__AdminRole`, or set it empty to accept any authentica
 | Variable | Default | Description |
 | --- | --- | --- |
 | `ConnectionStrings__HopperDatabase` | compose `db` service | Postgres connection string. HOPPER is Postgres-only. |
-| `Blobs__Directory` | `/data/blobs` | Content-addressed jar store. Shared across servers, so a jar used twice is stored once. |
+| `Blobs__Directory` | `/data/blobs` | Content-addressed jar store. Shared across servers, so a jar used twice is stored once. Staged packs and export scratch live on the same volume, and HOPPER reclaims unreferenced files once they are past the grace period below. |
 | `Hopper__PublicBaseUrl` | derived from the request | Host written into every manifest URL. Leave unset behind a proxy that sends `X-Forwarded-*`. |
 | `Hopper__BootstrapClientToken` | `change-me` | Token of the `Default` server created on an empty database. |
 | `Hopper__LocatorTemplateDirectory` | built into the image | Directory of template jars, one per loader generation. The download endpoint picks by the server's loader and Minecraft version. |
+| `Hopper__PackDownloadHosts` | Modrinth, GitHub, GitLab and the two forgecdn hosts | Hosts a pack may be downloaded from. Setting it **replaces** the built-in list rather than adding to it, so list every host you want, including `cdn.modrinth.com` and `edge.forgecdn.net`. |
+| `Hopper__MaxImportBytes` | `2147483648` | Ceiling on one import: the compressed pack, the archive an admin uploads, and the summed size the pack declares. |
+| `Hopper__MaxModBytes` | `536870912` | Ceiling on one jar, decompressed or downloaded. A single file over it fails on its own; the rest of the batch still lands. |
+| `Hopper__MaxPackMetadataBytes` | `8388608` | Ceiling on a pack's own index files. |
+| `Hopper__MaxReportedMods` | `2000` | Most mods one client may report in a single call. A large pack is roughly 400. |
+| `Hopper__BlobReclaimInterval` | `01:00:00` | How often the reclaim sweep runs after the one at startup. Zero leaves only the startup sweep. |
+| `Hopper__BlobReclaimGrace` | `01:00:00` | How long an unreferenced blob, a stale upload part and export scratch survive before the sweep takes them. |
+| `Hopper__ImportStallTimeout` | `02:00:00` | How long an import may sit queued or running without progress before HOPPER ends it and frees its staged pack. |
 | `Oidc__Authority` | *(unset)* | OIDC issuer for admin access. Nothing is trusted until you set it. |
 | `Oidc__AdminRole` | `hopper-admin` | Role an account must carry to administer HOPPER. Empty means any authenticated user. |
 | `Oidc__ValidAudiences__0` | `Oidc__ClientId` | Accepted `aud` values. Set when your issuer stamps something else. |
 | `Oidc__InternalAuthority` | unset | Set when the API reaches the IdP on a different address than the browser does. |
 | `CurseForge__ApiKey` | *(unset)* | Optional. Without it, CurseForge imports list unresolvable mods for manual upload. |
+
+HOPPER runs as a single API instance. The import queue lives in that process, so a queued or running import
+does not survive a restart. HOPPER ends those imports at startup and frees their staged packs. Running two API
+replicas against one database would have each of them end the other's live imports.
 
 `.env.example` documents every setting.
 

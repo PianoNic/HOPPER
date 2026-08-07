@@ -7,8 +7,10 @@ using HOPPER.Domain;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Command.Modrinth
 {
@@ -21,7 +23,8 @@ namespace HOPPER.Application.Command.Modrinth
         HopperDbContext db,
         IBlobStorage blobs,
         IModrinthClient modrinth,
-        ICurrentUserService currentUser) : ICommandHandler<InstallModrinthModsCommand, ModrinthInstallResultDto>
+        ICurrentUserService currentUser,
+        IConfiguration configuration) : ICommandHandler<InstallModrinthModsCommand, ModrinthInstallResultDto>
     {
         private const int MaxItems = 100;
 
@@ -153,71 +156,101 @@ namespace HOPPER.Application.Command.Modrinth
                 return;
             }
 
-            var (sha256, size, sha1, sha512) = await DownloadAsync(new Uri(file.Url), cancellationToken);
+            var (staged, sha1, sha512) = await DownloadAsync(new Uri(file.Url), cancellationToken);
 
-            if (!string.Equals(sha512, file.Sha512, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(sha1, file.Sha1, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                await DiscardAsync(sha256, cancellationToken);
-                throw new ArgumentException($"Downloaded {fileName} does not match the hashes Modrinth published.");
-            }
-
-            var title = projectTitles.GetValueOrDefault(version.ProjectId);
-
-            var sameBytes = current.FirstOrDefault(m => string.Equals(m.Sha256, sha256, StringComparison.Ordinal));
-            if (sameBytes is not null && sameBytes != displaced)
-            {
-                if (sameBytes.HasModrinthProvenance())
+                if (!string.Equals(sha512, file.Sha512, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(sha1, file.Sha1, StringComparison.OrdinalIgnoreCase))
                 {
-                    skipped.Add(new ModrinthSkippedDto
+                    throw new ArgumentException($"Downloaded {fileName} does not match the hashes Modrinth published.");
+                }
+
+                var title = projectTitles.GetValueOrDefault(version.ProjectId);
+
+                var sameBytes = current.FirstOrDefault(m => string.Equals(m.Sha256, staged.Sha256, StringComparison.Ordinal));
+                if (sameBytes is not null && sameBytes != displaced)
+                {
+                    if (sameBytes.HasModrinthProvenance())
                     {
-                        Name = fileName,
-                        Reason = $"the same jar is already on this server as {sameBytes.FileName}.",
+                        skipped.Add(new ModrinthSkippedDto
+                        {
+                            Name = fileName,
+                            Reason = $"the same jar is already on this server as {sameBytes.FileName}.",
+                        });
+                        return;
+                    }
+
+                    sameBytes.ModIds ??= ModIdReader.FromStaged(blobs, staged);
+                    ApplyProvenance(sameBytes, version, file, title, sha1, sha512);
+
+                    await using (var adopting = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                        blobs.Promote(staged);
+                        await adopting.CommitAsync(cancellationToken);
+                    }
+
+                    adopted.Add(new ModrinthAdoptedDto
+                    {
+                        Mod = sameBytes.ToDto(),
+                        Message = $"{sameBytes.FileName} is already this exact jar; it is now tracked as {title ?? version.ProjectId} {version.VersionNumber ?? version.Id}.",
                     });
                     return;
                 }
 
-                sameBytes.ModIds ??= ModIdReader.FromBlob(blobs, sameBytes.Sha256);
-                ApplyProvenance(sameBytes, version, file, title, sha1, sha512);
-                await db.SaveChangesAsync(cancellationToken);
-
-                adopted.Add(new ModrinthAdoptedDto
+                var entry = new Mod
                 {
-                    Mod = sameBytes.ToDto(),
-                    Message = $"{sameBytes.FileName} is already this exact jar; it is now tracked as {title ?? version.ProjectId} {version.VersionNumber ?? version.Id}.",
-                });
-                return;
+                    ServerId = server.Id,
+                    FileName = fileName,
+                    Sha256 = staged.Sha256,
+                    Size = staged.Size,
+                    UploadedBy = currentUser.Name,
+
+                    ModIds = ModIdReader.FromStaged(blobs, staged),
+                };
+
+                ApplyProvenance(entry, version, file, title, sha1, sha512);
+
+                if (displaced is not null)
+                    db.Mods.Remove(displaced);
+
+                db.Mods.Add(entry);
+
+                await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
+                {
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+                    {
+                        db.Entry(entry).State = EntityState.Detached;
+
+                        if (displaced is not null)
+                            db.Entry(displaced).State = EntityState.Unchanged;
+
+                        throw new DuplicateModFileNameException(fileName);
+                    }
+
+                    blobs.Promote(staged);
+                    await hold.CommitAsync(cancellationToken);
+                }
+
+                if (displaced is not null)
+                {
+                    replaced.Add(displaced.ToDto());
+
+                    if (!string.Equals(displaced.Sha256, staged.Sha256, StringComparison.Ordinal))
+                        await DiscardAsync(displaced.Sha256, cancellationToken);
+                }
+
+                installed.Add(entry.ToDto());
             }
-
-            var entry = new Mod
+            finally
             {
-                ServerId = server.Id,
-                FileName = fileName,
-                Sha256 = sha256,
-                Size = size,
-                UploadedBy = currentUser.Name,
-
-                ModIds = ModIdReader.FromBlob(blobs, sha256),
-            };
-
-            ApplyProvenance(entry, version, file, title, sha1, sha512);
-
-            string? orphanCandidate = null;
-            if (displaced is not null)
-            {
-                orphanCandidate = displaced.Sha256;
-                db.Mods.Remove(displaced);
-                replaced.Add(displaced.ToDto());
+                blobs.Discard(staged);
             }
-
-            db.Mods.Add(entry);
-
-            await db.SaveChangesAsync(cancellationToken);
-
-            if (orphanCandidate is not null)
-                await DiscardAsync(orphanCandidate, cancellationToken);
-
-            installed.Add(entry.ToDto());
         }
 
         private static void ApplyProvenance(
@@ -233,22 +266,18 @@ namespace HOPPER.Application.Command.Modrinth
             mod.Sha512 = sha512;
         }
 
-        private async Task<(string Sha256, long Size, string Sha1, string Sha512)> DownloadAsync(
+        private async Task<(StagedBlob Staged, string Sha1, string Sha512)> DownloadAsync(
             Uri url, CancellationToken cancellationToken)
         {
             await using var download = await modrinth.OpenDownloadAsync(url, cancellationToken);
             await using var hashing = new HashingStream(download);
 
-            var (sha256, size) = await blobs.SaveAsync(hashing, cancellationToken);
-            return (sha256, size, hashing.Sha1Hex, hashing.Sha512Hex);
+            var staged = await blobs.StageAsync(hashing, HopperLimits.MaxModBytes(configuration), cancellationToken);
+            return (staged, hashing.Sha1Hex, hashing.Sha512Hex);
         }
 
-        private async Task DiscardAsync(string sha256, CancellationToken cancellationToken)
-        {
-            var stillReferenced = await db.Mods.AnyAsync(m => m.Sha256 == sha256, cancellationToken);
-            if (!stillReferenced)
-                blobs.Delete(sha256);
-        }
+        private Task DiscardAsync(string sha256, CancellationToken cancellationToken) =>
+            BlobCollector.CollectAsync(db, blobs, sha256, cancellationToken);
 
         private async Task RefuseIfIncompatibleAsync(
             Guid serverId, IReadOnlyList<ModrinthVersion> versions, CancellationToken cancellationToken)

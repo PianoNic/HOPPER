@@ -15,6 +15,22 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        public async Task Validate_NameLongerThan255_IsRejected()
+        {
+            var name = new string('x', 252) + ".jar";
+
+            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
+        }
+
+        [Test]
+        public async Task Validate_NameOfExactly255_IsAccepted()
+        {
+            var name = new string('x', 251) + ".jar";
+
+            await Assert.That(ModFileNameValidator.Validate(name)).Length().IsEqualTo(255);
+        }
+
+        [Test]
         [Arguments("../../autostart/evil.jar")]
         [Arguments("sub/dir/mod.jar")]
         [Arguments("sub\\dir\\mod.jar")]

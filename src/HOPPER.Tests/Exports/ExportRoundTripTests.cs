@@ -72,7 +72,7 @@ namespace HOPPER.Tests.Exports
             private void Add(string fileName, ModSource source, string? projectId, string? versionId)
             {
                 var bytes = Encoding.UTF8.GetBytes($"PK {fileName}");
-                var (sha256, size) = Blobs.SaveAsync(new MemoryStream(bytes)).GetAwaiter().GetResult();
+                var (sha256, size) = Blobs.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes).GetAwaiter().GetResult();
 
                 Db.Mods.Add(new Mod
                 {
@@ -120,7 +120,7 @@ namespace HOPPER.Tests.Exports
             await Assert.That(detection.Format).IsEqualTo(PackFormat.Modrinth);
             await Assert.That(detection.Prefix).IsEqualTo(string.Empty);
 
-            var plan = ModrinthPlanner.Plan(archive, detection.Prefix);
+            var plan = ModrinthPlanner.Plan(archive, detection.Prefix, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "create.jar", "hand-uploaded.jar", "jei.jar" });
@@ -143,7 +143,7 @@ namespace HOPPER.Tests.Exports
             var detection = PackDetector.Detect(archive);
             await Assert.That(detection.Format).IsEqualTo(PackFormat.PrismInstance);
 
-            var plan = PrismPlanner.Plan(archive, detection.Prefix);
+            var plan = PrismPlanner.Plan(archive, detection.Prefix, PackPlanContext.Default);
 
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "create.jar", "hand-uploaded.jar", "jei.jar" });
@@ -161,7 +161,7 @@ namespace HOPPER.Tests.Exports
             await Assert.That(detection.Format).IsEqualTo(PackFormat.CurseForge);
 
             var plan = await CurseForgePlanner.PlanAsync(
-                archive, detection.Prefix, new KeylessCurseForge(), CancellationToken.None);
+                archive, detection.Prefix, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None);
 
             await Assert.That(plan.Files.Select(f => f.FileName).Order().ToList())
                 .IsEquivalentTo(new[] { "create.jar", "hand-uploaded.jar", "jei.jar" });

@@ -34,6 +34,7 @@ namespace HOPPER.Application.Imports
         public required PackFormat Format { get; init; }
         public IReadOnlyList<PlannedFile> Files { get; init; } = [];
         public IReadOnlyList<PendingSpec> Pending { get; init; } = [];
+        public IReadOnlyList<string> Warnings { get; init; } = [];
         public int Skipped { get; init; }
     }
 
