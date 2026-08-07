@@ -1,11 +1,12 @@
 using HOPPER.Application.Dtos.Manifest;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.Application.Queries.Manifest
 {
-    public record GetManifestQuery(Guid ServerId, string BaseUrl) : IQuery<ManifestDto>;
+    public record GetManifestQuery(Guid ServerId, string BaseUrl, SyncSide Side = SyncSide.Client) : IQuery<ManifestDto>;
 
     public class GetManifestQueryHandler(HopperDbContext db) : IQueryHandler<GetManifestQuery, ManifestDto>
     {
@@ -15,6 +16,7 @@ namespace HOPPER.Application.Queries.Manifest
 
             var rows = await db.Mods.AsNoTracking()
                 .Where(m => m.ServerId == query.ServerId)
+                .Where(ModSideRules.ReachesExpression(query.Side))
                 .OrderBy(m => m.FileName)
                 .ToListAsync(cancellationToken);
 
