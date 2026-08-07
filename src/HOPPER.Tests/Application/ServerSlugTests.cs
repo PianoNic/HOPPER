@@ -1,4 +1,5 @@
 using HOPPER.Application.Command.Servers;
+using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +18,7 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new CreateServerCommandHandler(db);
 
-            var server = await handler.Handle(new CreateServerCommand("Survival SMP"), CancellationToken.None);
+            var server = await handler.Handle(new CreateServerCommand("Survival SMP", null, ModLoader.Forge), CancellationToken.None);
 
             await Assert.That(server.Slug).IsEqualTo("survival-smp");
         }
@@ -30,8 +31,8 @@ namespace HOPPER.Tests.Application
             await using var db = NewDb();
             var handler = new CreateServerCommandHandler(db);
 
-            var first = await handler.Handle(new CreateServerCommand("Survival"), CancellationToken.None);
-            var second = await handler.Handle(new CreateServerCommand("Survival"), CancellationToken.None);
+            var first = await handler.Handle(new CreateServerCommand("Survival", null, ModLoader.Forge), CancellationToken.None);
+            var second = await handler.Handle(new CreateServerCommand("Survival", null, ModLoader.Forge), CancellationToken.None);
 
             await Assert.That(first.Slug).IsEqualTo("survival");
             await Assert.That(second.Slug).IsNotEqualTo(first.Slug);
@@ -45,7 +46,7 @@ namespace HOPPER.Tests.Application
         {
             await using var db = NewDb();
             var created = await new CreateServerCommandHandler(db)
-                .Handle(new CreateServerCommand("Survival SMP"), CancellationToken.None);
+                .Handle(new CreateServerCommand("Survival SMP", null, ModLoader.Forge), CancellationToken.None);
 
             var renamed = await new UpdateServerCommandHandler(db)
                 .Handle(new UpdateServerCommand(created.Id, "Something Else Entirely"), CancellationToken.None);
@@ -54,13 +55,41 @@ namespace HOPPER.Tests.Application
             await Assert.That(renamed.Slug).IsEqualTo("survival-smp");
         }
 
+        // Without one the browse page cannot search, the jar endpoint 400s and the loader version
+        // list has nothing to go on: a server that cannot do the thing HOPPER is for.
+        [Test]
+        public async Task Create_RefusesAServerWithNoLoader()
+        {
+            await using var db = NewDb();
+            var handler = new CreateServerCommandHandler(db);
+
+            await Assert.That(async () => await handler.Handle(
+                    new CreateServerCommand("Survival", null, ModLoader.Unknown), CancellationToken.None))
+                .Throws<ArgumentException>();
+        }
+
+        // Update deliberately still accepts it, or a server created before the rule could not be
+        // renamed until someone guessed at its loader.
+        [Test]
+        public async Task Update_StillAcceptsAServerThatHasNoLoader()
+        {
+            await using var db = NewDb();
+            var created = await new CreateServerCommandHandler(db)
+                .Handle(new CreateServerCommand("Survival SMP", null, ModLoader.Forge), CancellationToken.None);
+
+            var renamed = await new UpdateServerCommandHandler(db)
+                .Handle(new UpdateServerCommand(created.Id, "Renamed", null, ModLoader.Unknown), CancellationToken.None);
+
+            await Assert.That(renamed.Name).IsEqualTo("Renamed");
+        }
+
         [Test]
         public async Task Create_RefusesANameNoSlugCanComeFrom()
         {
             await using var db = NewDb();
             var handler = new CreateServerCommandHandler(db);
 
-            await Assert.That(async () => await handler.Handle(new CreateServerCommand("???"), CancellationToken.None))
+            await Assert.That(async () => await handler.Handle(new CreateServerCommand("???", null, ModLoader.Forge), CancellationToken.None))
                 .Throws<ArgumentException>();
         }
     }
