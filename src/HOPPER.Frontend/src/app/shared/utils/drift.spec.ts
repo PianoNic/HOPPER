@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { countDrift, diffClient, OFFLINE_AFTER_LABEL, OFFLINE_AFTER_MS } from './drift';
+import {
+  countDrift,
+  diffClient,
+  OFFLINE_AFTER_LABEL,
+  OFFLINE_AFTER_MS,
+  reaches,
+} from './drift';
 import { ClientDto } from '../../api/model/clientDto';
 import { ClientModDto } from '../../api/model/clientModDto';
 import { ModDto } from '../../api/model/modDto';
@@ -180,5 +186,37 @@ describe('diffClient and sides', () => {
 
     expect(drift.missing.map((m) => m.fileName)).toEqual(['client-only.jar']);
     expect(drift.status).toBe('drift');
+  });
+});
+
+describe('what the Clients page counts', () => {
+  const required = [
+    sidedMod('both.jar', 'aaa', MOD_SIDE.both),
+    sidedMod('client-only.jar', 'bbb', MOD_SIDE.clientOnly),
+    sidedMod('server-only.jar', 'ccc', MOD_SIDE.serverOnly),
+  ];
+
+  const requiredFor = (side: number) => required.filter((m) => reaches(m, side)).length;
+
+  it('counts only what that side is sent as the denominator', () => {
+    // A server showing 2/3 reads as missing one when it has everything it was sent.
+    expect(requiredFor(SYNC_SIDE.client)).toBe(2);
+    expect(requiredFor(SYNC_SIDE.server)).toBe(2);
+  });
+
+  it('agrees with the missing badge', () => {
+    // 2/2 next to "1 missing" cannot both be true. The numerator is what the client actually has
+    // of what it should, not how many jars it reported.
+    const holder = client(
+      [reported('both.jar', 'aaa', true), reported('server-only.jar', 'ccc', true)],
+      '2026-08-05T11:59:00Z',
+      SYNC_SIDE.client,
+    );
+
+    const drift = diffClient(holder, required, NOW);
+    const matched = requiredFor(SYNC_SIDE.client) - drift.missing.length;
+
+    expect(drift.missing.map((m) => m.fileName)).toEqual(['client-only.jar']);
+    expect(matched).toBe(1);
   });
 });
