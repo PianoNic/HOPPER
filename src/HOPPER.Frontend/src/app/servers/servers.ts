@@ -19,6 +19,7 @@ import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { messageFrom, toNumber } from '../shared/utils/format';
+import { copyText } from '../shared/utils/clipboard';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
@@ -265,12 +266,13 @@ export class Servers {
     this.api.apiServersIdTokenGet(server.id).subscribe({
       next: async (result) => {
         this.setBusy(server.id, false);
-        try {
-          await navigator.clipboard.writeText(result.token);
+        if ((await copyText(result.token)) === 'copied') {
           toast.success(`Client token for ${server.name} copied.`);
-        } catch {
-          toast.error(`Could not reach the clipboard. The token is ${result.token}`);
+          return;
         }
+        // The token is fetched on click and appears nowhere else on this page, so the only
+        // recovery left is to put it in the toast.
+        toast.error(`Could not reach the clipboard. The token is ${result.token}`);
       },
       error: (err) => {
         toast.error(messageFrom(err, 'Failed to read the client token'));

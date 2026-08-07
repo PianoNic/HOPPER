@@ -147,7 +147,26 @@ const REPLAN_DEBOUNCE_MS = 300;
       </div>
     } @else {
       <div class="max-h-[26rem] min-h-0 flex-1 overflow-auto">
-        @if (loading() && plan() === null) {
+        <!-- Ahead of the plan branch on purpose. When a replan fails the previous plan is still in
+             the signal, and rendering it would offer a confirm button over a set the server has
+             not agreed to. -->
+        @if (failed()) {
+          <div class="flex h-full flex-col items-center justify-center gap-2 p-10 text-center">
+            <ng-icon
+              name="lucideTriangleAlert"
+              size="28"
+              class="text-muted-foreground opacity-60"
+            />
+            <p class="text-sm">Could not work out what this mod needs.</p>
+            <p class="text-muted-foreground max-w-md text-xs">
+              HOPPER asks Modrinth for the dependency tree before it downloads anything. Nothing has
+              been added to this server.
+            </p>
+            <button hlmBtn variant="outline" size="sm" type="button" (click)="retry()">
+              Try again
+            </button>
+          </div>
+        } @else if (loading() && plan() === null) {
           <p class="text-muted-foreground p-6 text-center text-sm">Resolving dependencies…</p>
         } @else if (plan(); as p) {
           <div class="flex flex-col gap-4" [class.opacity-60]="loading()">
@@ -353,9 +372,13 @@ const REPLAN_DEBOUNCE_MS = 300;
         <button hlmBtn variant="ghost" type="button" [disabled]="installing()" (click)="cancel()">
           Cancel
         </button>
-        <button hlmBtn type="button" [disabled]="!canInstall()" (click)="install()">
-          {{ confirmLabel() }}
-        </button>
+        <!-- Hidden rather than disabled: a dead "Nothing to add" next to the body's Try again is
+             two controls arguing about what the dialog is for. -->
+        @if (!failed()) {
+          <button hlmBtn type="button" [disabled]="!canInstall()" (click)="install()">
+            {{ confirmLabel() }}
+          </button>
+        }
       </div>
     }
   `,
@@ -369,11 +392,20 @@ export class ModrinthPlanDialog {
   protected readonly plan = signal<ModrinthInstallPlanDto | null>(null);
   protected readonly loading = signal(true);
   protected readonly installing = signal(false);
+  protected readonly failed = signal(false);
   protected readonly result = signal<ModrinthInstallResultDto | null>(null);
 
   private readonly ticked = signal<ReadonlyArray<string>>([]);
+  private readonly retryTick = signal(0);
 
   private readonly replacing = signal<ReadonlyArray<string>>([]);
+
+  // A retry does not change the tick list, and toObservable only emits on a change, so the retry
+  // counter has to be part of the key rather than a re-set of `ticked`.
+  private readonly replanKey = computed(() => ({
+    optional: this.ticked(),
+    tick: this.retryTick(),
+  }));
 
   protected readonly newNodes = computed(() =>
     (this.plan()?.nodes ?? []).filter((n) => n.status === PLAN_NODE_STATUS.new),
@@ -423,19 +455,23 @@ export class ModrinthPlanDialog {
   });
 
   constructor() {
-    toObservable(this.ticked)
+    toObservable(this.replanKey)
       .pipe(
         debounceTime(REPLAN_DEBOUNCE_MS),
-        switchMap((optional) => {
+        switchMap(({ optional }) => {
           this.loading.set(true);
+          this.failed.set(false);
           return this.api
             .apiServersIdModrinthPlanPost(this.ctx.serverId, {
               versionIds: [...this.ctx.rootVersionIds],
               optionalVersionIds: [...optional],
             })
             .pipe(
+              // EMPTY keeps the outer subscription alive so a later key still replans; `failed`
+              // is what stops the dialog sitting empty once the toast has gone.
               catchError((err: unknown) => {
                 toast.error(messageFrom(err, 'Failed to resolve the dependencies of this mod'));
+                this.failed.set(true);
                 this.loading.set(false);
                 return EMPTY;
               }),
@@ -450,8 +486,13 @@ export class ModrinthPlanDialog {
           plan.nodes.filter((n) => isReplaceable(n.status)).map((n) => n.versionId),
         );
         this.replacing.update((ids) => ids.filter((id) => replaceable.has(id)));
+        this.failed.set(false);
         this.loading.set(false);
       });
+  }
+
+  protected retry(): void {
+    this.retryTick.update((tick) => tick + 1);
   }
 
   protected requiredBy(node: ModrinthPlanNodeDto): string {

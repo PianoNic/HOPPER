@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCheck, lucideCopy } from '@ng-icons/lucide';
+import { toast } from '@spartan-ng/brain/sonner';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTooltipImports } from '@spartan-ng/helm/tooltip';
+import { copyText } from '../../utils/clipboard';
 
 @Component({
   selector: 'app-copy-button',
@@ -28,11 +30,14 @@ export class CopyButton {
   protected readonly copied = signal(false);
 
   protected async copy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(this.value());
-      this.copied.set(true);
-      setTimeout(() => this.copied.set(false), 1500);
-    } catch {
+    // Both call sites - a mod's sha256 and the whole application.properties block - are already
+    // rendered next to this button, so pointing at them beats repeating them in a toast.
+    if ((await copyText(this.value())) === 'failed') {
+      toast.error('Could not reach the clipboard. Select the text and copy it by hand.');
+      return;
     }
+
+    this.copied.set(true);
+    setTimeout(() => this.copied.set(false), 1500);
   }
 }

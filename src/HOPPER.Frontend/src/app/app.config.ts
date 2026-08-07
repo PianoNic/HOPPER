@@ -1,19 +1,44 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { authInterceptor, provideAuth, withAppInitializerAuthCheck } from 'angular-auth-oidc-client';
+import {
+  EventTypes,
+  PublicEventsService,
+  authInterceptor,
+  provideAuth,
+  withAppInitializerAuthCheck,
+} from 'angular-auth-oidc-client';
+import { filter } from 'rxjs/operators';
 
 import { routes } from './app.routes';
 import { provideApi } from './api/provide-api';
 import { authLoaderProvider } from './shared/auth/auth.config';
+import { SessionRecovery } from './shared/auth/session-recovery';
+import { unauthorizedInterceptor } from './shared/auth/unauthorized-interceptor';
 import { environment } from './shared/environments/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor()])),
+    // Ours first, so its catchError sees the errors of everything downstream of it.
+    provideHttpClient(withInterceptors([unauthorizedInterceptor, authInterceptor()])),
     provideApi(environment.apiBaseUrl),
     provideAuth({ loader: authLoaderProvider }, withAppInitializerAuthCheck()),
+    // Covers the case the interceptor cannot: an idle user firing no requests at all, whose
+    // refresh token quietly dies. Same latch, so a renewal failure racing a 401 is one redirect.
+    provideAppInitializer(() => {
+      const events = inject(PublicEventsService);
+      const recovery = inject(SessionRecovery);
+      events
+        .registerForEvents()
+        .pipe(filter((event) => event.type === EventTypes.SilentRenewFailed))
+        .subscribe(() => recovery.recover());
+    }),
   ],
 };

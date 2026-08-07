@@ -10,7 +10,15 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { forkJoin, interval } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  filter as rxFilter,
+  forkJoin,
+  interval,
+  Observable,
+  switchMap,
+} from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
 import { lucideRefreshCw, lucideSearch, lucideUsers } from '@ng-icons/lucide';
@@ -28,7 +36,13 @@ import { ClientDto } from '../api/model/clientDto';
 import { ModDto } from '../api/model/modDto';
 import { ServerDto } from '../api/model/serverDto';
 import { ClientModsDialogService } from './client-mods-dialog';
+import { shouldPoll } from './poll-gate';
 import { serverIdSignal } from './server-route';
+
+type ClientsSnapshot = {
+  clients: ReadonlyArray<ClientDto>;
+  mods: ReadonlyArray<ModDto>;
+};
 
 const POLL_MS = 10000;
 
@@ -80,7 +94,7 @@ const POLL_MS = 10000;
             [disabled]="loading()"
           >
             <ng-icon name="lucideRefreshCw" size="14" />
-            {{ loading() ? 'Loading…' : 'Refresh' }}
+            {{ refreshLabel() }}
           </button>
         </div>
       </header>
@@ -193,6 +207,8 @@ export class ServerClients {
   protected readonly loading = signal(false);
   protected readonly filter = signal('');
 
+  private readonly pollFailed = signal(false);
+
   private readonly now = signal(Date.now());
 
   protected readonly serverName = computed(() => this.server()?.name ?? '');
@@ -214,6 +230,13 @@ export class ServerClients {
     );
   });
 
+  // The paused poll has to stay visible after the toast expires, and a relabelled control that
+  // already existed says so without an inline error message.
+  protected readonly refreshLabel = computed(() => {
+    if (this.loading()) return 'Loading…';
+    return this.pollFailed() ? 'Reconnect' : 'Refresh';
+  });
+
   protected readonly summary = computed(() => {
     const list = this.rows();
     if (list.length === 0) return '';
@@ -231,15 +254,35 @@ export class ServerClients {
         next: (server) => this.server.set(server),
         error: (err) => toast.error(messageFrom(err, 'Failed to load the server')),
       });
-      this.load(id, false);
+      this.load(id);
     });
 
+    // The request lives inside the interval's own switchMap rather than in a subscription the
+    // interval spawns. That is the whole fix: a detached inner subscription dies alone and the
+    // interval never learns it failed, so it can neither stop nor stop toasting.
     interval(POLL_MS)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        const id = this.serverId();
-        if (id !== '') this.load(id, true);
-      });
+      .pipe(
+        rxFilter(() =>
+          shouldPoll({
+            hidden: document.hidden,
+            hasServer: this.serverId() !== '',
+            failed: this.pollFailed(),
+          }),
+        ),
+        switchMap(() =>
+          this.request(this.serverId()).pipe(
+            catchError((err: unknown) => {
+              toast.error(
+                messageFrom(err, 'Lost contact with the server - live updates are paused'),
+              );
+              this.pollFailed.set(true);
+              return EMPTY;
+            }),
+          ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((snapshot) => this.apply(snapshot));
   }
 
   protected short(value: string): string {
@@ -256,27 +299,40 @@ export class ServerClients {
 
   protected reload(): void {
     const id = this.serverId();
-    if (id !== '') this.load(id, false);
+    if (id !== '') this.load(id);
   }
 
-  private load(id: string, silent: boolean): void {
-    if (!silent) this.loading.set(true);
-
-    forkJoin({
+  private request(id: string): Observable<ClientsSnapshot> {
+    return forkJoin({
       clients: this.clientsApi.apiServersIdClientsGet(id),
       mods: this.modsApi.apiServersIdModsGet(id),
-    }).subscribe({
-      next: (result) => {
-        this.clients.set(result.clients);
-        this.requiredMods.set(result.mods);
-        this.now.set(Date.now());
-        this.loading.set(false);
-      },
-      error: (err) => {
-        toast.error(messageFrom(err, 'Failed to load clients'));
-        this.loading.set(false);
-      },
     });
+  }
+
+  private apply(snapshot: ClientsSnapshot): void {
+    this.clients.set(snapshot.clients);
+    this.requiredMods.set(snapshot.mods);
+    this.now.set(Date.now());
+    // Any success clears the streak, so a successful Reconnect both fills the table and restarts
+    // the poll. There is no second recovery mechanism.
+    this.pollFailed.set(false);
+    this.loading.set(false);
+  }
+
+  // The user asked for this one, so it toasts every time. The poll does not.
+  private load(id: string): void {
+    this.loading.set(true);
+
+    this.request(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (snapshot) => this.apply(snapshot),
+        error: (err: unknown) => {
+          toast.error(messageFrom(err, 'Failed to load clients'));
+          this.pollFailed.set(true);
+          this.loading.set(false);
+        },
+      });
   }
 
   protected openDetails(row: ClientDrift): void {

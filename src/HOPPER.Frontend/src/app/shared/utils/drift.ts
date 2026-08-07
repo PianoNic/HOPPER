@@ -12,6 +12,9 @@ export type ClientDrift = {
 
 export const OFFLINE_AFTER_MS = 24 * 60 * 60 * 1000;
 
+// Kept beside the constant so a tile that names the window in its label cannot drift from the rule.
+export const OFFLINE_AFTER_LABEL = '24h';
+
 export function diffClient(
   client: ClientDto,
   required: ReadonlyArray<ModDto>,

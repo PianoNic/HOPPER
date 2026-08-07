@@ -223,12 +223,6 @@ type SearchKey = {
                     @if (h.author) {
                       <span class="text-muted-foreground text-xs">by {{ h.author }}</span>
                     }
-                    @if (h.installed) {
-                      <span hlmBadge variant="secondary" class="text-xs">
-                        <ng-icon name="lucideCheck" size="12" />
-                        on this server
-                      </span>
-                    }
                   </div>
                   @if (h.description) {
                     <p class="text-muted-foreground line-clamp-2 text-xs">{{ h.description }}</p>
@@ -261,15 +255,22 @@ type SearchKey = {
                   <button hlmBtn variant="outline" size="sm" type="button" (click)="versions(h)">
                     Versions
                   </button>
-                  <button
-                    hlmBtn
-                    size="sm"
-                    type="button"
-                    [disabled]="picking() === h.projectId"
-                    (click)="addLatest(h)"
-                  >
-                    {{ picking() === h.projectId ? 'Resolving…' : 'Add' }}
-                  </button>
+                  @if (h.installed) {
+                    <button hlmBtn variant="outline" size="sm" type="button" disabled>
+                      <ng-icon name="lucideCheck" size="14" />
+                      Added
+                    </button>
+                  } @else {
+                    <button
+                      hlmBtn
+                      size="sm"
+                      type="button"
+                      [disabled]="picking() === h.projectId"
+                      (click)="addLatest(h)"
+                    >
+                      {{ picking() === h.projectId ? 'Resolving…' : 'Add' }}
+                    </button>
+                  }
                 </div>
               </li>
             }
@@ -450,6 +451,7 @@ export class ServerBrowse {
   }
 
   protected addLatest(hit: ModrinthSearchHitDto): void {
+    if (hit.installed) return;
     if (this.picking() !== null) return;
     this.picking.set(hit.projectId);
 
