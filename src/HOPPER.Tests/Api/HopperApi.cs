@@ -46,8 +46,6 @@ namespace HOPPER.Tests.Api
             Environment.SetEnvironmentVariable("ConnectionStrings__HopperDatabase", postgres.GetConnectionString());
             Environment.SetEnvironmentVariable("Blobs__Directory", Path.Combine(state, "blobs"));
 
-            Environment.SetEnvironmentVariable("Hopper__BootstrapClientToken", ClientToken);
-
             var templates = Directory.CreateDirectory(Path.Combine(state, "locator")).FullName;
             File.WriteAllBytes(Path.Combine(templates, "hopper-forge-modern.jar"), [0x50, 0x4B, 0x05, 0x06]);
             Environment.SetEnvironmentVariable("Hopper__LocatorTemplateDirectory", templates);
@@ -61,7 +59,15 @@ namespace HOPPER.Tests.Api
             {
                 var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
 
-                _serverAId = db.Servers.Single(s => s.Token == ClientToken).Id;
+                var serverA = db.Servers.FirstOrDefault(s => s.Token == ClientToken);
+                if (serverA is null)
+                {
+                    serverA = new Server { Name = "Server A", Slug = "server-a", Token = ClientToken };
+                    db.Servers.Add(serverA);
+                    db.SaveChanges();
+                }
+
+                _serverAId = serverA.Id;
 
                 var serverB = db.Servers.FirstOrDefault(s => s.Token == ClientTokenB);
                 if (serverB is null)
