@@ -25,6 +25,7 @@
     "@ng-icons/simple-icons": "^33.2.2",
     "@spartan-ng/brain": "^0.0.1-alpha.695",
     "angular-auth-oidc-client": "^21.0.2",
+    "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "marked": "^18.0.9",
