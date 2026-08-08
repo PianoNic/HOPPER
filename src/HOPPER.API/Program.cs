@@ -128,6 +128,8 @@ builder.Services.AddHttpLogging(options =>
     options.CombineLogs = true;
 });
 
+builder.Services.AddHttpClient(UserInfoClaims.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+
 builder.Services.AddHopperAuthentication(builder.Configuration);
 builder.Services.AddHopperAuthorization(builder.Configuration);
 
