@@ -1,6 +1,7 @@
 using HOPPER.API.Extensions;
 using HOPPER.Application.Command.Servers;
 using HOPPER.Application.Dtos.Servers;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Application.Queries.Jar;
 using HOPPER.Application.Queries.Servers;
 using HOPPER.Domain.Enums;
@@ -13,6 +14,9 @@ namespace HOPPER.API.Controllers
     [Route("api/servers")]
     public class ServersController(IMediator mediator, IConfiguration configuration) : ControllerBase
     {
+        private const long IconRequestSizeLimit = ServerIconReader.MaxUploadBytes + 8 * 1024;
+
+
         [HttpGet]
         [ProducesResponseType(typeof(IReadOnlyList<ServerDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> List(CancellationToken cancellationToken = default)
@@ -64,9 +68,11 @@ namespace HOPPER.API.Controllers
         }
 
         [HttpPost("{id:guid}/icon")]
+        [RequestSizeLimit(IconRequestSizeLimit)]
         [ProducesResponseType(typeof(ServerIconDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
         public async Task<IActionResult> SetIcon(Guid id, IFormFile file, CancellationToken cancellationToken = default)
         {
             if (file is null || file.Length == 0)
