@@ -158,7 +158,7 @@ class MigratorTest {
         Migrator.Result result = run(mods, e);
 
         assertFalse(Files.exists(mine), "the older build must have left mods/");
-        assertTrue(Files.exists(hopper.resolve(Migrator.REPLACED)
+        assertTrue(Files.exists(hopper.resolve(Migrator.PARKED)
                 .resolve(JEI_OLD + Migrator.PARKED_SUFFIX)), "and must still exist, parked");
         assertEquals(1, result.parked);
         assertEquals(0, result.moved);
@@ -174,7 +174,7 @@ class MigratorTest {
 
         run(mods, entry(JEI_NEW, sha("0"), "jei"));
 
-        Path parked = hopper.resolve(Migrator.REPLACED).resolve(JEI_OLD + Migrator.PARKED_SUFFIX);
+        Path parked = hopper.resolve(Migrator.PARKED).resolve(JEI_OLD + Migrator.PARKED_SUFFIX);
         assertTrue(Files.exists(parked));
 
         assertTrue(parked.getFileName().toString().startsWith(JEI_OLD));
@@ -192,11 +192,11 @@ class MigratorTest {
         jar(mods, JEI_OLD, "a second, different old build", "jei");
         run(mods, e);
 
-        Path replaced = hopper.resolve(Migrator.REPLACED);
-        assertTrue(Files.exists(replaced.resolve(JEI_OLD + Migrator.PARKED_SUFFIX)));
-        assertTrue(Files.exists(replaced.resolve(
+        Path parked = hopper.resolve(Migrator.PARKED);
+        assertTrue(Files.exists(parked.resolve(JEI_OLD + Migrator.PARKED_SUFFIX)));
+        assertTrue(Files.exists(parked.resolve(
                 "jei-1.20.1-15.2.0.27-1.jar" + Migrator.PARKED_SUFFIX)),
-                "nothing in replaced/ is ever deleted, so the second park must not overwrite");
+                "nothing in parked/ is ever deleted, so the second park must not overwrite");
     }
 
     @Test
@@ -206,7 +206,7 @@ class MigratorTest {
 
         run(mods, entry(JEI_NEW, sha("0"), "jei"));
 
-        Path readme = hopper.resolve(Migrator.REPLACED).resolve("README.txt");
+        Path readme = hopper.resolve(Migrator.PARKED).resolve("README.txt");
         assertTrue(Files.exists(readme));
         String text = new String(Files.readAllBytes(readme), StandardCharsets.UTF_8);
         assertTrue(text.contains(Migrator.PARKED_SUFFIX));
@@ -238,7 +238,7 @@ class MigratorTest {
         Path winner = jar(mods, "zzz-jei.jar", "required build", "jei");
         Syncer.Entry e = entry(JEI_NEW, Syncer.sha256(winner), "jei");
 
-        Files.write(hopper.resolve(Migrator.REPLACED), "not a directory".getBytes(StandardCharsets.UTF_8));
+        Files.write(hopper.resolve(Migrator.PARKED), "not a directory".getBytes(StandardCharsets.UTF_8));
 
         Migrator.Result result = run(mods, e);
 
@@ -265,7 +265,7 @@ class MigratorTest {
         assertFalse(Files.exists(mods.resolve("aaa-jei-old.jar")));
         assertFalse(Files.exists(mods.resolve("zzz-jei.jar")));
         assertTrue(Files.exists(hopper.resolve(JEI_NEW)));
-        assertTrue(Files.exists(hopper.resolve(Migrator.REPLACED)
+        assertTrue(Files.exists(hopper.resolve(Migrator.PARKED)
                 .resolve("aaa-jei-old.jar" + Migrator.PARKED_SUFFIX)));
         assertEquals(1, result.moved);
         assertEquals(1, result.parked);
@@ -390,7 +390,7 @@ class MigratorTest {
 
         assertTrue(Files.exists(mine));
         assertArrayEquals(before, Files.readAllBytes(mine));
-        assertFalse(Files.exists(hopper.resolve(Migrator.REPLACED)));
+        assertFalse(Files.exists(hopper.resolve(Migrator.PARKED)));
         assertEquals(0, result.moved + result.parked + result.deferred);
     }
 
@@ -411,7 +411,7 @@ class MigratorTest {
         jar(mods, JEI_OLD, "an older build", "jei");
         run(mods, entry(JEI_NEW, sha("0"), "jei"));
 
-        Path parked = hopper.resolve(Migrator.REPLACED).resolve(JEI_OLD + Migrator.PARKED_SUFFIX);
+        Path parked = hopper.resolve(Migrator.PARKED).resolve(JEI_OLD + Migrator.PARKED_SUFFIX);
         assertTrue(Files.exists(parked));
 
         List<Path> deletable = new ArrayList<Path>();
@@ -419,7 +419,7 @@ class MigratorTest {
         try {
             for (Path p : listing) {
                 if (!Files.isRegularFile(p)) continue;
-                if (Migrator.REPLACED.equals(p.getFileName().toString())) continue;
+                if (Migrator.PARKED.equals(p.getFileName().toString())) continue;
                 deletable.add(p);
             }
         } finally {

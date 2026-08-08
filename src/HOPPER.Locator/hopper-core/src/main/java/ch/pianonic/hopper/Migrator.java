@@ -19,9 +19,9 @@ import java.util.Map;
 import java.util.Set;
 
 final class Migrator {
-    static final String REPLACED = "replaced";
+    static final String PARKED = "parked";
 
-    static final String PARKED_SUFFIX = ".replaced";
+    static final String PARKED_SUFFIX = ".parked";
 
     private static final String README = "README.txt";
 
@@ -243,7 +243,7 @@ final class Migrator {
     }
 
     Path park(Path jar) throws IOException {
-        Path dir = hopperDir.resolve(REPLACED);
+        Path dir = hopperDir.resolve(PARKED);
         Files.createDirectories(dir);
         writeReadme(dir);
 
