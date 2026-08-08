@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
@@ -104,6 +104,7 @@ function doughnut(slices: readonly Slice[]): ChartFactory | null {
   selector: 'app-server-overview',
   imports: [
     ContentHeader,
+    RouterLink,
     NgIcon,
     HlmButtonImports,
     ButtonLoading,
@@ -160,6 +161,27 @@ function doughnut(slices: readonly Slice[]): ChartFactory | null {
       </header>
 
       <div class="min-h-0 flex-1 overflow-auto p-4">
+        @if (attention(); as problems) {
+          @if (problems.length > 0) {
+            <a
+              [routerLink]="modsLink()"
+              class="border-destructive/40 bg-destructive/5 hover:bg-destructive/10 mb-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+            >
+              <ng-icon name="lucideTriangleAlert" size="16" class="text-destructive shrink-0" />
+              <span>
+                @for (problem of problems; track problem.label) {
+                  <span class="font-medium tabular-nums">{{ problem.count }}</span>
+                  <span class="text-muted-foreground">
+                    {{ problem.count === 1 ? 'mod' : 'mods' }} {{ problem.label
+                    }}{{ $last ? '' : ' · ' }}
+                  </span>
+                }
+              </span>
+              <span class="text-muted-foreground ml-auto text-xs">Open Mods</span>
+            </a>
+          }
+        }
+
         <div class="grid gap-3 sm:grid-cols-3">
           @for (stat of stats(); track stat.label) {
             <section hlmCard>
@@ -313,6 +335,8 @@ export class ServerOverview {
 
   protected readonly serverId = serverIdSignal(this.route);
 
+  protected readonly modsLink = computed(() => ['/server', this.serverId(), 'mods']);
+
   protected readonly server = signal<ServerDto | null>(null);
   protected readonly mods = signal<ReadonlyArray<ModDto>>([]);
   protected readonly clients = signal<ReadonlyArray<ClientDto>>([]);
@@ -327,6 +351,23 @@ export class ServerOverview {
     const mods = this.mods();
     const now = this.now();
     return this.clients().map((client) => diffClient(client, mods, now));
+  });
+
+  /// Every condition the Mods page badges, counted here so a broken library is visible without
+  /// opening that page and reading every row.
+  protected readonly attention = computed(() => {
+    const mods = this.mods();
+
+    const counts = [
+      { label: 'with no bytes behind them', count: mods.filter((m) => m.bytesMissing).length },
+      { label: 'sharing a mod id', count: mods.filter((m) => m.collidesOn).length },
+      {
+        label: 'missing a dependency',
+        count: mods.filter((m) => m.missingDependencies?.length).length,
+      },
+    ];
+
+    return counts.filter((c) => c.count > 0);
   });
 
   protected readonly stats = computed(() => {
