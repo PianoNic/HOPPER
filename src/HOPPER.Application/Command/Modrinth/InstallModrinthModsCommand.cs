@@ -128,8 +128,13 @@ namespace HOPPER.Application.Command.Modrinth
                     $"Modrinth published no sha1/sha512 for {fileName}, so the download cannot be verified.");
             }
 
+            // Only the rows that could match, not the server's whole mods table once per item. The
+            // comparisons below stay in memory because FileName has no case-insensitive collation.
+            var lowered = fileName.ToLowerInvariant();
+
             var current = await db.Mods
-                .Where(m => m.ServerId == server.Id)
+                .Where(m => m.ServerId == server.Id
+                            && (m.ProjectId == version.ProjectId || m.FileName.ToLower() == lowered))
                 .ToListAsync(cancellationToken);
 
             var sameProject = current.FirstOrDefault(
@@ -170,7 +175,10 @@ namespace HOPPER.Application.Command.Modrinth
                 var project = projectTitles.GetValueOrDefault(version.ProjectId);
                 var title = project?.Title;
 
-                var sameBytes = current.FirstOrDefault(m => string.Equals(m.Sha256, staged.Sha256, StringComparison.Ordinal));
+                // Its own lookup: the hash is not one of the two things the candidate query filtered
+                // on, and a jar can already be here under another name from another project.
+                var sameBytes = await db.Mods.FirstOrDefaultAsync(
+                    m => m.ServerId == server.Id && m.Sha256 == staged.Sha256, cancellationToken);
                 if (sameBytes is not null && sameBytes != displaced)
                 {
                     if (sameBytes.HasModrinthProvenance())

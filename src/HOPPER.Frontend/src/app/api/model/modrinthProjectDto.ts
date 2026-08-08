@@ -22,7 +22,5 @@ export interface ModrinthProjectDto {
     downloads: ManifestModDtoSize;
     followers: ManifestModDtoSize;
     categories: Array<string>;
-    loaders: Array<string>;
-    gameVersions: Array<string>;
 }
 

@@ -48,7 +48,6 @@ export * from './packFormat';
 export * from './pendingModDto';
 export * from './pendingModDtoProjectId';
 export * from './pendingReason';
-export * from './planNodeKind';
 export * from './planNodeStatus';
 export * from './problemDetails';
 export * from './serverDto';

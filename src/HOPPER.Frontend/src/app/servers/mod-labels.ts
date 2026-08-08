@@ -2,7 +2,6 @@ import { ModDto } from '../api/model/modDto';
 import { ModLoader } from '../api/model/modLoader';
 import { ModSide } from '../api/model/modSide';
 import { ModSource } from '../api/model/modSource';
-import { PlanNodeKind } from '../api/model/planNodeKind';
 import { PlanNodeStatus } from '../api/model/planNodeStatus';
 
 export function modSideLabel(side: ModSide): string {
@@ -76,18 +75,6 @@ export function modLoaderFromFacet(name: string): ModLoader {
   }
 }
 
-export function planNodeKindLabel(kind: PlanNodeKind): string {
-  switch (kind) {
-    case PlanNodeKind.Root:
-      return 'Selected';
-    case PlanNodeKind.Required:
-      return 'Required';
-    case PlanNodeKind.Optional:
-      return 'Optional';
-    default:
-      return 'Unknown';
-  }
-}
 
 export function planNodeStatusLabel(status: PlanNodeStatus): string {
   switch (status) {

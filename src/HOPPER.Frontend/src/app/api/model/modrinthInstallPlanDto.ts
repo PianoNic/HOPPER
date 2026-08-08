@@ -7,9 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ManifestModDtoSize } from './manifestModDtoSize';
 import { ModrinthPlanNodeDto } from './modrinthPlanNodeDto';
-import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 import { ModrinthEmbeddedDto } from './modrinthEmbeddedDto';
 import { ModrinthUnresolvableDto } from './modrinthUnresolvableDto';
 import { ModrinthIncompatibleDto } from './modrinthIncompatibleDto';
@@ -23,7 +21,5 @@ export interface ModrinthInstallPlanDto {
     unresolvable: Array<ModrinthUnresolvableDto>;
     warnings: Array<string>;
     blocked: boolean;
-    addCount: DeleteModsResultDtoDeleted;
-    addSize: ManifestModDtoSize;
 }
 

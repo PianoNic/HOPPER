@@ -15,10 +15,6 @@ namespace HOPPER.Application.Dtos.Modrinth
         public required IReadOnlyList<string> Warnings { get; init; }
 
         public required bool Blocked { get; init; }
-
-        public required int AddCount { get; init; }
-
-        public required long AddSize { get; init; }
     }
 
     public record ModrinthPlanNodeDto
@@ -33,7 +29,6 @@ namespace HOPPER.Application.Dtos.Modrinth
         public required string FileName { get; init; }
         public required long FileSize { get; init; }
 
-        public required PlanNodeKind Kind { get; init; }
 
         public required PlanNodeStatus Status { get; init; }
 

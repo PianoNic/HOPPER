@@ -13,7 +13,5 @@ namespace HOPPER.Application.Dtos.Modrinth
         public required long Downloads { get; init; }
         public required long Followers { get; init; }
         public required IReadOnlyList<string> Categories { get; init; }
-        public required IReadOnlyList<string> Loaders { get; init; }
-        public required IReadOnlyList<string> GameVersions { get; init; }
     }
 }

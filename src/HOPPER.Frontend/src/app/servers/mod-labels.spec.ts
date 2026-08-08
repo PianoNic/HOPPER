@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { formatCount, isReplaceable, modIconUrl, modLoaderFacet, modLoaderFromFacet, modLoaderLabel, modSourceLabel, modrinthProjectUrl, planNodeKindLabel, planNodeStatusDetail, planNodeStatusLabel, versionTypeLabel } from './mod-labels';
+import { formatCount, isReplaceable, modIconUrl, modLoaderFacet, modLoaderFromFacet, modLoaderLabel, modSourceLabel, modrinthProjectUrl, planNodeStatusDetail, planNodeStatusLabel, versionTypeLabel } from './mod-labels';
 import { ModDto } from '../api/model/modDto';
 import { ModLoader } from '../api/model/modLoader';
 import { ModSource } from '../api/model/modSource';
-import { PlanNodeKind } from '../api/model/planNodeKind';
 import { PlanNodeStatus } from '../api/model/planNodeStatus';
 
 describe('modSourceLabel', () => {
@@ -62,12 +61,6 @@ describe('modLoaderFromFacet', () => {
 });
 
 describe('plan node labels', () => {
-  it('names every kind', () => {
-    expect(planNodeKindLabel(PlanNodeKind.Root)).toBe('Selected');
-    expect(planNodeKindLabel(PlanNodeKind.Required)).toBe('Required');
-    expect(planNodeKindLabel(PlanNodeKind.Optional)).toBe('Optional');
-    expect(planNodeKindLabel('Suggested' as PlanNodeKind)).toBe('Unknown');
-  });
 
   it('names every status', () => {
     expect(planNodeStatusLabel(PlanNodeStatus.New)).toBe('New');

@@ -17,9 +17,6 @@ export interface ModrinthVersionDto {
     versionNumber?: string | null;
     versionType?: string | null;
     datePublished?: string | null;
-    downloads: ManifestModDtoSize;
-    gameVersions: Array<string>;
-    loaders: Array<string>;
     fileName?: string | null;
     fileSize?: ManifestModDtoSize;
     installed: boolean;

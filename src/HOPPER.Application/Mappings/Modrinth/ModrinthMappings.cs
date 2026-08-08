@@ -34,8 +34,6 @@ namespace HOPPER.Application.Mappings.Modrinth
             Downloads = project.Downloads,
             Followers = project.Followers,
             Categories = project.Categories,
-            Loaders = project.Loaders,
-            GameVersions = project.GameVersions,
         };
 
         public static ModrinthVersionDto ToDto(this ModrinthVersion version, bool installed)
@@ -50,9 +48,6 @@ namespace HOPPER.Application.Mappings.Modrinth
                 VersionNumber = version.VersionNumber,
                 VersionType = version.VersionType,
                 DatePublished = version.DatePublished?.UtcDateTime,
-                Downloads = version.Downloads,
-                GameVersions = version.GameVersions,
-                Loaders = version.Loaders,
                 FileName = file?.FileName,
                 FileSize = file?.Size ?? 0,
                 Installed = installed,
@@ -70,7 +65,6 @@ namespace HOPPER.Application.Mappings.Modrinth
             VersionType = node.VersionType,
             FileName = node.FileName,
             FileSize = node.FileSize,
-            Kind = node.Kind,
             Status = node.Status,
             Depth = node.Depth,
             RequiredBy = node.RequiredBy,
@@ -107,8 +101,6 @@ namespace HOPPER.Application.Mappings.Modrinth
                 }).ToList(),
                 Warnings = result.Warnings,
                 Blocked = result.Blocked,
-                AddCount = adding.Count,
-                AddSize = adding.Sum(n => n.FileSize),
             };
         }
 

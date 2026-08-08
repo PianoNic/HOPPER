@@ -10,9 +10,6 @@ namespace HOPPER.Application.Dtos.Modrinth
         public string? VersionType { get; init; }
 
         public DateTime? DatePublished { get; init; }
-        public required long Downloads { get; init; }
-        public required IReadOnlyList<string> GameVersions { get; init; }
-        public required IReadOnlyList<string> Loaders { get; init; }
 
         public string? FileName { get; init; }
 
