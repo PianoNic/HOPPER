@@ -454,6 +454,47 @@ namespace HOPPER.Tests.Imports
         }
 
         [Test]
+        public async Task CurseForgePlan_ResolvedFile_CarriesTheProvenanceTheExporterNeeds()
+        {
+            using var archive = ArchiveOf(
+                ("manifest.json", """
+                 {"manifestType":"minecraftModpack","manifestVersion":1,
+                  "files":[{"projectID":238222,"fileID":5678,"required":true}]}
+                 """),
+                ("modlist.html", """<ul><li><a href="https://www.curseforge.com/x">Just Enough Items</a></li></ul>"""));
+
+            var resolved = new CurseForgeFile(
+                238222, 5678, "jei.jar", new Uri("https://edge.forgecdn.net/files/5/678/jei.jar"), 4242, "abc", "JEI 1.20.1");
+
+            var plan = await CurseForgePlanner.PlanAsync(
+                archive, string.Empty, PackPlanContext.Default, new ConfiguredCurseForge(resolved), CancellationToken.None);
+
+            var file = plan.Files.Single();
+
+            await Assert.That(file.Source).IsEqualTo(ModSource.CurseForge);
+            await Assert.That(file.ProjectId).IsEqualTo("238222");
+            await Assert.That(file.VersionId).IsEqualTo("5678");
+            await Assert.That(file.ProjectName).IsEqualTo("Just Enough Items");
+            await Assert.That(file.DownloadUrl).IsEqualTo("https://edge.forgecdn.net/files/5/678/jei.jar");
+        }
+
+        [Test]
+        public async Task CurseForgePlan_OverrideJar_HasNoProvenanceToClaim()
+        {
+            using var archive = ArchiveOf(
+                ("manifest.json", """{"manifestType":"minecraftModpack","manifestVersion":1,"files":[]}"""),
+                ("overrides/mods/custom-thing.jar", "PK custom"));
+
+            var plan = await CurseForgePlanner.PlanAsync(
+                archive, string.Empty, PackPlanContext.Default, new KeylessCurseForge(), CancellationToken.None);
+
+            var file = plan.Files.Single();
+
+            await Assert.That(file.Source).IsEqualTo(ModSource.Manual);
+            await Assert.That(file.ProjectId).IsNull();
+        }
+
+        [Test]
         public async Task CurseForgePlan_WithAConfiguredKey_DoesNotEmitADownloadFailedPending()
         {
             using var archive = ArchiveOf(("manifest.json", """

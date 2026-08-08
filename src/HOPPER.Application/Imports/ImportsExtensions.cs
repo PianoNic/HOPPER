@@ -8,11 +8,12 @@ namespace HOPPER.Application.Imports
         public static IServiceCollection AddPackImports(this IServiceCollection services)
         {
             services.AddHttpClient(ImportHttpClients.Packs, client =>
-            {
-                client.Timeout = TimeSpan.FromMinutes(10);
+                {
+                    client.Timeout = TimeSpan.FromMinutes(10);
 
-                ModrinthExtensions.SetUserAgent(client);
-            });
+                    ModrinthExtensions.SetUserAgent(client);
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
             services.AddSingleton<IImportQueue, ImportQueue>();
             services.AddSingleton<IImportStaging, ImportStaging>();

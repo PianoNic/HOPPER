@@ -17,6 +17,16 @@ namespace HOPPER.Application.Imports
         public long? Size { get; init; }
 
         public ModSide Side { get; init; } = ModSide.Both;
+
+        public ModSource Source { get; init; } = ModSource.Manual;
+
+        public string? ProjectId { get; init; }
+
+        public string? VersionId { get; init; }
+
+        public string? ProjectName { get; init; }
+
+        public string? DownloadUrl { get; init; }
     }
 
     public sealed record PendingSpec
@@ -43,4 +53,6 @@ namespace HOPPER.Application.Imports
     public sealed record PackDetection(PackFormat Format, string Prefix);
 
     public sealed class PackImportException(string message) : InvalidOperationException(message);
+
+    public sealed class PackDownloadRefusedException(string message) : InvalidOperationException(message);
 }

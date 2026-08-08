@@ -26,6 +26,18 @@ namespace HOPPER.Tests.Imports
                 Task.FromResult<Uri?>(null);
         }
 
+        private sealed class ConfiguredCurseForge(params CurseForgeFile[] files) : ICurseForgeClient
+        {
+            public bool IsConfigured => true;
+
+            public Task<IReadOnlyDictionary<int, CurseForgeFile>> ResolveAsync(IReadOnlyList<int> fileIds, CancellationToken cancellationToken) =>
+                Task.FromResult<IReadOnlyDictionary<int, CurseForgeFile>>(
+                    files.Where(f => fileIds.Contains(f.FileId)).ToDictionary(f => f.FileId));
+
+            public Task<Uri?> FindOnModrinthBySha1Async(string sha1, CancellationToken cancellationToken) =>
+                Task.FromResult<Uri?>(null);
+        }
+
         private sealed class FixedResponseHandler(int bodyBytes) : HttpMessageHandler
         {
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
@@ -55,6 +67,8 @@ namespace HOPPER.Tests.Imports
             public Guid ServerId { get; private set; }
 
             public int DownloadBodyBytes { get; set; } = 16;
+
+            public ICurseForgeClient CurseForge { get; set; } = new KeylessCurseForge();
 
             public static async Task<Fixture> CreateAsync(
                 ModLoader loader = ModLoader.Unknown,
@@ -94,7 +108,7 @@ namespace HOPPER.Tests.Imports
                 Blobs,
                 Staging,
                 new StubHttpClientFactory(DownloadBodyBytes),
-                new KeylessCurseForge(),
+                CurseForge,
                 Configuration,
                 NullLogger<PackImporter>.Instance);
 
@@ -113,6 +127,22 @@ namespace HOPPER.Tests.Imports
                 await Db.SaveChangesAsync();
 
                 await Staging.StageAsync(import.Id, new MemoryStream(pack), long.MaxValue, CancellationToken.None);
+
+                return import.Id;
+            }
+
+            public async Task<Guid> QueueUrlAsync(string url)
+            {
+                var import = new ModImport
+                {
+                    ServerId = ServerId,
+                    SourceName = url,
+                    SourceKind = ImportSourceKind.Url,
+                    Status = ImportStatus.Queued,
+                };
+
+                Db.ModImports.Add(import);
+                await Db.SaveChangesAsync();
 
                 return import.Id;
             }
@@ -312,6 +342,64 @@ namespace HOPPER.Tests.Imports
             var pending = await fixture.Db.PendingMods.AsNoTracking().SingleAsync(p => p.ImportId == importId);
             await Assert.That(pending.Reason).IsEqualTo(PendingReason.DownloadFailed);
             await Assert.That(pending.Detail).Contains("1024");
+        }
+
+        [Test]
+        public async Task Import_OfACurseForgePack_CarriesTheProjectAndFileIdsOntoTheStoredMod()
+        {
+            await using var fixture = await Fixture.CreateAsync();
+
+            fixture.CurseForge = new ConfiguredCurseForge(new CurseForgeFile(
+                238222, 5678, "jei.jar", new Uri("https://edge.forgecdn.net/files/5/678/jei.jar"), 16, null, "Just Enough Items"));
+
+            var importId = await fixture.StageAsync(ZipOf(("manifest.json", """
+                {"manifestType":"minecraftModpack","manifestVersion":1,
+                 "files":[{"projectID":238222,"fileID":5678,"required":true}]}
+                """)));
+
+            var row = await fixture.RunAsync(importId);
+
+            await Assert.That(row.Status).IsEqualTo(ImportStatus.Completed);
+            await Assert.That(row.ImportedCount).IsEqualTo(1);
+
+            var mod = await fixture.Db.Mods.AsNoTracking().SingleAsync(m => m.ServerId == fixture.ServerId);
+
+            await Assert.That(mod.Source).IsEqualTo(ModSource.CurseForge);
+            await Assert.That(mod.ProjectId).IsEqualTo("238222");
+            await Assert.That(mod.VersionId).IsEqualTo("5678");
+            await Assert.That(mod.ProjectName).IsEqualTo("Just Enough Items");
+            await Assert.That(mod.DownloadUrl).IsEqualTo("https://edge.forgecdn.net/files/5/678/jei.jar");
+            await Assert.That(mod.Sha1).IsNotNull();
+            await Assert.That(mod.Sha512).IsNotNull();
+        }
+
+        [Test]
+        public async Task Import_OfAJarZip_LeavesTheStoredModWithoutProvenance()
+        {
+            await using var fixture = await Fixture.CreateAsync();
+            var importId = await fixture.StageAsync(ZipOf(("jei.jar", "PK jei")));
+
+            await fixture.RunAsync(importId);
+
+            var mod = await fixture.Db.Mods.AsNoTracking().SingleAsync(m => m.ServerId == fixture.ServerId);
+
+            await Assert.That(mod.Source).IsEqualTo(ModSource.Manual);
+            await Assert.That(mod.ProjectId).IsNull();
+            await Assert.That(mod.DownloadUrl).IsNull();
+        }
+
+        [Test]
+        public async Task Import_FromAUrlOnAHostThatIsNotAllowed_FailsWithoutFetchingIt()
+        {
+            await using var fixture = await Fixture.CreateAsync();
+            var importId = await fixture.QueueUrlAsync("https://169.254.169.254/latest/meta-data/");
+
+            var row = await fixture.RunAsync(importId);
+
+            await Assert.That(row.Status).IsEqualTo(ImportStatus.Failed);
+            await Assert.That(row.Error).Contains("not allowed");
+            await Assert.That(File.Exists(fixture.Staging.PackPath(importId))).IsFalse();
+            await Assert.That(await fixture.Db.Mods.AnyAsync(m => m.ServerId == fixture.ServerId)).IsFalse();
         }
 
         [Test]

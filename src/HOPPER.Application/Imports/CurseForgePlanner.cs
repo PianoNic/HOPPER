@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -8,6 +9,8 @@ namespace HOPPER.Application.Imports
 {
     public static partial class CurseForgePlanner
     {
+        private const int MaxProjectNameLength = 255;
+
         public static async Task<PackPlan> PlanAsync(
             ZipArchive archive,
             string prefix,
@@ -105,6 +108,12 @@ namespace HOPPER.Application.Imports
                                 Downloads = [mirror],
                                 Sha1 = file.Sha1,
                                 Size = file.Length,
+
+                                Source = ModSource.CurseForge,
+                                ProjectId = projectId.ToString(CultureInfo.InvariantCulture),
+                                VersionId = fileId.ToString(CultureInfo.InvariantCulture),
+                                ProjectName = ProjectNameOf(label, file.DisplayName),
+                                DownloadUrl = mirror.ToString(),
                             });
                             continue;
                         }
@@ -130,6 +139,12 @@ namespace HOPPER.Application.Imports
                         Downloads = [file.DownloadUrl],
                         Sha1 = file.Sha1,
                         Size = file.Length,
+
+                        Source = ModSource.CurseForge,
+                        ProjectId = projectId.ToString(CultureInfo.InvariantCulture),
+                        VersionId = fileId.ToString(CultureInfo.InvariantCulture),
+                        ProjectName = ProjectNameOf(label, file.DisplayName),
+                        DownloadUrl = file.DownloadUrl.ToString(),
                     });
                 }
 
@@ -141,6 +156,15 @@ namespace HOPPER.Application.Imports
                     Warnings = warnings,
                 };
             }
+        }
+
+        private static string? ProjectNameOf(string? label, string? displayName)
+        {
+            var name = string.IsNullOrWhiteSpace(label) ? displayName : label;
+
+            return name is null || name.Length <= MaxProjectNameLength
+                ? name
+                : name[..MaxProjectNameLength];
         }
 
         private static PackPlatform DeclaredPlatform(JsonElement root)

@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Net;
 using System.Security.Cryptography;
 using HOPPER.Application.ModMetadata;
 using HOPPER.Domain;
@@ -26,6 +27,8 @@ namespace HOPPER.Application.Imports
         IConfiguration configuration,
         ILogger<PackImporter> logger) : IPackImporter
     {
+        private const int MaxRedirects = 5;
+
         public async Task RunAsync(Guid importId, CancellationToken cancellationToken)
         {
             var import = await db.ModImports.FirstOrDefaultAsync(i => i.Id == importId, cancellationToken);
@@ -90,7 +93,7 @@ namespace HOPPER.Application.Imports
                         }
 
                         await using var content = entry.Open();
-                        await StoreAsync(import, file.FileName, content, file.Side, errors, cancellationToken);
+                        await StoreAsync(import, file, content, errors, cancellationToken);
                     }
                     else
                     {
@@ -180,7 +183,7 @@ namespace HOPPER.Application.Imports
             }
 
             using var http = httpClientFactory.CreateClient(ImportHttpClients.Packs);
-            using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await GetFromAllowedHostAsync(http, uri, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
                 throw new PackImportException($"Downloading the pack failed with HTTP {(int)response.StatusCode}.");
@@ -268,12 +271,17 @@ namespace HOPPER.Application.Imports
                     }
 
                     await using (var content = File.OpenRead(tempPath))
-                        await StoreAsync(import, file.FileName, content, file.Side, errors, cancellationToken);
+                        await StoreAsync(import, file with { Sha512 = sha512, Sha1 = sha1 }, content, errors, cancellationToken);
 
                     TryDelete(tempPath);
                     return;
                 }
                 catch (HttpRequestException ex)
+                {
+                    lastProblem = ex.Message;
+                    TryDelete(tempPath);
+                }
+                catch (PackDownloadRefusedException ex)
                 {
                     lastProblem = ex.Message;
                     TryDelete(tempPath);
@@ -299,10 +307,48 @@ namespace HOPPER.Application.Imports
             }, cancellationToken);
         }
 
+        private async Task<HttpResponseMessage> GetFromAllowedHostAsync(HttpClient http, Uri uri, CancellationToken cancellationToken)
+        {
+            var allowed = AllowedHosts();
+            var target = uri;
+
+            for (var hop = 0; ; hop++)
+            {
+                if (!string.Equals(target.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                    throw new PackDownloadRefusedException($"A pack download must stay on https, and {target.Scheme}:// does not.");
+
+                if (!allowed.Contains(target.Host))
+                {
+                    throw new PackDownloadRefusedException(
+                        $"Download host not allowed: {target.Host}. Add it to Hopper:PackDownloadHosts or supply the jar by hand.");
+                }
+
+                var response = await http.GetAsync(target, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+                if (!IsRedirect(response.StatusCode) || response.Headers.Location is null)
+                    return response;
+
+                var location = response.Headers.Location;
+                response.Dispose();
+
+                if (hop == MaxRedirects)
+                    throw new PackDownloadRefusedException($"The download redirected more than {MaxRedirects} times.");
+
+                target = new Uri(target, location);
+            }
+        }
+
+        private static bool IsRedirect(HttpStatusCode status) => status is
+            HttpStatusCode.MovedPermanently
+            or HttpStatusCode.Found
+            or HttpStatusCode.SeeOther
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
+
         private async Task<(string Sha512, string Sha1)> DownloadToAsync(Uri uri, string path, CancellationToken cancellationToken)
         {
             using var http = httpClientFactory.CreateClient(ImportHttpClients.Packs);
-            using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await GetFromAllowedHostAsync(http, uri, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             using var sha512 = IncrementalHash.CreateHash(HashAlgorithmName.SHA512);
@@ -325,16 +371,16 @@ namespace HOPPER.Application.Imports
             return (Convert.ToHexStringLower(sha512.GetHashAndReset()), Convert.ToHexStringLower(sha1.GetHashAndReset()));
         }
 
-        private async Task StoreAsync(ModImport import, string fileName, Stream content, ModSide side, List<string> errors, CancellationToken cancellationToken)
+        private async Task StoreAsync(ModImport import, PlannedFile file, Stream content, List<string> errors, CancellationToken cancellationToken)
         {
             string validated;
             try
             {
-                validated = ModFileNameValidator.Validate(fileName);
+                validated = ModFileNameValidator.Validate(file.FileName);
             }
             catch (ArgumentException ex)
             {
-                Fail(import, errors, fileName, ex.Message);
+                Fail(import, errors, file.FileName, ex.Message);
                 return;
             }
 
@@ -354,7 +400,7 @@ namespace HOPPER.Application.Imports
             }
             catch (ContentTooLargeException ex)
             {
-                Fail(import, errors, fileName, ex.Message);
+                Fail(import, errors, file.FileName, ex.Message);
                 await db.SaveChangesAsync(cancellationToken);
                 return;
             }
@@ -373,7 +419,15 @@ namespace HOPPER.Application.Imports
                     Size = staged.Size,
                     UploadedBy = import.CreatedBy,
 
-                    Side = side != ModSide.Both ? side : metadata.Side,
+                    Side = file.Side != ModSide.Both ? file.Side : metadata.Side,
+
+                    Source = file.Source,
+                    ProjectId = file.ProjectId,
+                    VersionId = file.VersionId,
+                    ProjectName = file.ProjectName,
+                    DownloadUrl = file.DownloadUrl,
+                    Sha1 = file.Sha1,
+                    Sha512 = file.Sha512,
 
                     ModIds = metadata.ModIds,
                     IconSha256 = metadata.IconSha256,
