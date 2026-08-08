@@ -82,7 +82,11 @@ Fabric has no public hook that runs before mod discovery, so HOPPER syncs from t
 
 ## License
 
-TBD.
+[GNU AGPL-3.0](LICENSE). Copyright (C) 2026 PianoNic.
+
+The whole repository: the API, the dashboard, and the Java locator that ships inside every client
+jar. Run it, change it, host it for other people - and if you host a changed version, its users are
+entitled to your changes.
 
 ---
 
