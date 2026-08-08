@@ -20,6 +20,7 @@ import { ContentHeader } from '../shared/components/content-header/content-heade
 import {
   ChartCanvas,
   ChartFactory,
+  CHART_CATEGORY,
   CHART_STATUS,
   countInSegment,
   tooltipStyle,
@@ -45,9 +46,58 @@ import { serverIdSignal } from './server-route';
 const LARGEST_MODS = 8;
 const ROW_HEIGHT = 30;
 
+const DAY = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short' });
+
 function shortName(fileName: string): string {
   const base = fileName.replace(/\.jar$/i, '');
   return base.length > 24 ? `${base.slice(0, 23)}…` : base;
+}
+
+type Slice = { label: string; color: string; count: number };
+
+function tally<T extends string>(
+  mods: readonly ModDto[],
+  of: (mod: ModDto) => T,
+  named: ReadonlyArray<readonly [T, string]>,
+): Slice[] {
+  return named
+    .map(([value, label], i) => ({
+      label,
+      color: CHART_CATEGORY[i % CHART_CATEGORY.length],
+      count: mods.filter((mod) => of(mod) === value).length,
+    }))
+    .filter((slice) => slice.count > 0);
+}
+
+function doughnut(slices: readonly Slice[]): ChartFactory | null {
+  if (slices.length === 0) return null;
+
+  return (t) => ({
+    type: 'doughnut',
+    data: {
+      labels: slices.map((slice) => slice.label),
+      datasets: [
+        {
+          data: slices.map((slice) => slice.count),
+          backgroundColor: slices.map((slice) => slice.color),
+          // Painted in the card's own colour so touching arcs read as separate at any size.
+          borderColor: t.surface,
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      animation: false,
+      maintainAspectRatio: false,
+      cutout: '58%',
+      plugins: {
+        tooltip: {
+          ...tooltipStyle(t),
+          callbacks: { title: () => '', label: (item) => `${item.label} - ${item.parsed}` },
+        },
+      },
+    },
+  });
 }
 
 @Component({
@@ -126,23 +176,49 @@ function shortName(fileName: string): string {
         </div>
 
         <div class="mt-3 grid items-start gap-3 lg:grid-cols-3">
-          <section hlmCard class="lg:col-span-2">
-            <div hlmCardHeader class="pb-2">
-              <h3 hlmCardTitle class="text-sm">Largest mods</h3>
-              <p hlmCardDescription class="text-xs">
-                The biggest jars in the manifest - what the first sync spends its time on
-              </p>
-            </div>
-            <div hlmCardContent>
-              @if (largestMods(); as build) {
-                <div [style.height.px]="largestModsHeight()">
-                  <app-chart-canvas [build]="build" />
-                </div>
-              } @else {
-                <p class="text-muted-foreground text-sm">No mods on this server yet.</p>
-              }
-            </div>
-          </section>
+          <div class="flex flex-col gap-3 lg:col-span-2">
+            <section hlmCard>
+              <div hlmCardHeader class="pb-2">
+                <h3 hlmCardTitle class="text-sm">Largest mods</h3>
+                <p hlmCardDescription class="text-xs">
+                  The biggest jars in the manifest - what the first sync spends its time on
+                </p>
+              </div>
+              <div hlmCardContent>
+                @if (largestMods(); as build) {
+                  <div [style.height.px]="largestModsHeight()">
+                    <app-chart-canvas [build]="build" />
+                  </div>
+                } @else {
+                  <p class="text-muted-foreground text-sm">No mods on this server yet.</p>
+                }
+              </div>
+            </section>
+
+            <section hlmCard>
+              <div hlmCardHeader class="pb-2">
+                <h3 hlmCardTitle class="text-sm">How this library grew</h3>
+                <p hlmCardDescription class="text-xs">
+                  Everything a player downloads, as it accumulated - a step is a batch added at once
+                </p>
+              </div>
+              <div hlmCardContent>
+                @if (growth(); as build) {
+                  <div class="h-[200px]">
+                    <app-chart-canvas [build]="build" />
+                  </div>
+                } @else {
+                  <p class="text-muted-foreground text-sm">
+                    {{
+                      mods().length === 0
+                        ? 'No mods on this server yet.'
+                        : 'Everything here was added the day the server was, so there is no curve to draw yet.'
+                    }}
+                  </p>
+                }
+              </div>
+            </section>
+          </div>
 
           <div class="flex flex-col gap-3">
             <section hlmCard>
@@ -191,6 +267,38 @@ function shortName(fileName: string): string {
                 }
               </div>
             </section>
+
+            @for (split of splits(); track split.title) {
+              <section hlmCard>
+                <div hlmCardHeader class="pb-2">
+                  <h3 hlmCardTitle class="text-sm">{{ split.title }}</h3>
+                  <p hlmCardDescription class="text-xs">{{ split.hint }}</p>
+                </div>
+                <div hlmCardContent>
+                  @if (split.build) {
+                    <div class="flex items-center gap-4">
+                      <div class="h-[104px] w-[104px] shrink-0">
+                        <app-chart-canvas [build]="split.build" />
+                      </div>
+                      <ul class="min-w-0 flex-1 space-y-1 text-xs">
+                        @for (slice of split.slices; track slice.label) {
+                          <li class="flex items-center gap-1.5">
+                            <span
+                              class="size-2.5 shrink-0 rounded-[2px]"
+                              [style.background-color]="slice.color"
+                            ></span>
+                            <span class="text-muted-foreground truncate">{{ slice.label }}</span>
+                            <span class="ml-auto font-medium tabular-nums">{{ slice.count }}</span>
+                          </li>
+                        }
+                      </ul>
+                    </div>
+                  } @else {
+                    <p class="text-muted-foreground text-sm">No mods on this server yet.</p>
+                  }
+                </div>
+              </section>
+            }
           </div>
         </div>
       </div>
@@ -295,10 +403,13 @@ export class ServerOverview {
           },
         },
         plugins: {
-          tooltip: tooltipStyle(
-            t,
-            (item) => `${names[item.dataIndex]} - ${formatBytes(values[item.dataIndex])}`,
-          ),
+          tooltip: {
+            ...tooltipStyle(t),
+            callbacks: {
+              title: () => '',
+              label: (item) => `${names[item.dataIndex]} - ${formatBytes(values[item.dataIndex])}`,
+            },
+          },
         },
       },
       plugins: [valueAtTip(t, formatBytes)],
@@ -340,12 +451,119 @@ export class ServerOverview {
           },
         },
         plugins: {
-          tooltip: tooltipStyle(t, (item) => formatBytes(values[item.dataIndex])),
+          tooltip: {
+            ...tooltipStyle(t),
+            callbacks: { title: () => '', label: (item) => formatBytes(values[item.dataIndex]) },
+          },
         },
       },
       plugins: [valueAtTip(t, formatBytes)],
     });
   });
+
+  protected readonly growth = computed<ChartFactory | null>(() => {
+    const mods = this.mods();
+    if (mods.length === 0) return null;
+
+    const byDay = new Map<string, number>();
+
+    // The server's own day, carrying nothing. Without it a library filled in one sitting is a
+    // single point in an empty plot, which reads as a broken chart rather than a young server.
+    const born = this.server()?.createdAt?.slice(0, 10);
+    if (born) byDay.set(born, 0);
+
+    for (const mod of mods) {
+      const day = mod.createdAt.slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + toNumber(mod.size));
+    }
+
+    const days = [...byDay.keys()].sort();
+    if (days.length < 2) return null;
+
+    let running = 0;
+    const totals = days.map((day) => (running += byDay.get(day)!));
+    const labels = days.map((day) => DAY.format(new Date(`${day}T00:00:00`)));
+
+    return (t) => ({
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            data: totals,
+            borderColor: t.series,
+            backgroundColor: `${t.series}22`,
+            borderWidth: 2,
+            // Nothing grew between two additions, so a slope between them would invent a history
+            // the server does not have. 'before' is the arm that puts the rise on the day the mods
+            // actually landed rather than on the one before it.
+            stepped: 'before',
+            fill: true,
+            pointRadius: totals.length === 1 ? 4 : 2,
+            pointBackgroundColor: t.series,
+          },
+        ],
+      },
+      options: {
+        animation: false,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: t.ink, maxRotation: 0, autoSkipPadding: 16 },
+          },
+          y: {
+            beginAtZero: true,
+            border: { display: false },
+            grid: { color: `${t.ink}22` },
+            ticks: { color: t.ink, maxTicksLimit: 5, callback: (value) => formatBytes(+value) },
+          },
+        },
+        plugins: {
+          tooltip: {
+            ...tooltipStyle(t),
+            callbacks: {
+              title: () => '',
+              label: (item) =>
+                `${labels[item.dataIndex]} - ${formatBytes(totals[item.dataIndex])} in total`,
+            },
+          },
+        },
+      },
+    });
+  });
+
+  private readonly bySide = computed(() =>
+    tally(this.mods(), (mod) => mod.side, [
+      ['Both', 'Both'],
+      ['ClientOnly', 'Client only'],
+      ['ServerOnly', 'Server only'],
+    ]),
+  );
+
+  private readonly bySource = computed(() =>
+    tally(this.mods(), (mod) => mod.source, [
+      ['Modrinth', 'Modrinth'],
+      ['Manual', 'Uploaded by hand'],
+      ['Import', 'Pack import'],
+    ]),
+  );
+
+  protected readonly splits = computed(() => [
+    {
+      title: 'Mods by side',
+      hint: 'Who each jar is sent to',
+      slices: this.bySide(),
+      build: doughnut(this.bySide()),
+    },
+    {
+      title: 'Where they came from',
+      hint: 'How each jar reached this server',
+      slices: this.bySource(),
+      build: doughnut(this.bySource()),
+    },
+  ]);
 
   /* The neutral sits between the two chromatic states on purpose: green touching orange is the
      pair protanopes lose, and the gray between them keeps every adjacent pair separable. */
@@ -412,10 +630,13 @@ export class ServerOverview {
           y: { stacked: true, display: false },
         },
         plugins: {
-          tooltip: tooltipStyle(
-            t,
-            (item) => `${parts[item.datasetIndex].label} - ${item.parsed.x}`,
-          ),
+          tooltip: {
+            ...tooltipStyle(t),
+            callbacks: {
+              title: () => '',
+              label: (item) => `${parts[item.datasetIndex].label} - ${item.parsed.x}`,
+            },
+          },
         },
       },
       plugins: [countInSegment()],

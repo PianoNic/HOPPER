@@ -9,20 +9,39 @@ import {
   viewChild,
 } from '@angular/core';
 import {
+  ArcElement,
   BarController,
   BarElement,
   CategoryScale,
   Chart,
   ChartConfiguration,
   ChartOptions,
+  ChartType,
+  DoughnutController,
+  Filler,
+  LineController,
+  LineElement,
   LinearScale,
   Plugin,
+  PointElement,
   Tooltip,
   TooltipItem,
 } from 'chart.js';
 import { ThemeService } from '../../services/theme.service';
 
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+Chart.register(
+  ArcElement,
+  BarController,
+  BarElement,
+  CategoryScale,
+  DoughnutController,
+  Filler,
+  LineController,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Tooltip,
+);
 
 Chart.defaults.font.family =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
@@ -35,6 +54,11 @@ export const CHART_STATUS = {
   neutral: '#898781',
   serious: '#ec835a',
 } as const;
+
+/* Okabe-Ito, which is the published qualitative set that stays separable under every common form
+   of colour blindness. Nominal categories need distinct hues rather than a ramp, and picking them
+   by eye is how two of them end up indistinguishable to a protanope. */
+export const CHART_CATEGORY = ['#0072b2', '#e69f00', '#009e73', '#cc79a7', '#56b4e9'] as const;
 
 export type ChartTokens = {
   readonly surface: string;
@@ -63,14 +87,11 @@ const DARK: ChartTokens = {
   status: CHART_STATUS,
 };
 
-export type ChartFactory = (tokens: ChartTokens) => ChartConfiguration<'bar'>;
+export type ChartFactory = (tokens: ChartTokens) => ChartConfiguration;
 
-type TooltipConfig = NonNullable<NonNullable<ChartOptions<'bar'>['plugins']>['tooltip']>;
-
-export function tooltipStyle(
-  tokens: ChartTokens,
-  label: (item: TooltipItem<'bar'>) => string,
-): TooltipConfig {
+/* Style only. The label callback stays at the call site so its item is typed by the chart it
+   belongs to, which a shared generic cannot do without indexing an unresolved ChartOptions<T>. */
+export function tooltipStyle(tokens: ChartTokens) {
   return {
     backgroundColor: tokens.tooltipSurface,
     titleColor: tokens.tooltipInk,
@@ -78,10 +99,6 @@ export function tooltipStyle(
     displayColors: false,
     padding: 8,
     cornerRadius: 6,
-    callbacks: {
-      title: () => '',
-      label,
-    },
   };
 }
 
@@ -177,7 +194,7 @@ export class ChartCanvas {
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly theme = inject(ThemeService);
 
-  private chart: Chart<'bar'> | null = null;
+  private chart: Chart | null = null;
 
   constructor() {
     afterRenderEffect(() => {
