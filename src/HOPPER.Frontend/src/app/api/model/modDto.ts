@@ -27,6 +27,7 @@ export interface ModDto {
     downloadUrl?: string | null;
     iconSha256?: string | null;
     iconUrl?: string | null;
+    bytesMissing?: boolean;
 }
 export namespace ModDto {
 }
