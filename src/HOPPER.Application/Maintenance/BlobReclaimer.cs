@@ -43,7 +43,9 @@ namespace HOPPER.Application.Maintenance
             var imports = await ReconcileImportsAsync(utcNow, afterRestart, cancellationToken);
             var stagedPacks = await SweepStagingAsync(cutoff, cancellationToken);
             var scratch = SweepScratch(cutoff);
-            var unreferenced = await SweepBlobsAsync(cutoff, cancellationToken);
+            var unreferenced = await CanTrustTheDatabaseAsync(cancellationToken)
+                ? await SweepBlobsAsync(cutoff, cancellationToken)
+                : 0;
 
             if (unreferenced + scratch + stagedPacks > 0)
             {
@@ -153,6 +155,29 @@ namespace HOPPER.Application.Maintenance
             }
 
             return removed;
+        }
+
+        // A blob is deleted because no row claims it, which is a sound rule right up to the moment
+        // the rows are not the ones that belong to this store. Pointed at a restored, fresh or simply
+        // wrong database, every jar looks unreferenced and the sweep would take the lot - and the
+        // blobs are the one thing HOPPER cannot rebuild from its own state.
+        //
+        // No servers at all is that signature. A real deployment with jars on disk has a server that
+        // serves them; a genuinely fresh one has an empty store, so skipping costs it nothing.
+        private async Task<bool> CanTrustTheDatabaseAsync(CancellationToken cancellationToken)
+        {
+            if (await db.Servers.AsNoTracking().AnyAsync(cancellationToken))
+                return true;
+
+            if (!blobs.EnumerateBlobs().Any())
+                return true;
+
+            log.LogWarning(
+                "Skipped reclaiming blobs: this database has no servers but the blob store is not empty. "
+                + "That is what a restored, fresh or misconfigured database looks like, and sweeping now "
+                + "would delete every jar. Point HOPPER at the right database, or empty the store by hand.");
+
+            return false;
         }
 
         private async Task<int> SweepBlobsAsync(DateTime cutoff, CancellationToken cancellationToken)

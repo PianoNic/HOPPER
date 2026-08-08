@@ -122,9 +122,61 @@ namespace HOPPER.Tests.Maintenance
         }
 
         [Test]
+        public async Task Sweep_AgainstADatabaseWithNoServers_TouchesNothing()
+        {
+            // The accident this guards: a HOPPER pointed at a restored, fresh or simply wrong
+            // database sees every jar as unreferenced and would take the lot.
+            await using var fixture = await Fixture.CreateAsync();
+
+            var serverId = await fixture.SeedServerAsync("wrongdb");
+            var sha = await fixture.StoreAsync(serverId, "kept.jar", "kept");
+            fixture.Age(fixture.BlobPath(sha));
+
+            await fixture.Db.Mods.ExecuteDeleteAsync();
+            await fixture.Db.Servers.ExecuteDeleteAsync();
+
+            var report = await fixture.SweepAsync();
+
+            await Assert.That(report.Blobs).IsEqualTo(0);
+            await Assert.That(File.Exists(fixture.BlobPath(sha))).IsTrue();
+        }
+
+        [Test]
+        public async Task Sweep_OnAFreshInstallWithNothingStored_IsStillFine()
+        {
+            // No servers and no blobs is an ordinary empty deployment, not a misconfiguration, and
+            // the guard must not turn it into a warning or an error.
+            await using var fixture = await Fixture.CreateAsync();
+
+            var report = await fixture.SweepAsync();
+
+            await Assert.That(report.Blobs).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task Sweep_WithAServerStillPresent_StillCollectsOrphans()
+        {
+            // The guard keys on "no servers at all", so a deployment that merely deleted a mod keeps
+            // getting its orphans collected.
+            await using var fixture = await Fixture.CreateAsync();
+
+            await fixture.SeedServerAsync("present");
+
+            var orphan = await fixture.OrphanBlobAsync("still-swept");
+            fixture.Age(fixture.BlobPath(orphan));
+
+            var report = await fixture.SweepAsync();
+
+            await Assert.That(report.Blobs).IsEqualTo(1);
+            await Assert.That(File.Exists(fixture.BlobPath(orphan))).IsFalse();
+        }
+
+        [Test]
         public async Task Sweep_UnreferencedBlobPastTheGrace_IsDeleted()
         {
             await using var fixture = await Fixture.CreateAsync();
+            await fixture.SeedServerAsync("grace");
+
             var sha = await fixture.OrphanBlobAsync("gone");
             fixture.Age(fixture.BlobPath(sha));
 
@@ -138,6 +190,8 @@ namespace HOPPER.Tests.Maintenance
         public async Task Sweep_UnreferencedBlobInsideTheGrace_IsKept()
         {
             await using var fixture = await Fixture.CreateAsync();
+            await fixture.SeedServerAsync("withingrace");
+
             var sha = await fixture.OrphanBlobAsync("fresh");
 
             var report = await fixture.SweepAsync();
