@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using HOPPER.API.Auth;
 using HOPPER.API.Extensions;
@@ -106,6 +109,58 @@ namespace HOPPER.Tests.Api
             AuthExtensions.ConfigureJwtBearer(options, Config(("Oidc:ClientId", "hopper")));
 
             await Assert.That(options.TokenValidationParameters.ValidAudiences).IsEquivalentTo(new[] { "hopper" });
+        }
+
+        [Test]
+        public async Task Forbidden_NamesTheClaimsTheTokenActuallyCarried()
+        {
+            var options = new JwtBearerOptions();
+            AuthExtensions.ConfigureJwtBearer(options, Config(("Oidc:RoleClaim", "groups")));
+
+            var logs = new CollectingLoggerProvider();
+
+            var services = new ServiceCollection();
+            services.AddLogging(b => b.AddProvider(logs).SetMinimumLevel(LogLevel.Warning));
+
+            var http = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
+            http.Request.Path = "/api/servers";
+
+            // The authenticated user lives here, and reading ForbiddenContext.Principal instead
+            // reported a token with no claims at all.
+            http.User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("sub", "u1"), new Claim("name", "someone"), new Claim("roles", "hopper-admin")],
+                JwtBearerDefaults.AuthenticationScheme));
+
+            await options.Events!.Forbidden(
+                new ForbiddenContext(http, new AuthenticationScheme("Bearer", null, typeof(JwtBearerHandler)), options));
+
+            var line = logs.Messages.Single();
+
+            await Assert.That(line).Contains("/api/servers");
+            await Assert.That(line).Contains("groups");
+            await Assert.That(line).Contains("sub");
+            await Assert.That(line).Contains("roles");
+        }
+
+        private sealed class CollectingLoggerProvider : ILoggerProvider
+        {
+            public List<string> Messages { get; } = [];
+
+            public ILogger CreateLogger(string categoryName) => new Collector(Messages);
+
+            public void Dispose()
+            {
+            }
+
+            private sealed class Collector(List<string> messages) : ILogger
+            {
+                public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+                public bool IsEnabled(LogLevel logLevel) => true;
+
+                public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+                    Func<TState, Exception?, string> formatter) => messages.Add(formatter(state, exception));
+            }
         }
 
         [Test]
