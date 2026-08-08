@@ -1,9 +1,19 @@
 {
   "schemaVersion": 1,
   "id": "hopper",
-  "version": "1.0.0",
+  "version": "${version}",
   "name": "HOPPER",
   "description": "Syncs the required mod set from a HOPPER server. On Fabric this runs at preLaunch, after mod discovery has already finished, so changes take effect on the next launch - the log line says so.",
+  "authors": [
+    "PianoNic"
+  ],
+  "contact": {
+    "homepage": "https://github.com/PianoNic/HOPPER",
+    "issues": "https://github.com/PianoNic/HOPPER/issues",
+    "sources": "https://github.com/PianoNic/HOPPER"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "icon": "hopper-icon.png",
   "environment": "*",
   "entrypoints": {
     "preLaunch": [

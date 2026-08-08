@@ -93,6 +93,39 @@ by unversioned name, so a version bump never touches C#. The Dockerfile and a lo
 both consume the task's output rather than restating it. Its copies use `from(task)` rather than
 `from(file)` so `./gradlew templates` builds what it needs instead of silently copying nothing.
 
+## What the jar says it is
+
+Every adapter jar carries the same identity: `hopper-icon.png` at the root, a loader descriptor, and
+`Implementation-*`/`Specification-*` manifest attributes. The icon lives in `hopper-core` and reaches
+all seven jars through the same source-set copy that carries the core's classes.
+
+**The version comes from `application.properties`,** the file the release workflow bumps, read by a
+regex over its `<version>` element. Gradle expands `${version}` into the descriptors through
+`ProcessResources`, and only into the five descriptor names - `expand` runs a template engine over
+whatever it matches, and a PNG through a template engine is a corrupt PNG. The jars still land in
+`build/templates` under unversioned names, because the `templates` task renames them and
+`LocatorTemplates` addresses them that way.
+
+**Only Fabric and Quilt show it in game.** On the whole Forge family the locator jar is deliberately
+excluded from mod scanning, so its descriptor is never parsed by the running game:
+
+- Forge 1.16.5, 1.18.2 and modern - a jar providing `IModLocator` is collected by
+  `ModDirTransformerDiscoverer` into `allExcluded()`, and `ModsFolderLocator.scanMods` filters that
+  list out before it builds a single `ModFile`.
+- NeoForge - `LaunchContext` seeds `locatedPaths` from every resolved module in every layer at
+  construction. The locator jar is on the service layer by then, so `ModDiscoverer.addPath` answers
+  "already located earlier" and skips it.
+- Forge 1.12.2 - `CoreModManager` adds a coremod to `ignoredModFiles` and logs "it will not be
+  examined again", unless the manifest carries `FMLCorePluginContainsFMLMod`. That marker makes FML
+  warn that `@Mod`s belong in a separate jar and then demand a `@Mod` class this jar has no reason to
+  have, so it is not set.
+
+The `mods.toml`, `neoforge.mods.toml` and `mcmod.info` files are still worth shipping: launchers read
+them. Prism's local mod parser names and icons a jar in `mods/` from exactly these files, so without
+one the entry is a bare filename. They declare `lowcodefml` because the jar genuinely carries no mod
+entrypoint - and because nothing in the game ever reads the field, it costs nothing on 1.16.5, where
+that language provider does not exist.
+
 ## hopper-core
 
 Download, sha256 verify, stale sweep, report POST, config merge. The hash check and the

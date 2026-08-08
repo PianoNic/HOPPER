@@ -1,0 +1,19 @@
+modLoader="lowcodefml"
+loaderVersion="[1,)"
+license="PolyForm-Noncommercial-1.0.0"
+issueTrackerURL="https://github.com/PianoNic/HOPPER/issues"
+
+[[mods]]
+modId="hopper"
+version="${version}"
+displayName="HOPPER"
+logoFile="hopper-icon.png"
+authors="PianoNic"
+displayURL="https://github.com/PianoNic/HOPPER"
+description='''
+Syncs the required mod set from a HOPPER server before the loader scans for mods, and hands the
+downloaded jars to it in the same launch.
+
+This jar is a locator, not a mod: it is loaded on the service layer, which the mod scanner skips.
+It never appears in the in-game mod list, and that is by design.
+'''

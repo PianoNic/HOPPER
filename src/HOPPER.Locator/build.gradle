@@ -1,8 +1,14 @@
+def hopperVersion = {
+    def properties = new File(rootDir, '../../application.properties')
+    def matcher = properties.text =~ /<version>([^<]+)<\/version>/
+    return matcher ? matcher[0][1] : '0.0.0'
+}()
+
 subprojects {
     apply plugin: 'java-library'
 
     group = 'ch.pianonic'
-    version = '1.0.0'
+    version = hopperVersion
 
     repositories {
         mavenCentral()
@@ -24,6 +30,15 @@ subprojects {
         preserveFileTimestamps = false
         reproducibleFileOrder = true
     }
+
+    tasks.withType(ProcessResources).configureEach {
+        inputs.property('version', project.version)
+
+        filesMatching(['fabric.mod.json', 'quilt.mod.json', 'mcmod.info',
+                       'META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
+            expand(version: project.version)
+        }
+    }
 }
 
 configure(subprojects.findAll { it.name != 'hopper-core' }) {
@@ -36,7 +51,15 @@ configure(subprojects.findAll { it.name != 'hopper-core' }) {
 
     tasks.named('jar', Jar) {
         from project(':hopper-core').sourceSets.main.output
-        manifest.attributes('Implementation-Version': project.version)
+
+        manifest.attributes(
+                'Implementation-Title': 'HOPPER',
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'PianoNic',
+                'Specification-Title': 'HOPPER',
+                'Specification-Version': project.version,
+                'Specification-Vendor': 'PianoNic',
+        )
     }
 }
 
