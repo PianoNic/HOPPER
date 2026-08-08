@@ -15,6 +15,20 @@ namespace HOPPER.Domain.Enums
             return m => m.Side != withheld;
         }
 
+        // Two jars declaring one mod id are only safe when no machine receives both: a client-only
+        // copy alongside a server-only one. Anything else is a duplicate mod id at launch, which the
+        // loader refuses to start with.
+        public static SyncSide? SharedSide(ModSide a, ModSide b)
+        {
+            if (Reaches(a, SyncSide.Client) && Reaches(b, SyncSide.Client))
+                return SyncSide.Client;
+
+            if (Reaches(a, SyncSide.Server) && Reaches(b, SyncSide.Server))
+                return SyncSide.Server;
+
+            return null;
+        }
+
         public static bool TryParse(string? value, out SyncSide side)
         {
             if (string.IsNullOrWhiteSpace(value))

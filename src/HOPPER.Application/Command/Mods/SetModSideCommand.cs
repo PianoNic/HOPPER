@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using Mediator;
@@ -25,6 +26,14 @@ namespace HOPPER.Application.Command.Mods
 
             if (matched.Count == 0)
                 return 0;
+
+            // A side change is the one path that can create a clash without downloading anything:
+            // a Client only and a Server only copy of one mod are legal until either becomes Both.
+            foreach (var mod in matched)
+            {
+                await ModIdConflictValidator.RefuseIfClaimedAsync(
+                    db, command.ServerId, mod.ModIds, command.Side, mod.Id, cancellationToken);
+            }
 
             foreach (var mod in matched)
                 mod.Side = command.Side;

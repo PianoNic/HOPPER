@@ -46,6 +46,9 @@ namespace HOPPER.Application.Command.Imports
             {
                 var metadata = await ModJarReader.FromStagedAsync(blobs, staged, cancellationToken);
 
+                await ModIdConflictValidator.RefuseIfClaimedAsync(
+                    db, command.ServerId, metadata.ModIds, metadata.Side, cancellationToken: cancellationToken);
+
                 var entry = new Mod
                 {
                     ServerId = command.ServerId,
