@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Dtos.Servers;
 using HOPPER.Application.Mappings.Servers;
 using HOPPER.Domain;
@@ -20,17 +21,17 @@ namespace HOPPER.Application.Command.Servers
         {
             var name = command.Name?.Trim();
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Server name is required.");
+                throw new InvalidRequestException("Server name is required.");
 
             var derived = ServerSlugValidator.Derive(name)
-                ?? throw new ArgumentException($"No slug can be derived from \"{name}\". Give the server a name with letters or digits in it.");
+                ?? throw new InvalidRequestException($"No slug can be derived from \"{name}\". Give the server a name with letters or digits in it.");
             var slug = await UniqueAsync(derived, cancellationToken);
 
             if (!Enum.IsDefined(command.Loader))
-                throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");
+                throw new InvalidRequestException($"Unknown loader: {(int)command.Loader}.");
 
             if (command.Loader == ModLoader.Unknown)
-                throw new ArgumentException("Pick the loader this server runs. Without one HOPPER cannot browse for its mods or build it a jar.");
+                throw new InvalidRequestException("Pick the loader this server runs. Without one HOPPER cannot browse for its mods or build it a jar.");
 
             var server = new Server
             {

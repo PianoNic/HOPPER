@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Command.Mods;
 using HOPPER.Domain;
 using HOPPER.Domain.Enums;
@@ -120,7 +121,7 @@ namespace HOPPER.Tests.Application
 
             await Assert.That(async () => await new SetModSideCommandHandler(db)
                     .Handle(new SetModSideCommand(ServerA, [mod.Id], (ModSide)99), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidRequestException>();
 
             await Assert.That(db.Mods.Single().Side).IsEqualTo(ModSide.Both);
         }

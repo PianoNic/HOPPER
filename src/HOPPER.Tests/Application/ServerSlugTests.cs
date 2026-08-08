@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Command.Servers;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
@@ -59,7 +60,7 @@ namespace HOPPER.Tests.Application
 
             await Assert.That(async () => await handler.Handle(
                     new CreateServerCommand("Survival", null, ModLoader.Unknown), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidRequestException>();
         }
 
         [Test]
@@ -82,7 +83,7 @@ namespace HOPPER.Tests.Application
             var handler = new CreateServerCommandHandler(db);
 
             await Assert.That(async () => await handler.Handle(new CreateServerCommand("???", null, ModLoader.Forge), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidRequestException>();
         }
     }
 }

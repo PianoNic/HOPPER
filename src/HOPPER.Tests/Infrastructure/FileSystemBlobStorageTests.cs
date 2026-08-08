@@ -1,3 +1,4 @@
+using HOPPER.Domain;
 using System.Security.Cryptography;
 using System.Text;
 using HOPPER.Infrastructure.Services;
@@ -144,6 +145,20 @@ namespace HOPPER.Tests.Infrastructure
             var storage = StorageIn(dir.Path);
 
             await Assert.That(() => storage.OpenRead(sha)).Throws<ArgumentException>();
+        }
+
+        [Test]
+        public async Task OpenRead_MalformedHash_IsAFaultAndNotARuleViolation()
+        {
+            using var dir = new TempDir();
+            var storage = StorageIn(dir.Path);
+
+            // The controller rejects a malformed hash before storage sees one, so reaching this guard
+            // is a bug. Staying outside RuleViolationException is what keeps it a 500 rather than a
+            // 400 dressed up with an internal message.
+            var thrown = await Assert.That(() => storage.OpenRead("nope")).Throws<ArgumentException>();
+
+            await Assert.That(thrown).IsNotAssignableTo<RuleViolationException>();
         }
 
         [Test]

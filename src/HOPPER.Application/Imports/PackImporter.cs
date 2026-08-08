@@ -378,7 +378,7 @@ namespace HOPPER.Application.Imports
             {
                 validated = ModFileNameValidator.Validate(file.FileName);
             }
-            catch (ArgumentException ex)
+            catch (RuleViolationException ex)
             {
                 Fail(import, errors, file.FileName, ex.Message);
                 return;

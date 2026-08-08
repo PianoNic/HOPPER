@@ -1,3 +1,4 @@
+using HOPPER.Domain;
 using Microsoft.AspNetCore.HttpLogging;
 using HOPPER.API;
 using HOPPER.API.Auth;
@@ -200,7 +201,6 @@ static int? StatusFor(Exception ex) => ex switch
     LocatorLoaderNotConfiguredException => StatusCodes.Status400BadRequest,
     LocatorVariantNotAvailableException => StatusCodes.Status400BadRequest,
     RuleViolationException => StatusCodes.Status400BadRequest,
-    ArgumentException => StatusCodes.Status400BadRequest,
 
     _ => null,
 };

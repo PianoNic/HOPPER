@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Dtos.Modrinth;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Imports;
@@ -44,10 +45,10 @@ namespace HOPPER.Application.Command.Modrinth
                 .ToList();
 
             if (items.Count == 0)
-                throw new ArgumentException("No versions were selected.");
+                throw new InvalidRequestException("No versions were selected.");
 
             if (items.Count > MaxItems)
-                throw new ArgumentException($"At most {MaxItems} mods can be installed in one request.");
+                throw new InvalidRequestException($"At most {MaxItems} mods can be installed in one request.");
 
             var installed = new List<ModDto>();
             var adopted = new List<ModrinthAdoptedDto>();
@@ -83,7 +84,7 @@ namespace HOPPER.Application.Command.Modrinth
                     await InstallOneAsync(
                         server, version, item.Replace, projects, installed, adopted, replaced, skipped, cancellationToken);
                 }
-                catch (Exception ex) when (ex is ArgumentException or DuplicateModFileNameException or ModrinthApiException or HttpRequestException or IOException)
+                catch (Exception ex) when (ex is RuleViolationException or DuplicateModFileNameException or ModrinthApiException or HttpRequestException or IOException)
                 {
                     failed.Add(new ModrinthFailedDto
                     {
@@ -115,16 +116,16 @@ namespace HOPPER.Application.Command.Modrinth
             CancellationToken cancellationToken)
         {
             var file = version.PrimaryFile()
-                ?? throw new ArgumentException($"{version.Name ?? version.Id} publishes no downloadable jar.");
+                ?? throw new InvalidRequestException($"{version.Name ?? version.Id} publishes no downloadable jar.");
 
             if (string.IsNullOrWhiteSpace(file.Url) || string.IsNullOrWhiteSpace(file.FileName))
-                throw new ArgumentException($"{version.Name ?? version.Id} publishes no downloadable jar.");
+                throw new InvalidRequestException($"{version.Name ?? version.Id} publishes no downloadable jar.");
 
             var fileName = ModFileNameValidator.Validate(file.FileName);
 
             if (string.IsNullOrWhiteSpace(file.Sha512) || string.IsNullOrWhiteSpace(file.Sha1))
             {
-                throw new ArgumentException(
+                throw new InvalidRequestException(
                     $"Modrinth published no sha1/sha512 for {fileName}, so the download cannot be verified.");
             }
 
@@ -175,7 +176,7 @@ namespace HOPPER.Application.Command.Modrinth
                 if (!string.Equals(sha512, file.Sha512, StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(sha1, file.Sha1, StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new ArgumentException($"Downloaded {fileName} does not match the hashes Modrinth published.");
+                    throw new InvalidRequestException($"Downloaded {fileName} does not match the hashes Modrinth published.");
                 }
 
                 var project = projectTitles.GetValueOrDefault(version.ProjectId);

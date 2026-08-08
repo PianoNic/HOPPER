@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
@@ -170,10 +171,10 @@ namespace HOPPER.Application.Modrinth
         public async Task<Stream> OpenDownloadAsync(Uri url, CancellationToken cancellationToken)
         {
             if (!url.IsAbsoluteUri || url.Scheme != Uri.UriSchemeHttps)
-                throw new ArgumentException($"Refusing to download over {url.Scheme}: {url}");
+                throw new InvalidRequestException($"Refusing to download over {url.Scheme}: {url}");
 
             if (!DownloadHosts.Contains(url.Host, StringComparer.OrdinalIgnoreCase))
-                throw new ArgumentException($"Refusing to download from {url.Host}. Only {string.Join(", ", DownloadHosts)} are allowed.");
+                throw new InvalidRequestException($"Refusing to download from {url.Host}. Only {string.Join(", ", DownloadHosts)} are allowed.");
 
             var http = factory.CreateClient(ModrinthHttpClients.Modrinth);
             var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -202,12 +203,12 @@ namespace HOPPER.Application.Modrinth
         {
             var trimmed = value?.Trim();
             if (string.IsNullOrEmpty(trimmed))
-                throw new ArgumentException("A Modrinth id or slug is required.");
+                throw new InvalidRequestException("A Modrinth id or slug is required.");
 
             foreach (var c in trimmed)
             {
                 if (!char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
-                    throw new ArgumentException($"Not a Modrinth id or slug: {value}");
+                    throw new InvalidRequestException($"Not a Modrinth id or slug: {value}");
             }
 
             return trimmed;

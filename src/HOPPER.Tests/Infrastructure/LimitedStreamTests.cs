@@ -1,3 +1,4 @@
+using HOPPER.Domain;
 using System.Text;
 using HOPPER.Infrastructure.Services;
 
@@ -46,9 +47,9 @@ namespace HOPPER.Tests.Infrastructure
         }
 
         [Test]
-        public async Task ContentTooLarge_IsAnArgumentException_SoExistingHandlersStillCatchIt()
+        public async Task ContentTooLarge_IsARuleViolation_SoThePerFileHandlersStillCatchIt()
         {
-            await Assert.That(new ContentTooLargeException("too big")).IsAssignableTo<ArgumentException>();
+            await Assert.That(new ContentTooLargeException("too big")).IsAssignableTo<RuleViolationException>();
         }
 
         [Test]

@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Exports;
 using HOPPER.Domain.Enums;
 using Mediator;
@@ -12,7 +13,7 @@ namespace HOPPER.Application.Queries.Exports
         public async ValueTask<PackExportResult> Handle(ExportServerPackQuery query, CancellationToken cancellationToken)
         {
             var exporter = exporters.FirstOrDefault(e => e.Format == query.Format)
-                ?? throw new ArgumentException(
+                ?? throw new InvalidRequestException(
                     $"{query.Format} is not a pack HOPPER can write. Choose Modrinth, CurseForge or a Prism instance.");
 
             return await exporter.ExportAsync(query.ServerId, cancellationToken);

@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Dtos.Servers;
 using HOPPER.Application.Mappings.Servers;
 using HOPPER.Domain.Enums;
@@ -20,13 +21,13 @@ namespace HOPPER.Application.Command.Servers
         {
             var name = command.Name?.Trim();
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Server name is required.");
+                throw new InvalidRequestException("Server name is required.");
 
             var server = await db.Servers.FirstOrDefaultAsync(s => s.Id == command.Id, cancellationToken)
                 ?? throw new ServerNotFoundException(command.Id);
 
             if (!Enum.IsDefined(command.Loader))
-                throw new ArgumentException($"Unknown loader: {(int)command.Loader}.");
+                throw new InvalidRequestException($"Unknown loader: {(int)command.Loader}.");
 
             server.Name = name;
 
