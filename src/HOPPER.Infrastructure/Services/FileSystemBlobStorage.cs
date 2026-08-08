@@ -9,20 +9,27 @@ namespace HOPPER.Infrastructure.Services
     {
         private const int CopyBufferSize = 81920;
 
+        private const string StagedExtension = ".part";
+
         private static readonly SearchValues<char> HexChars = SearchValues.Create("0123456789abcdef");
 
         private readonly string _root;
 
+        private readonly string _staging;
+
+        private readonly string _exports;
+
         public FileSystemBlobStorage(IConfiguration configuration)
         {
             _root = BlobPaths.Root(configuration);
+            _staging = BlobPaths.Staging(configuration);
+            _exports = BlobPaths.Exports(configuration);
         }
 
         public async Task<StagedBlob> StageAsync(Stream content, long maxBytes, CancellationToken cancellationToken = default)
         {
-            var tempDirectory = Path.Combine(_root, "tmp");
-            Directory.CreateDirectory(tempDirectory);
-            var tempPath = Path.Combine(tempDirectory, $"{Guid.NewGuid():N}.part");
+            Directory.CreateDirectory(_staging);
+            var tempPath = Path.Combine(_staging, $"{Guid.NewGuid():N}{StagedExtension}");
 
             var limited = new LimitedStream(content, maxBytes, "This file");
 
@@ -139,10 +146,10 @@ namespace HOPPER.Infrastructure.Services
 
         public IEnumerable<ScratchFile> EnumerateScratch()
         {
-            foreach (var file in ScratchIn(Path.Combine(_root, "tmp"), "*.part"))
+            foreach (var file in ScratchIn(_staging, $"*{StagedExtension}"))
                 yield return file;
 
-            foreach (var file in ScratchIn(Path.Combine(_root, "exports"), "*.tmp"))
+            foreach (var file in ScratchIn(_exports, $"*{BlobPaths.ExportScratchExtension}"))
                 yield return file;
         }
 
