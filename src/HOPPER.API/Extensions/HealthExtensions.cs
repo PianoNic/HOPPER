@@ -79,14 +79,10 @@ namespace HOPPER.API.Extensions
                 : HealthCheckResult.Healthy($"{directory} holds {jars.Count} template(s)"));
         }
 
-        /// Degraded rather than unhealthy, and only where the sources are on disk at all: a stale
-        /// locator still works, it just does not carry the newest behaviour. The container has no
-        /// source tree and builds the templates in its own stage, so this only ever fires locally -
-        /// which is the one place `./gradlew templates` is a step a human has to remember.
+        /// Only where the sources are on disk, so never in the container - see docs/locator.md.
         private static bool IsStale(string templateDirectory)
         {
-            // Resolved, not just combined: the unresolved form still spells out build/templates/../..,
-            // and every path under it would then look like it lived in a build directory.
+            // Resolved: the unresolved form still spells out build/templates/../.. .
             var sources = Path.GetFullPath(Path.Combine(templateDirectory, "..", ".."));
             if (!Directory.Exists(Path.Combine(sources, "hopper-core")))
                 return false;
