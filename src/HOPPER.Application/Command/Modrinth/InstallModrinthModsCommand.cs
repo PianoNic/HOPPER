@@ -140,7 +140,13 @@ namespace HOPPER.Application.Command.Modrinth
             var sameProject = current.FirstOrDefault(
                 m => m.ProjectId is not null && string.Equals(m.ProjectId, version.ProjectId, StringComparison.Ordinal));
 
-            if (sameProject is not null && string.Equals(sameProject.VersionId, version.Id, StringComparison.Ordinal))
+            // A row recording this version is only a reason to skip while the bytes are still there.
+            // With the blob gone the row is the one thing an admin cannot fix from here, so the same
+            // pick becomes a repair and does not ask for Replace to heal what it already claims.
+            var repairing = sameProject is not null
+                && string.Equals(sameProject.VersionId, version.Id, StringComparison.Ordinal);
+
+            if (repairing && blobs.Exists(sameProject!.Sha256))
             {
                 skipped.Add(new ModrinthSkippedDto { Name = fileName, Reason = "already on this server at this version." });
                 return;
@@ -150,7 +156,7 @@ namespace HOPPER.Application.Command.Modrinth
                 m => string.Equals(m.FileName, fileName, StringComparison.OrdinalIgnoreCase));
 
             var displaced = sameProject ?? nameClash;
-            if (displaced is not null && !replace)
+            if (displaced is not null && !replace && !repairing)
             {
                 skipped.Add(new ModrinthSkippedDto
                 {
