@@ -1,3 +1,4 @@
+using HOPPER.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -8,9 +9,37 @@ namespace HOPPER.Infrastructure.Services
         Task CommitAsync(CancellationToken cancellationToken = default);
     }
 
+    public enum BlobSaveOutcome
+    {
+        Saved,
+        Duplicate,
+    }
+
     public static class BlobLock
     {
         private const int Namespace = 8421;
+
+        // The ordering is the invariant: the bytes are only published once the row that references
+        // them is committed, and only while nobody else can collect that hash.
+        public static async Task<BlobSaveOutcome> SaveWithBlobAsync(
+            HopperDbContext db, IBlobStorage blobs, StagedBlob staged, CancellationToken cancellationToken = default)
+        {
+            await using var hold = await HoldAsync(db, staged.Sha256, cancellationToken);
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+            {
+                return BlobSaveOutcome.Duplicate;
+            }
+
+            blobs.Promote(staged);
+            await hold.CommitAsync(cancellationToken);
+
+            return BlobSaveOutcome.Saved;
+        }
 
         public static async Task<IBlobLockHold> HoldAsync(HopperDbContext db, string sha256, CancellationToken cancellationToken = default)
         {
