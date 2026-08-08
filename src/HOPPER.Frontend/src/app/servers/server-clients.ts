@@ -163,8 +163,18 @@ const POLL_MS = 10000;
                   <td hlmTableCell>
                     <span class="flex flex-wrap items-center gap-1">
                       @if (row.missing.length > 0) {
-                        <span hlmBadge variant="outline" class="text-xs">
+                        <span hlmBadge variant="destructive" class="text-xs">
                           {{ row.missing.length }} missing
+                        </span>
+                      }
+                      @if (row.behind.length > 0) {
+                        <span
+                          hlmBadge
+                          variant="outline"
+                          class="text-xs"
+                          title="Added after this client last launched. It downloads them the next time it starts."
+                        >
+                          {{ row.behind.length }} added since
                         </span>
                       }
                       @if (row.unknown > 0) {
@@ -172,7 +182,7 @@ const POLL_MS = 10000;
                           {{ row.unknown }} unknown
                         </span>
                       }
-                      @if (row.missing.length === 0 && row.unknown === 0) {
+                      @if (row.missing.length === 0 && row.behind.length === 0 && row.unknown === 0) {
                         <span class="text-muted-foreground text-xs">-</span>
                       }
                     </span>
@@ -182,8 +192,23 @@ const POLL_MS = 10000;
                       @case ('in sync') {
                         <span hlmBadge variant="default" class="text-xs">in sync</span>
                       }
+                      @case ('behind') {
+                        <span
+                          hlmBadge
+                          variant="secondary"
+                          class="text-xs"
+                          title="Up to date as of its last launch. The mods added since arrive when it next starts."
+                          >behind</span
+                        >
+                      }
                       @case ('drift') {
-                        <span hlmBadge variant="destructive" class="text-xs">drift</span>
+                        <span
+                          hlmBadge
+                          variant="destructive"
+                          class="text-xs"
+                          title="It launched, synced, and still does not have mods that were already on the server"
+                          >drift</span
+                        >
                       }
                       @default {
                         <span hlmBadge variant="secondary" class="text-xs" title="Has not launched since the window; HOPPER only hears from a client at launch">not launched</span>
@@ -238,7 +263,7 @@ export class ServerClients {
   }
 
   protected matchedFor(row: ClientDrift): number {
-    return this.requiredFor(row) - row.missing.length;
+    return this.requiredFor(row) - row.missing.length - row.behind.length;
   }
 
   protected readonly filteredRows = computed(() => {
@@ -362,6 +387,6 @@ export class ServerClients {
   }
 
   protected openDetails(row: ClientDrift): void {
-    this.detailsDialog.open({ client: row.client, missing: row.missing });
+    this.detailsDialog.open({ client: row.client, missing: [...row.missing, ...row.behind] });
   }
 }
