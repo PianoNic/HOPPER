@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HOPPER.Tests.ModMetadata
 {
-    public class ModIdBackfillTests
+    public class ModMetadataBackfillTests
     {
         private sealed class TempDir : IDisposable
         {
@@ -45,9 +45,9 @@ namespace HOPPER.Tests.ModMetadata
 
             public async Task RunAsync()
             {
-                var service = new ModIdBackfillService(
+                var service = new ModMetadataBackfillService(
                     Services.GetRequiredService<IServiceScopeFactory>(),
-                    NullLogger<ModIdBackfillService>.Instance);
+                    NullLogger<ModMetadataBackfillService>.Instance);
 
                 await service.StartAsync(CancellationToken.None);
 
@@ -108,6 +108,35 @@ namespace HOPPER.Tests.ModMetadata
 
             await Assert.That(row.ModIds).IsNotNull();
             await Assert.That(row.ModIds!).IsEmpty();
+        }
+
+        [Test]
+        public async Task Backfill_FillsDeclaredDependenciesForRowsWrittenBeforeItReadThem()
+        {
+            using var fixture = new Fixture();
+
+            var row = await fixture.SeedAsync(
+                "entityculling.jar",
+                ModIdExtractionTests.Zip(("fabric.mod.json",
+                    """{"schemaVersion":1,"id":"entityculling","depends":{"fabric-api":"*"}}""")),
+                modIds: null);
+
+            await fixture.RunAsync();
+
+            await Assert.That(row.RequiredMods).IsEquivalentTo(new[] { "fabric-api" });
+        }
+
+        [Test]
+        public async Task Backfill_AJarDeclaringNoDependencies_BecomesEmptyRatherThanStayingNull()
+        {
+            using var fixture = new Fixture();
+            var row = await fixture.SeedAsync("lib.jar", ModIdExtractionTests.Zip(("a/B.class", "x")), modIds: null);
+
+            await fixture.RunAsync();
+
+            // Null means never read, and the backfill would keep coming back to it forever.
+            await Assert.That(row.RequiredMods).IsNotNull();
+            await Assert.That(row.RequiredMods!).IsEmpty();
         }
 
         [Test]

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HOPPER.Application.ModMetadata
 {
-    public sealed class ModIdBackfillService(IServiceScopeFactory scopes, ILogger<ModIdBackfillService> log)
+    public sealed class ModMetadataBackfillService(IServiceScopeFactory scopes, ILogger<ModMetadataBackfillService> log)
         : BackgroundService
     {
         private const int BatchSize = 200;
@@ -16,7 +16,8 @@ namespace HOPPER.Application.ModMetadata
         {
             try
             {
-                var filled = 0;
+                var ids = 0;
+                var dependencies = 0;
 
                 List<Guid> pending;
 
@@ -42,28 +43,35 @@ namespace HOPPER.Application.ModMetadata
 
                     foreach (var row in rows)
                     {
-                        if (row.ModIds is null && ModIdReader.FromBlob(blobs, row.Sha256) is { } ids)
+                        if (row.ModIds is null && ModIdReader.FromBlob(blobs, row.Sha256) is { } read)
                         {
-                            row.ModIds = ids;
-                            filled++;
+                            row.ModIds = read;
+                            ids++;
                         }
 
                         if (row.RequiredMods is null && ModDependencyReader.FromBlob(blobs, row.Sha256) is { } required)
+                        {
                             row.RequiredMods = required;
+                            dependencies++;
+                        }
                     }
 
                     await db.SaveChangesAsync(stoppingToken);
                 }
 
-                if (filled > 0)
-                    log.LogInformation("Backfilled mod ids for {Count} mod row(s).", filled);
+                if (ids > 0 || dependencies > 0)
+                {
+                    log.LogInformation(
+                        "Backfilled mod ids for {Ids} row(s) and declared dependencies for {Dependencies}.",
+                        ids, dependencies);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
             }
             catch (Exception ex)
             {
-                log.LogWarning(ex, "Mod id backfill did not complete. It will be retried on the next start.");
+                log.LogWarning(ex, "Mod metadata backfill did not complete. It will be retried on the next start.");
             }
         }
     }

@@ -94,7 +94,7 @@ builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifet
 builder.Services.AddHopperDatabase(builder.Configuration);
 builder.Services.AddBlobs();
 
-builder.Services.AddHostedService<ModIdBackfillService>();
+builder.Services.AddHostedService<ModMetadataBackfillService>();
 builder.Services.AddHostedService<ModIconBackfillService>();
 
 builder.Services.AddLocatorJar();

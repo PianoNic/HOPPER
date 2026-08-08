@@ -100,6 +100,37 @@ namespace HOPPER.Tests.ModMetadata
         }
 
         [Test]
+        public async Task McmodInfo_ReadsRequiredModsAndStripsTheVersionRange()
+        {
+            using var jar = Jar(("mcmod.info", """
+                [{"modid":"xaerominimap","requiredMods":["xaerolib@[1.7.0,)","forge"]}]
+                """));
+
+            await Assert.That(ModDependencyReader.Read(jar)).IsEquivalentTo(new[] { "xaerolib", "forge" });
+        }
+
+        [Test]
+        public async Task McmodInfo_ReadsTheModListWrapperToo()
+        {
+            using var jar = Jar(("mcmod.info", """
+                {"modListVersion":2,"modList":[{"modid":"a","requiredMods":["somelib"]}]}
+                """));
+
+            await Assert.That(ModDependencyReader.Read(jar)).Contains("somelib");
+        }
+
+        [Test]
+        public async Task McmodInfo_LoadOrderIsNotARequirement()
+        {
+            // `dependencies` orders loading; it does not mean the mod cannot run without them.
+            using var jar = Jar(("mcmod.info", """
+                [{"modid":"a","dependencies":["jei"],"requiredMods":[]}]
+                """));
+
+            await Assert.That(ModDependencyReader.Read(jar)).IsEmpty();
+        }
+
+        [Test]
         public async Task AJarThatDeclaresNothing_HasNoDependencies()
         {
             using var jar = Jar(("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n"));
