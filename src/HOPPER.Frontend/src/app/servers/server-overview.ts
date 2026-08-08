@@ -245,24 +245,6 @@ function doughnut(slices: readonly Slice[]): ChartFactory | null {
           <div class="flex flex-col gap-3">
             <section hlmCard>
               <div hlmCardHeader class="pb-2">
-                <h3 hlmCardTitle class="text-sm">What each side receives</h3>
-                <p hlmCardDescription class="text-xs">
-                  Sides decide who gets which jar, so the two totals differ
-                </p>
-              </div>
-              <div hlmCardContent>
-                @if (sideSizes(); as build) {
-                  <div class="h-[72px]">
-                    <app-chart-canvas [build]="build" />
-                  </div>
-                } @else {
-                  <p class="text-muted-foreground text-sm">No mods on this server yet.</p>
-                }
-              </div>
-            </section>
-
-            <section hlmCard>
-              <div hlmCardHeader class="pb-2">
                 <h3 hlmCardTitle class="text-sm">Client state</h3>
                 <p hlmCardDescription class="text-xs">
                   {{ clients().length }} known client{{ clients().length === 1 ? '' : 's' }}
@@ -450,51 +432,6 @@ export class ServerOverview {
               title: () => '',
               label: (item) => `${names[item.dataIndex]} - ${formatBytes(values[item.dataIndex])}`,
             },
-          },
-        },
-      },
-      plugins: [valueAtTip(t, formatBytes)],
-    });
-  });
-
-  protected readonly sideSizes = computed<ChartFactory | null>(() => {
-    const mods = this.mods();
-    if (mods.length === 0) return null;
-
-    const sizes = downloadSizes(mods);
-    const values = [sizes.client, sizes.server];
-    const headroom = Math.max(...values, 1) * 1.22;
-
-    return (t) => ({
-      type: 'bar',
-      data: {
-        labels: ['A player', 'A dedicated server'],
-        datasets: [
-          {
-            data: values,
-            backgroundColor: t.series,
-            maxBarThickness: 24,
-            borderRadius: { topLeft: 0, bottomLeft: 0, topRight: 4, bottomRight: 4 },
-            borderSkipped: false,
-          },
-        ],
-      },
-      options: {
-        indexAxis: 'y',
-        animation: false,
-        maintainAspectRatio: false,
-        scales: {
-          x: { display: false, beginAtZero: true, max: headroom },
-          y: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: { color: t.ink },
-          },
-        },
-        plugins: {
-          tooltip: {
-            ...tooltipStyle(t),
-            callbacks: { title: () => '', label: (item) => formatBytes(values[item.dataIndex]) },
           },
         },
       },
