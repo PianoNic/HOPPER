@@ -15,6 +15,7 @@ namespace HOPPER.Application.ModMetadata
         private const string ForgeToml = "META-INF/mods.toml";
         private const string FabricJson = "fabric.mod.json";
         private const string QuiltJson = "quilt.mod.json";
+        private const string McmodInfo = "mcmod.info";
 
         /// Supplied by the loader or the game itself, so a jar asking for one is never missing
         /// anything. Being wrong here reads as a broken server, so the list stays generous.
@@ -77,6 +78,9 @@ namespace HOPPER.Application.ModMetadata
 
                 var quilt = Text(archive, QuiltJson);
                 if (quilt is not null) Add(ids, FromQuiltJson(quilt));
+
+                var mcmod = Text(archive, McmodInfo);
+                if (mcmod is not null) Add(ids, FromMcmodInfo(mcmod));
 
                 return [.. ids];
             }
@@ -160,6 +164,65 @@ namespace HOPPER.Application.ModMetadata
             static bool Optional(JsonElement entry) =>
                 entry.TryGetProperty("optional", out var optional)
                 && optional.ValueKind == JsonValueKind.True;
+        }
+
+        /// How Forge mods declared themselves before 1.13. `requiredMods` holds entries like
+        /// "jei@[4.15,)", so the version range comes off. `dependencies` is load order, not a
+        /// requirement, and is deliberately not read.
+        public static string[] FromMcmodInfo(string text)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(text);
+                var root = document.RootElement;
+
+                var list = root.ValueKind switch
+                {
+                    JsonValueKind.Array => root,
+                    JsonValueKind.Object when root.TryGetProperty("modList", out var wrapped)
+                        && wrapped.ValueKind == JsonValueKind.Array => wrapped,
+                    _ => default,
+                };
+
+                if (list.ValueKind != JsonValueKind.Array)
+                    return [];
+
+                var ids = new List<string>();
+
+                foreach (var element in list.EnumerateArray())
+                {
+                    if (element.ValueKind != JsonValueKind.Object
+                        || !element.TryGetProperty("requiredMods", out var required)
+                        || required.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var entry in required.EnumerateArray())
+                    {
+                        if (entry.ValueKind != JsonValueKind.String)
+                            continue;
+
+                        var id = entry.GetString();
+                        if (id is null)
+                            continue;
+
+                        var at = id.IndexOf('@');
+                        if (at >= 0) id = id[..at];
+
+                        id = id.Trim().ToLowerInvariant();
+
+                        if (ModIdReader.IsValidModId(id))
+                            Add(ids, [id]);
+                    }
+                }
+
+                return [.. ids];
+            }
+            catch (JsonException)
+            {
+                return [];
+            }
         }
 
         /// `[[dependencies.<owner>]]` blocks, each with a modId and a mandatory flag. Written by hand
