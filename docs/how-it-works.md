@@ -62,13 +62,13 @@ None of the three client endpoints carries a server segment, and that is deliber
 - Anything in `hoppermods/` the manifest no longer lists is disposed of by where it came from. A jar
   HOPPER downloaded is deleted, because the server still has it and the next sync fetches it again.
   Anything else - a jar you dropped in by hand, or one HOPPER moved out of your `mods/` folder - is
-  moved to `hoppermods/replaced/` with a `.replaced` suffix, where no loader sees it and nothing is
+  moved to `hoppermods/parked/` with a `.parked` suffix, where no loader sees it and nothing is
   destroyed. Deleting a file a person put there is the one thing HOPPER will not do, and parking
   everything instead would grow that folder by the size of the pack on every update.
 - HOPPER knows which is which from `hoppermods/downloaded`, the list it writes after every sync.
   Delete that file and HOPPER forgets the claim: from then on everything stale is parked, which is
   the safe direction to be wrong in.
-- `client-id`, `downloaded`, `mods-mirror.txt` and `replaced/` are HOPPER's own bookkeeping and are
+- `client-id`, `downloaded`, `mods-mirror.txt` and `parked/` are HOPPER's own bookkeeping and are
   never swept. A leftover `.part` from an interrupted download is.
 - A download whose hash does not match is discarded, not installed.
 - Filenames are rejected if they contain a path separator, `..`, a leading dot, or do not end in `.jar`.

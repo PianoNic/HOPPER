@@ -29,7 +29,7 @@ final class Syncer {
     private static final String DOWNLOADED_HEADER =
             "Written by HOPPER. Every file named here is one HOPPER downloaded into this\n"
             + "folder and is therefore one HOPPER may delete once the server stops listing\n"
-            + "it. Anything not named here is yours - it is moved to " + Migrator.REPLACED + "/\n"
+            + "it. Anything not named here is yours - it is moved to " + Migrator.PARKED + "/\n"
             + "instead of being deleted. Delete this file to make HOPPER forget the claim: it\n"
             + "will then park everything rather than delete it.";
 
@@ -114,7 +114,7 @@ final class Syncer {
                 if (!Files.isRegularFile(p)) continue;
                 String name = p.getFileName().toString();
                 if (wanted.contains(name) || CLIENT_ID.equals(name) || DOWNLOADED.equals(name)
-                        || MIRROR_LIST.equals(name) || Migrator.REPLACED.equals(name)) {
+                        || MIRROR_LIST.equals(name) || Migrator.PARKED.equals(name)) {
                     continue;
                 }
                 stale.add(p);
@@ -140,7 +140,7 @@ final class Syncer {
                         + " it, so it was moved to " + parked + " rather than deleted");
             } catch (IOException ex) {
                 log.warn("[HOPPER] could not move " + name + " to "
-                        + dir.resolve(Migrator.REPLACED) + "; leaving it in place rather than"
+                        + dir.resolve(Migrator.PARKED) + "; leaving it in place rather than"
                         + " deleting a file that is not ours", ex);
             }
         }

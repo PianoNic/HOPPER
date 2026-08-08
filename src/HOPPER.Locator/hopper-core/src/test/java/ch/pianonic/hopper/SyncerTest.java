@@ -182,9 +182,9 @@ class SyncerTest {
 
             assertFalse(Files.exists(dir.resolve("appleskin-2.5.1.jar")),
                     "it is no longer required, so it leaves hoppermods/");
-            assertTrue(Files.isDirectory(dir.resolve(Migrator.REPLACED)),
+            assertTrue(Files.isDirectory(dir.resolve(Migrator.PARKED)),
                     "but it must be parked rather than unlinked: it is the player's only copy");
-            assertEquals(1, countJars(dir.resolve(Migrator.REPLACED)),
+            assertEquals(1, countJars(dir.resolve(Migrator.PARKED)),
                     "exactly the one file the player owned");
         } finally {
             stub.stop();
@@ -208,7 +208,7 @@ class SyncerTest {
             new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
 
             assertFalse(Files.exists(dir.resolve("something-1.0.jar")));
-            assertEquals(0, countJars(dir.resolve(Migrator.REPLACED)),
+            assertEquals(0, countJars(dir.resolve(Migrator.PARKED)),
                     "nothing to preserve: HOPPER put it there and HOPPER can take it away");
         } finally {
             stub.stop();
@@ -235,7 +235,7 @@ class SyncerTest {
 
         Path mine = jar(mods, "jei-1.20.1-15.2.0.27.jar", "an older build", "jei");
 
-        Files.write(dir.resolve(Migrator.REPLACED), "not a directory".getBytes(StandardCharsets.UTF_8));
+        Files.write(dir.resolve(Migrator.PARKED), "not a directory".getBytes(StandardCharsets.UTF_8));
 
         Path stale = dir.resolve("jei-1.20.1-15.3.0.4.jar");
         Files.write(stale, "the required build".getBytes(StandardCharsets.UTF_8));
@@ -304,11 +304,11 @@ class SyncerTest {
 
             assertFalse(Files.exists(dropped), "it must not still be where a loader would read it");
 
-            Path parked = dir.resolve(Migrator.REPLACED)
+            Path parked = dir.resolve(Migrator.PARKED)
                     .resolve("Jade-1.20.1-Forge-11.13.3.jar" + Migrator.PARKED_SUFFIX);
             assertTrue(Files.exists(parked), "the only copy there is must survive somewhere");
             assertArrayEquals(body, Files.readAllBytes(parked));
-            assertTrue(Files.exists(dir.resolve(Migrator.REPLACED).resolve("README.txt")),
+            assertTrue(Files.exists(dir.resolve(Migrator.PARKED).resolve("README.txt")),
                     "and it has to say what happened and how to undo it");
         } finally {
             stub.stop();
@@ -333,7 +333,7 @@ class SyncerTest {
             new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
 
             assertFalse(Files.exists(ours));
-            assertFalse(Files.exists(dir.resolve(Migrator.REPLACED)),
+            assertFalse(Files.exists(dir.resolve(Migrator.PARKED)),
                     "the server still has it, so parking it would only grow a folder nobody reads");
         } finally {
             stub.stop();
@@ -366,7 +366,7 @@ class SyncerTest {
             new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
 
             assertFalse(Files.exists(dir.resolve("create.jar")));
-            assertFalse(Files.exists(dir.resolve(Migrator.REPLACED)));
+            assertFalse(Files.exists(dir.resolve(Migrator.PARKED)));
             assertTrue(claims(dir).isEmpty());
         } finally {
             stub.stop();
@@ -411,7 +411,7 @@ class SyncerTest {
             new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS, HopperLog.STDOUT).sync();
 
             assertFalse(Files.exists(part));
-            assertFalse(Files.exists(dir.resolve(Migrator.REPLACED)),
+            assertFalse(Files.exists(dir.resolve(Migrator.PARKED)),
                     "a leftover of ours is not the player's property");
         } finally {
             stub.stop();
