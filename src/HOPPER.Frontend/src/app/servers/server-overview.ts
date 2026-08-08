@@ -168,9 +168,9 @@ export class ServerOverview {
         icon: 'lucideArrowUpFromLine',
       },
       {
-        label: `Clients (${OFFLINE_AFTER_LABEL})`,
+        label: `Launched (${OFFLINE_AFTER_LABEL})`,
         value: `${active}`,
-        hint: `${clients.length} known in total`,
+        hint: `${clients.length} known in total. HOPPER hears from a client when it launches.`,
         icon: 'lucideUsers',
       },
       {
