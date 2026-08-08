@@ -1,3 +1,4 @@
+using HOPPER.Infrastructure.Interfaces;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
 using HOPPER.Infrastructure;
@@ -8,7 +9,8 @@ namespace HOPPER.Application.Queries.Mods
 {
     public record ListModsQuery(Guid ServerId) : IQuery<IReadOnlyList<ModDto>>;
 
-    public class ListModsQueryHandler(HopperDbContext db) : IQueryHandler<ListModsQuery, IReadOnlyList<ModDto>>
+    public class ListModsQueryHandler(HopperDbContext db, IBlobStorage blobs)
+        : IQueryHandler<ListModsQuery, IReadOnlyList<ModDto>>
     {
         public async ValueTask<IReadOnlyList<ModDto>> Handle(ListModsQuery query, CancellationToken cancellationToken)
         {
@@ -16,7 +18,12 @@ namespace HOPPER.Application.Queries.Mods
                 .Where(m => m.ServerId == query.ServerId)
                 .OrderBy(m => m.FileName)
                 .ToListAsync(cancellationToken);
-            return rows.Select(m => m.ToDto()).ToList();
+            // One stat per distinct hash rather than per row: blobs are shared, so a server that
+            // lists the same jar twice under two names would otherwise pay for it twice.
+            var present = rows.Select(m => m.Sha256).Distinct(StringComparer.Ordinal)
+                .ToDictionary(sha => sha, blobs.Exists, StringComparer.Ordinal);
+
+            return rows.Select(m => m.ToDto() with { BytesMissing = !present[m.Sha256] }).ToList();
         }
     }
 }

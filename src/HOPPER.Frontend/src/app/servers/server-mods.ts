@@ -19,6 +19,7 @@ import {
   lucideSearch,
   lucideShare,
   lucideTrash2,
+  lucideTriangleAlert,
 } from '@ng-icons/lucide';
 import { simpleModrinth } from '@ng-icons/simple-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -76,6 +77,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
       lucideSearch,
       lucideShare,
       lucideTrash2,
+      lucideTriangleAlert,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -250,7 +252,22 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                       >
                     }
                   </td>
-                  <td hlmTableCell class="font-medium">{{ m.fileName }}</td>
+                  <td hlmTableCell class="font-medium">
+                    <span class="flex items-center gap-2">
+                      {{ m.fileName }}
+                      @if (m.bytesMissing) {
+                        <span
+                          hlmBadge
+                          variant="destructive"
+                          class="text-xs"
+                          title="HOPPER has the record but not the jar, so every client asking for it gets a 404. Install it again from Browse mods, or upload the file."
+                        >
+                          <ng-icon name="lucideTriangleAlert" size="12" />
+                          Bytes missing
+                        </span>
+                      }
+                    </span>
+                  </td>
                   <td hlmTableCell class="text-sm">
                     @if (m.side === ModSide.Both) {
                       <span class="text-muted-foreground text-xs">Both</span>

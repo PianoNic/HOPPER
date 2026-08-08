@@ -24,5 +24,9 @@ namespace HOPPER.Application.Dtos.Mods
         public string? IconSha256 { get; init; }
 
         public string? IconUrl { get; init; }
+
+        /// Set only where an admin is looking at the library, because it costs a stat per row.
+        /// Everywhere else the row was just written and its bytes are there by construction.
+        public bool BytesMissing { get; init; }
     }
 }
