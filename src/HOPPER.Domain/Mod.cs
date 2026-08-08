@@ -39,6 +39,10 @@ namespace HOPPER.Domain
 
         public string[]? RequiredMods { get; set; }
 
+        /// Mod ids this jar ships inside itself. Loaders extract nested jars into the global mod
+        /// list, so these are provided to every mod on the server, not only to their carrier.
+        public string[]? BundledMods { get; set; }
+
         public string? IconUrl { get; set; }
 
         public string? IconSha256 { get; set; }

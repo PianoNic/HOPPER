@@ -245,6 +245,7 @@ namespace HOPPER.Application.Command.Modrinth
 
                     ModIds = metadata.ModIds,
                     RequiredMods = metadata.RequiredMods,
+                    BundledMods = metadata.BundledMods,
                     IconSha256 = metadata.IconSha256,
                 };
 

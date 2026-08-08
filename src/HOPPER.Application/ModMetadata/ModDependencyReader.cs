@@ -30,7 +30,9 @@ namespace HOPPER.Application.ModMetadata
 
         public static bool IsProvidedByTheLoader(string id) => AlwaysPresent.Contains(id);
 
-        public static string[]? FromBlob(IBlobStorage blobs, string sha256)
+        public static string[]? FromBlob(IBlobStorage blobs, string sha256) => FromBlob(blobs, sha256, Read);
+
+        private static string[]? FromBlob(IBlobStorage blobs, string sha256, Func<ZipArchive, string[]> read)
         {
             Stream? stream;
 
@@ -51,7 +53,7 @@ namespace HOPPER.Application.ModMetadata
                 try
                 {
                     using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
-                    return Read(archive);
+                    return read(archive);
                 }
                 catch (Exception ex) when (ex is InvalidDataException
                                               or IOException
@@ -289,6 +291,25 @@ namespace HOPPER.Application.ModMetadata
 
         /// Mod ids shipped inside the jar: META-INF/jarjar for Forge and NeoForge, META-INF/jars for
         /// Fabric and Quilt.
+        public static string[]? BundledFromBlob(IBlobStorage blobs, string sha256) =>
+            FromBlob(blobs, sha256, BundledIn);
+
+        public static string[] BundledIn(ZipArchive archive)
+        {
+            try
+            {
+                return [.. Bundled(archive)];
+            }
+            catch (Exception ex) when (ex is InvalidDataException
+                                          or IOException
+                                          or NotSupportedException
+                                          or ObjectDisposedException
+                                          or ArgumentException)
+            {
+                return [];
+            }
+        }
+
         private static HashSet<string> Bundled(ZipArchive archive)
         {
             var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

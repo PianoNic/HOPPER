@@ -26,8 +26,10 @@ namespace HOPPER.Application.Queries.Mods
 
             var collisions = ModIdConflictValidator.Collisions(rows);
 
+            // Bundled ids count for everyone: a loader extracts nested jars into the global mod
+            // list, so a library one mod carries is loaded for the mod next to it as well.
             var provided = rows
-                .SelectMany(m => m.ModIds ?? [])
+                .SelectMany(m => (m.ModIds ?? []).Concat(m.BundledMods ?? []))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             return rows

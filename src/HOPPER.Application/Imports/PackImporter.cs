@@ -426,6 +426,7 @@ namespace HOPPER.Application.Imports
 
                     ModIds = metadata.ModIds,
                     RequiredMods = metadata.RequiredMods,
+                    BundledMods = metadata.BundledMods,
                     IconSha256 = metadata.IconSha256,
                 };
 
