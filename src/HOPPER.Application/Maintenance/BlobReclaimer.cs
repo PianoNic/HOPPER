@@ -14,7 +14,7 @@ namespace HOPPER.Application.Maintenance
     public sealed class BlobReclaimer(
         HopperDbContext db,
         IBlobStorage blobs,
-        IImportStaging staging,
+        ImportStaging staging,
         IConfiguration configuration,
         ILogger<BlobReclaimer> log)
     {

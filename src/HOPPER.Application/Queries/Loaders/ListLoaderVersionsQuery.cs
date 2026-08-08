@@ -9,7 +9,7 @@ namespace HOPPER.Application.Queries.Loaders
     public record ListLoaderVersionsQuery(ModLoader Loader, string? MinecraftVersion)
         : IQuery<IReadOnlyList<LoaderVersionDto>>;
 
-    public class ListLoaderVersionsQueryHandler(ILoaderVersionClient client)
+    public class ListLoaderVersionsQueryHandler(LoaderVersionClient client)
         : IQueryHandler<ListLoaderVersionsQuery, IReadOnlyList<LoaderVersionDto>>
     {
         public async ValueTask<IReadOnlyList<LoaderVersionDto>> Handle(

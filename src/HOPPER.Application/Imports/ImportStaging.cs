@@ -3,18 +3,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Application.Imports
 {
-    public interface IImportStaging
-    {
-        string PackPath(Guid importId);
-
-        string WorkDirectory(Guid importId);
-
-        Task<long> StageAsync(Guid importId, Stream content, long maxBytes, CancellationToken cancellationToken);
-
-        void Cleanup(Guid importId);
-    }
-
-    public class ImportStaging(IConfiguration configuration) : IImportStaging
+    public class ImportStaging(IConfiguration configuration)
     {
         private const int CopyBufferSize = 81920;
 

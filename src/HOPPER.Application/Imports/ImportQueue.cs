@@ -2,14 +2,7 @@ using System.Threading.Channels;
 
 namespace HOPPER.Application.Imports
 {
-    public interface IImportQueue
-    {
-        void Enqueue(Guid importId);
-
-        IAsyncEnumerable<Guid> ReadAllAsync(CancellationToken cancellationToken);
-    }
-
-    public class ImportQueue : IImportQueue
+    public class ImportQueue
     {
         private readonly Channel<Guid> _channel = Channel.CreateUnbounded<Guid>(
             new UnboundedChannelOptions { SingleReader = true });

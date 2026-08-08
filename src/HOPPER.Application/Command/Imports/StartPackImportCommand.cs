@@ -21,8 +21,8 @@ namespace HOPPER.Application.Command.Imports
 
     public class StartPackImportCommandHandler(
         HopperDbContext db,
-        IImportStaging staging,
-        IImportQueue queue,
+        ImportStaging staging,
+        ImportQueue queue,
         ICurrentUserService currentUser,
         IConfiguration configuration) : ICommandHandler<StartPackImportCommand, ModImportDto>
     {

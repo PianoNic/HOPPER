@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HOPPER.Application.Imports
 {
-    public class ImportWorker(IImportQueue queue, IServiceScopeFactory scopeFactory, ILogger<ImportWorker> logger)
+    public class ImportWorker(ImportQueue queue, IServiceScopeFactory scopeFactory, ILogger<ImportWorker> logger)
         : BackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -14,7 +14,7 @@ namespace HOPPER.Application.Imports
                 try
                 {
                     await using var scope = scopeFactory.CreateAsyncScope();
-                    var importer = scope.ServiceProvider.GetRequiredService<IPackImporter>();
+                    var importer = scope.ServiceProvider.GetRequiredService<PackImporter>();
                     await importer.RunAsync(importId, stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
