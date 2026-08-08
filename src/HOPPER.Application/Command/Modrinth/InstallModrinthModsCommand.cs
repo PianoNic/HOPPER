@@ -211,6 +211,19 @@ namespace HOPPER.Application.Command.Modrinth
 
                 var metadata = await ModJarReader.FromStagedAsync(blobs, staged, cancellationToken);
 
+                // Reported rather than thrown: one clashing pick must not abandon the rest of the batch.
+                try
+                {
+                    await ModIdConflictValidator.RefuseIfClaimedAsync(
+                        db, server.Id, metadata.ModIds, project?.Side ?? ModSide.Both,
+                        displaced?.Id, cancellationToken);
+                }
+                catch (DuplicateModIdException clash)
+                {
+                    skipped.Add(new ModrinthSkippedDto { Name = fileName, Reason = clash.Message });
+                    return;
+                }
+
                 var entry = new Mod
                 {
                     ServerId = server.Id,

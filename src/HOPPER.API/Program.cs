@@ -184,6 +184,10 @@ app.Use(async (context, next) =>
     {
         await Answer(context, StatusCodes.Status409Conflict, ex);
     }
+    catch (DuplicateModIdException ex) when (!context.Response.HasStarted)
+    {
+        await Answer(context, StatusCodes.Status409Conflict, ex);
+    }
     catch (DuplicateServerSlugException ex) when (!context.Response.HasStarted)
     {
         await Answer(context, StatusCodes.Status409Conflict, ex);

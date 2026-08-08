@@ -433,6 +433,18 @@ namespace HOPPER.Application.Imports
                     IconSha256 = metadata.IconSha256,
                 };
 
+                // Reported against this one file, so the rest of the pack still imports.
+                try
+                {
+                    await ModIdConflictValidator.RefuseIfClaimedAsync(
+                        db, import.ServerId, mod.ModIds, mod.Side, cancellationToken: cancellationToken);
+                }
+                catch (DuplicateModIdException clash)
+                {
+                    Fail(import, errors, file.FileName, clash.Message);
+                    return;
+                }
+
                 await using var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken);
 
                 db.Mods.Add(mod);
