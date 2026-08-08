@@ -118,6 +118,37 @@ class MigratorTest {
     }
 
     @Test
+    void aJarTheFabricMirrorPutInModsIsNotMigratedBackOut(@TempDir Path game) throws Exception {
+        layout(game);
+
+        // The state after one successful mirrored sync: HOPPER's own copy sitting in mods/, named
+        // in mods-mirror.txt. Adopting it means moving a jar the running loader holds open.
+        Path mirrored = jar(mods, JEI_NEW, "the build the server wants", "jei");
+        Files.write(hopper.resolve(Syncer.MIRROR_LIST), (JEI_NEW + "\n").getBytes("UTF-8"));
+
+        Migrator.Result result = run(mods, entry(JEI_NEW, Syncer.sha256(mirrored), "jei"));
+
+        assertTrue(Files.exists(mirrored), "the mirror's own copy must stay where the loader found it");
+        assertFalse(Files.exists(hopper.resolve(JEI_NEW)));
+        assertEquals(0, result.moved);
+        assertEquals(0, result.deferred);
+    }
+
+    @Test
+    void aJarThePlayerPutInModsIsStillMigratedWhenTheMirrorOwnsSomethingElse(@TempDir Path game)
+            throws Exception {
+        layout(game);
+
+        Path mine = jar(mods, "jei-whatever-i-called-it.jar", "required build", "jei");
+        Files.write(hopper.resolve(Syncer.MIRROR_LIST), "something-else.jar\n".getBytes("UTF-8"));
+
+        Migrator.Result result = run(mods, entry(JEI_NEW, Syncer.sha256(mine), "jei"));
+
+        assertFalse(Files.exists(mine));
+        assertEquals(1, result.moved);
+    }
+
+    @Test
     void movesTheMatchingBuildIntoHopperModsUnderTheManifestFilename(@TempDir Path game)
             throws Exception {
         layout(game);

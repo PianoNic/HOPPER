@@ -182,9 +182,17 @@ final class ModsFolderMirror {
         }
     }
 
+    // Bytes, not the timestamp. A re-download gives the copy in hoppermods a new mtime while the
+    // one in mods stays byte-identical, and rewriting it means overwriting a jar the running loader
+    // has open - which fails every launch and never resolves.
     private static boolean sameFile(Path from, Path to) throws IOException {
-        return Files.size(from) == Files.size(to)
-                && Files.getLastModifiedTime(from).toMillis() == Files.getLastModifiedTime(to).toMillis();
+        if (Files.size(from) != Files.size(to)) return false;
+
+        try {
+            return Syncer.sha256(from).equalsIgnoreCase(Syncer.sha256(to));
+        } catch (Exception e) {
+            throw new IOException("could not compare " + from + " with " + to, e);
+        }
     }
 
     private static Set<String> jarsIn(Path dir) throws IOException {
