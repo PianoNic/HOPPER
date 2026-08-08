@@ -121,8 +121,8 @@ namespace HOPPER.Tests.Api
                 var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
                 var onA = await db.Mods.SingleAsync(m => m.ServerId == HopperApi.ServerAId && m.Sha256 == sha);
 
-                await new DeleteModCommandHandler(db, scope.ServiceProvider.GetRequiredService<IBlobStorage>())
-                    .Handle(new DeleteModCommand(HopperApi.ServerAId, onA.Id), CancellationToken.None);
+                await new DeleteModsCommandHandler(db, scope.ServiceProvider.GetRequiredService<IBlobStorage>())
+                    .Handle(new DeleteModsCommand(HopperApi.ServerAId, [onA.Id]), CancellationToken.None);
             }
 
             using var b = HopperApi.AsGameClientB();
@@ -145,12 +145,12 @@ namespace HOPPER.Tests.Api
             await using var scope = HopperApi.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
             var blobs = scope.ServiceProvider.GetRequiredService<IBlobStorage>();
-            var handler = new DeleteModCommandHandler(db, blobs);
+            var handler = new DeleteModsCommandHandler(db, blobs);
 
             foreach (var serverId in new[] { HopperApi.ServerAId, HopperApi.ServerBId })
             {
                 var row = await db.Mods.SingleAsync(m => m.ServerId == serverId && m.Sha256 == sha);
-                await handler.Handle(new DeleteModCommand(serverId, row.Id), CancellationToken.None);
+                await handler.Handle(new DeleteModsCommand(serverId, [row.Id]), CancellationToken.None);
             }
 
             await Assert.That(blobs.Exists(sha)).IsFalse();
@@ -354,8 +354,8 @@ namespace HOPPER.Tests.Api
             var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
             var onB = await db.Mods.SingleAsync(m => m.ServerId == HopperApi.ServerBId && m.FileName == fileName);
 
-            await new DeleteModCommandHandler(db, scope.ServiceProvider.GetRequiredService<IBlobStorage>())
-                .Handle(new DeleteModCommand(HopperApi.ServerAId, onB.Id), CancellationToken.None);
+            await new DeleteModsCommandHandler(db, scope.ServiceProvider.GetRequiredService<IBlobStorage>())
+                .Handle(new DeleteModsCommand(HopperApi.ServerAId, [onB.Id]), CancellationToken.None);
 
             await Assert.That(await db.Mods.AnyAsync(m => m.Id == onB.Id)).IsTrue();
         }

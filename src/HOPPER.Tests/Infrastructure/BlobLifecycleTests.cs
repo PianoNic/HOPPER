@@ -60,8 +60,8 @@ namespace HOPPER.Tests.Infrastructure
             var row = await db.Mods.SingleAsync();
             await Assert.That(blobs.Exists(row.Sha256)).IsTrue();
 
-            await new DeleteModCommandHandler(db, blobs)
-                .Handle(new DeleteModCommand(serverId, row.Id), CancellationToken.None);
+            await new DeleteModsCommandHandler(db, blobs)
+                .Handle(new DeleteModsCommand(serverId, [row.Id]), CancellationToken.None);
 
             await Assert.That(blobs.Exists(row.Sha256)).IsFalse();
         }
@@ -81,8 +81,8 @@ namespace HOPPER.Tests.Infrastructure
 
             var onA = await db.Mods.SingleAsync(m => m.ServerId == a);
 
-            await new DeleteModCommandHandler(db, blobs)
-                .Handle(new DeleteModCommand(a, onA.Id), CancellationToken.None);
+            await new DeleteModsCommandHandler(db, blobs)
+                .Handle(new DeleteModsCommand(a, [onA.Id]), CancellationToken.None);
 
             await Assert.That(blobs.Exists(onA.Sha256)).IsTrue();
         }
