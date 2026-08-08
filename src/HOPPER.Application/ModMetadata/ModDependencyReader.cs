@@ -82,7 +82,11 @@ namespace HOPPER.Application.ModMetadata
                 var mcmod = Text(archive, McmodInfo);
                 if (mcmod is not null) Add(ids, FromMcmodInfo(mcmod));
 
-                return [.. ids];
+                // A jar that carries its dependency inside itself is not missing it: every loader
+                // extracts nested jars and loads them.
+                var bundled = Bundled(archive);
+
+                return [.. ids.Where(id => !bundled.Contains(id))];
             }
             catch (Exception ex) when (ex is InvalidDataException
                                           or IOException
@@ -281,6 +285,46 @@ namespace HOPPER.Application.ModMetadata
 
                 return value.Trim('"', '\'');
             }
+        }
+
+        /// Mod ids shipped inside the jar: META-INF/jarjar for Forge and NeoForge, META-INF/jars for
+        /// Fabric and Quilt.
+        private static HashSet<string> Bundled(ZipArchive archive)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in archive.Entries)
+            {
+                if (!entry.FullName.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!entry.FullName.StartsWith("META-INF/jarjar/", StringComparison.OrdinalIgnoreCase)
+                    && !entry.FullName.StartsWith("META-INF/jars/", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // Copied out because a nested entry stream cannot seek, and ZipArchive needs to.
+                    using var nested = new MemoryStream();
+                    using (var stream = entry.Open())
+                        stream.CopyTo(nested, 81920);
+
+                    nested.Position = 0;
+
+                    foreach (var id in ModIdReader.Read(nested))
+                        ids.Add(id);
+                }
+                catch (Exception ex) when (ex is InvalidDataException
+                                              or IOException
+                                              or NotSupportedException
+                                              or ArgumentException)
+                {
+                }
+            }
+
+            return ids;
         }
 
         private static string? Text(ZipArchive archive, string name) =>
