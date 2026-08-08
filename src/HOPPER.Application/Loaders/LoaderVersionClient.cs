@@ -1,3 +1,4 @@
+using HOPPER.Domain;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml.Linq;
@@ -12,6 +13,10 @@ namespace HOPPER.Application.Loaders
     {
         Task<IReadOnlyList<LoaderVersion>> GetAsync(ModLoader loader, string? minecraftVersion, CancellationToken cancellationToken);
     }
+
+    public sealed class LoaderVersionsNotConfiguredException(ModLoader loader)
+        : RuleViolationException(
+            $"HOPPER has no version source for {loader}, so it cannot offer a list. Type the build by hand.");
 
     public sealed class LoaderVersionUnavailableException(ModLoader loader, Exception inner)
         : InvalidOperationException(
@@ -42,7 +47,11 @@ namespace HOPPER.Application.Loaders
                     ModLoader.NeoForge => await NeoForgeAsync(minecraftVersion, cancellationToken),
                     ModLoader.Fabric => await FabricAsync(cancellationToken),
                     ModLoader.Quilt => await QuiltAsync(cancellationToken),
-                    _ => [],
+
+                    // Not an empty list. A loader with no version source here answered 200 with
+                    // nothing in it, so the dropdown was blank and looked like an upstream outage
+                    // rather than a loader that was never wired up.
+                    _ => throw new LoaderVersionsNotConfiguredException(loader),
                 };
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or System.Xml.XmlException)
