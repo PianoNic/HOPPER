@@ -13,8 +13,6 @@
 
 ---
 
-> **Heads up:** HOPPER is young and self-hosted. The manifest a client reads is a fixed contract pinned by tests, so upgrading the server will not break a jar already in someone's `mods/`. Everything around it still moves - since 1.0.0 the settings table has gained four entries and lost one - so skim the release notes before you upgrade.
-
 ## What is HOPPER?
 
 Everyone on a Minecraft server needs the same mods. Normally that means zipping a folder, posting it in Discord, and chasing the one person who missed an update.
