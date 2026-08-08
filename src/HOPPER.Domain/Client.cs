@@ -6,7 +6,7 @@ namespace HOPPER.Domain
     {
         public required Guid ServerId { get; init; }
 
-        public required string ClientId { get; init; }
+        public required string ClientId { get; set; }
 
         public string? Username { get; set; }
 

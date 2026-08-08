@@ -28,6 +28,87 @@ namespace HOPPER.Tests.Application
             Mods = mods.Select(m => new ClientReportModDto { File = m.File, Sha256 = m.Sha }).ToList(),
         };
 
+        private static ClientReportDto Report(string clientId, string? username, string? side,
+            params (string File, string Sha)[] mods) => new()
+        {
+            ClientId = clientId,
+            Username = username,
+            Side = side,
+            Mods = mods.Select(m => new ClientReportModDto { File = m.File, Sha256 = m.Sha }).ToList(),
+        };
+
+        [Test]
+        public async Task Handle_TheSamePlayerWithANewClientId_TakesOverTheirRow()
+        {
+            // The client id lives in hoppermods/client-id; wiping or copying an instance mints a new
+            // one, and the player was showing up twice.
+            await using var db = NewDb();
+            var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
+
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("old-id", "PianoNic", ("jei.jar", ShaA)), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("new-id", "PianoNic", ("jade.jar", ShaB)), null), CancellationToken.None);
+
+            var client = await db.Clients.SingleAsync();
+
+            await Assert.That(client.ClientId).IsEqualTo("new-id");
+            await Assert.That(client.Username).IsEqualTo("PianoNic");
+
+            // The report replaces what the row had, so nothing is left over from the old id.
+            var reported = await db.ClientReportedMods.ToListAsync();
+            await Assert.That(reported.Count).IsEqualTo(1);
+            await Assert.That(reported.Single().Sha256).IsEqualTo(ShaB);
+        }
+
+        [Test]
+        public async Task Handle_TwoAnonymousClients_StayTwoRows()
+        {
+            // An offline launch reports no username. Two of those are not evidence of one player.
+            await using var db = NewDb();
+            var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
+
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("a", null, ("jei.jar", ShaA)), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("b", null, ("jei.jar", ShaA)), null), CancellationToken.None);
+
+            await Assert.That(await db.Clients.CountAsync()).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task Handle_AServerAndAPlayerSharingAName_StayTwoRows()
+        {
+            // Otherwise a dedicated server and its owner collapse into one row.
+            await using var db = NewDb();
+            var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
+
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("c1", "PianoNic", "client", ("jei.jar", ShaA)), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("s1", "PianoNic", "server", ("jei.jar", ShaA)), null), CancellationToken.None);
+
+            await Assert.That(await db.Clients.CountAsync()).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task Handle_ADifferentPlayer_IsStillTheirOwnRow()
+        {
+            await using var db = NewDb();
+            var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
+
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("a", "PianoNic", ("jei.jar", ShaA)), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("b", "Someone", ("jei.jar", ShaA)), null), CancellationToken.None);
+
+            await Assert.That(await db.Clients.CountAsync()).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task Handle_TheSameNameOnAnotherServer_IsNotTheSameClient()
+        {
+            await using var db = NewDb();
+            var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
+
+            await handler.Handle(new RecordClientReportCommand(ServerId, Report("a", "PianoNic", ("jei.jar", ShaA)), null), CancellationToken.None);
+            await handler.Handle(new RecordClientReportCommand(Guid.NewGuid(), Report("b", "PianoNic", ("jei.jar", ShaA)), null), CancellationToken.None);
+
+            await Assert.That(await db.Clients.CountAsync()).IsEqualTo(2);
+        }
+
         [Test]
         public async Task Handle_NullUsername_RecordsTheClient()
         {
