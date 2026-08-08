@@ -1,8 +1,25 @@
+def hopperVersion = {
+    for (def directory = rootDir; directory != null; directory = directory.parentFile) {
+        def properties = new File(directory, 'application.properties')
+
+        if (properties.isFile()) {
+            def matcher = properties.text =~ /<version>([^<]+)<\/version>/
+
+            if (matcher) {
+                return matcher[0][1]
+            }
+        }
+    }
+
+    throw new GradleException('No application.properties with a <version> above ' + rootDir +
+            '. The jars would claim a version HOPPER never released.')
+}()
+
 subprojects {
     apply plugin: 'java-library'
 
     group = 'ch.pianonic'
-    version = '1.0.0'
+    version = hopperVersion
 
     repositories {
         mavenCentral()
@@ -24,6 +41,27 @@ subprojects {
         preserveFileTimestamps = false
         reproducibleFileOrder = true
     }
+
+    def descriptors = ['fabric.mod.json', 'quilt.mod.json', 'mcmod.info',
+                       'META-INF/mods.toml', 'META-INF/neoforge.mods.toml']
+
+    tasks.withType(ProcessResources).configureEach {
+        inputs.property('version', project.version)
+
+        filesMatching(descriptors) {
+            filter(org.apache.tools.ant.filters.ReplaceTokens,
+                    tokens: [version: project.version.toString()])
+        }
+
+        doLast {
+            destinationDir.eachFileRecurse { resource ->
+                if (resource.isFile() && resource.text.contains('@version@')) {
+                    throw new GradleException(resource.name + ' still carries @version@ after ' +
+                            'processing. Add it to the descriptors list above.')
+                }
+            }
+        }
+    }
 }
 
 configure(subprojects.findAll { it.name != 'hopper-core' }) {
@@ -36,7 +74,15 @@ configure(subprojects.findAll { it.name != 'hopper-core' }) {
 
     tasks.named('jar', Jar) {
         from project(':hopper-core').sourceSets.main.output
-        manifest.attributes('Implementation-Version': project.version)
+
+        manifest.attributes(
+                'Implementation-Title': 'HOPPER',
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'PianoNic',
+                'Specification-Title': 'HOPPER',
+                'Specification-Version': project.version,
+                'Specification-Vendor': 'PianoNic',
+        )
     }
 }
 

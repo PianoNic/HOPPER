@@ -3,10 +3,20 @@
   "quilt_loader": {
     "group": "ch.pianonic",
     "id": "hopper",
-    "version": "1.0.0",
+    "version": "@version@",
     "metadata": {
       "name": "HOPPER",
-      "description": "Syncs the required mod set from a HOPPER server before Quilt scans for mods, and hands the downloaded jars to the loader in the same launch. Requires -Dloader.experimental.allow_loading_plugins=true - without it Quilt refuses to parse this jar at all, and hopper-fabric-1.0.0.jar should be used instead."
+      "description": "Syncs the required mod set from a HOPPER server before Quilt scans for mods, and hands the downloaded jars to the loader in the same launch. Requires -Dloader.experimental.allow_loading_plugins=true - without it Quilt refuses to parse this jar at all, and hopper-fabric-@version@.jar should be used instead.",
+      "contributors": {
+        "PianoNic": "Owner"
+      },
+      "contact": {
+        "homepage": "https://github.com/PianoNic/HOPPER",
+        "issues": "https://github.com/PianoNic/HOPPER/issues",
+        "sources": "https://github.com/PianoNic/HOPPER"
+      },
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "icon": "hopper-icon.png"
     },
     "intermediate_mappings": "net.fabricmc:intermediary",
     "depends": [

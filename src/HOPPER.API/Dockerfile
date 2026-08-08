@@ -29,6 +29,7 @@ COPY src/HOPPER.Locator/gradle ./gradle
 COPY src/HOPPER.Locator/gradlew src/HOPPER.Locator/settings.gradle src/HOPPER.Locator/build.gradle ./
 RUN chmod +x ./gradlew && ./gradlew --no-daemon --version
 COPY src/HOPPER.Locator ./
+COPY application.properties ./
 RUN chmod +x ./gradlew && ./gradlew --no-daemon build templates \
     && cp -r build/templates /artifacts-locator
 
