@@ -18,8 +18,6 @@ namespace HOPPER.Infrastructure.Services
         private static readonly Template NeoForge = new("hopper-neoforge.jar", NeoForgeService);
         private static readonly Template Fabric = new("hopper-fabric.jar", "fabric.mod.json");
 
-        private static readonly Template QuiltPlugin = new("hopper-quilt-plugin.jar", "quilt.mod.json");
-
         public const string QuiltPluginVariant = "quilt-plugin";
 
         /* Against the app's own directory, never the process working directory. The two are the
@@ -36,12 +34,10 @@ namespace HOPPER.Infrastructure.Services
 
         public static Template For(ModLoader loader, string? minecraftVersion, string? variant = null)
         {
+            // No variant resolves today. hopper-quilt-plugin.jar still builds - it is correct code
+            // waiting on Quilt - but serving it stops a client booting rather than degrading.
             if (!string.IsNullOrWhiteSpace(variant))
-            {
-                return loader == ModLoader.Quilt && string.Equals(variant, QuiltPluginVariant, StringComparison.Ordinal)
-                    ? QuiltPlugin
-                    : throw new LocatorVariantNotAvailableException(variant, loader);
-            }
+                throw new LocatorVariantNotAvailableException(variant, loader);
 
             return loader switch
             {
@@ -82,7 +78,9 @@ namespace HOPPER.Infrastructure.Services
         : InvalidOperationException("Set this server's loader before downloading its jar.");
 
     public sealed class LocatorVariantNotAvailableException(string variant, ModLoader loader)
-        : InvalidOperationException($"There is no '{variant}' jar for a {loader} server. "
-            + "The Quilt plugin jar is Quilt-only and needs -Dloader.experimental.allow_loading_plugins=true; "
-            + "without that flag use the default download.");
+        : InvalidOperationException($"There is no '{variant}' jar to download for a {loader} server. "
+            + "Quilt Loader refuses to load a third-party plugin - with the experimental flag unset it "
+            + "will not parse the jar, and with it set its own plugin classloader fails - so the plugin "
+            + "jar stops a client starting instead of degrading. Use the default download, which Quilt "
+            + "runs through quilted_fabric_loader.");
 }
