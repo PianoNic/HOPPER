@@ -30,6 +30,7 @@ export interface ModDto {
     iconUrl?: string | null;
     bytesMissing?: boolean;
     collidesOn?: SyncSide | null;
+    missingDependencies?: Array<string> | null;
 }
 export namespace ModDto {
 }

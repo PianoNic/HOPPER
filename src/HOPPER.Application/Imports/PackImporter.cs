@@ -425,6 +425,7 @@ namespace HOPPER.Application.Imports
                     Sha512 = file.Sha512,
 
                     ModIds = metadata.ModIds,
+                    RequiredMods = metadata.RequiredMods,
                     IconSha256 = metadata.IconSha256,
                 };
 

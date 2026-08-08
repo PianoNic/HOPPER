@@ -32,6 +32,8 @@ namespace HOPPER.Domain
 
         public string[]? ModIds { get; set; }
 
+        public string[]? RequiredMods { get; set; }
+
         public string? IconUrl { get; set; }
 
         public string? IconSha256 { get; set; }

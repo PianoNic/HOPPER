@@ -116,6 +116,7 @@ namespace HOPPER.Application.Command.Mods
                     Side = metadata.Side,
 
                     ModIds = metadata.ModIds,
+                    RequiredMods = metadata.RequiredMods,
                     IconSha256 = metadata.IconSha256,
                 };
 

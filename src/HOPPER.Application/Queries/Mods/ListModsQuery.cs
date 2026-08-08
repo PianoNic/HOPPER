@@ -1,3 +1,5 @@
+using HOPPER.Domain;
+using HOPPER.Application.ModMetadata;
 using HOPPER.Infrastructure.Interfaces;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
@@ -24,14 +26,31 @@ namespace HOPPER.Application.Queries.Mods
 
             var collisions = ModIdConflictValidator.Collisions(rows);
 
+            var provided = rows
+                .SelectMany(m => m.ModIds ?? [])
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             return rows
                 .Select(m => m.ToDto() with
                 {
                     BytesMissing = !present[m.Sha256],
                     // Not GetValueOrDefault: a missing key would come back as SyncSide.Client.
                     CollidesOn = collisions.TryGetValue(m.Id, out var side) ? side : null,
+                    MissingDependencies = Missing(m, provided),
                 })
                 .ToList();
+        }
+
+        private static IReadOnlyList<string>? Missing(Mod mod, HashSet<string> provided)
+        {
+            if (mod.RequiredMods is null || mod.RequiredMods.Length == 0)
+                return null;
+
+            var missing = mod.RequiredMods
+                .Where(id => !ModDependencyReader.IsProvidedByTheLoader(id) && !provided.Contains(id))
+                .ToList();
+
+            return missing.Count == 0 ? null : missing;
         }
     }
 }

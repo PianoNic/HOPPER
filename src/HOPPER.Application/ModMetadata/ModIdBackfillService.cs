@@ -24,7 +24,7 @@ namespace HOPPER.Application.ModMetadata
                 {
                     var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
                     pending = await db.Mods.AsNoTracking()
-                        .Where(m => m.ModIds == null)
+                        .Where(m => m.ModIds == null || m.RequiredMods == null)
                         .OrderBy(m => m.Id)
                         .Select(m => m.Id)
                         .ToListAsync(stoppingToken);
@@ -42,15 +42,14 @@ namespace HOPPER.Application.ModMetadata
 
                     foreach (var row in rows)
                     {
-                        if (row.ModIds is not null)
-                            continue;
+                        if (row.ModIds is null && ModIdReader.FromBlob(blobs, row.Sha256) is { } ids)
+                        {
+                            row.ModIds = ids;
+                            filled++;
+                        }
 
-                        var ids = ModIdReader.FromBlob(blobs, row.Sha256);
-                        if (ids is null)
-                            continue;
-
-                        row.ModIds = ids;
-                        filled++;
+                        if (row.RequiredMods is null && ModDependencyReader.FromBlob(blobs, row.Sha256) is { } required)
+                            row.RequiredMods = required;
                     }
 
                     await db.SaveChangesAsync(stoppingToken);

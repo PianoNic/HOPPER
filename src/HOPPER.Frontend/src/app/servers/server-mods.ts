@@ -256,6 +256,12 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                   <td hlmTableCell class="font-medium">
                     <span class="flex items-center gap-2">
                       {{ m.fileName }}
+                      @if (m.missingDependencies; as missing) {
+                        <span hlmBadge variant="destructive" class="text-xs" [title]="missingHint(missing)">
+                          <ng-icon name="lucideTriangleAlert" size="12" />
+                          Needs {{ missing.join(', ') }}
+                        </span>
+                      }
                       @if (m.collidesOn) {
                         <span
                           hlmBadge
@@ -402,6 +408,11 @@ export class ServerMods {
 
   protected readonly ModSide = ModSide;
   protected readonly sideLabel = modSideLabel;
+
+  protected missingHint(ids: readonly string[]): string {
+    const list = ids.join(', ');
+    return `This jar says it needs ${list}, and nothing on this server provides that. On Fabric and Quilt an unmet dependency stops the client starting before HOPPER can correct it, so add it here or remove this mod.`;
+  }
 
   protected collisionHint(side: SyncSide): string {
     const who = side === SyncSide.Server ? 'the dedicated server' : 'a player';
