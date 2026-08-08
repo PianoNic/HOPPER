@@ -97,6 +97,8 @@ namespace HOPPER.Tests.Modrinth
             string fileName,
             string versionType = "release",
             long size = 1024,
+            IReadOnlyList<string>? gameVersions = null,
+            IReadOnlyList<string>? loaders = null,
             params ModrinthDependency[] dependencies)
         {
             Projects[projectId] = new ModrinthProject
@@ -129,6 +131,8 @@ namespace HOPPER.Tests.Modrinth
                     },
                 ],
                 Dependencies = dependencies,
+                GameVersions = gameVersions ?? [],
+                Loaders = loaders ?? [],
             };
 
             Versions[versionId] = version;

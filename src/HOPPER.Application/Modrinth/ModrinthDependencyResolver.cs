@@ -49,6 +49,25 @@ namespace HOPPER.Application.Modrinth
                 return await client.GetVersionsAsync(ids, cancellationToken);
             }
 
+            string? Mismatch(ModrinthVersion version)
+            {
+                // Empty means Modrinth published none, which is not the same as "supports nothing" -
+                // treat it as unknown rather than refusing a version over missing metadata.
+                if (version.GameVersions.Count > 0
+                    && !version.GameVersions.Contains(gameVersion, StringComparer.OrdinalIgnoreCase))
+                {
+                    return $"it is built for Minecraft {string.Join(", ", version.GameVersions)}, and this server runs {gameVersion}";
+                }
+
+                if (version.Loaders.Count > 0
+                    && !version.Loaders.Contains(loader, StringComparer.OrdinalIgnoreCase))
+                {
+                    return $"it is built for {string.Join(", ", version.Loaders)}, and this server runs {loader}";
+                }
+
+                return null;
+            }
+
             async Task<IReadOnlyList<ModrinthProject>> ProjectsAsync(IReadOnlyCollection<string> ids)
             {
                 var missing = ids.Where(id => !projects.ContainsKey(id)).Distinct(StringComparer.Ordinal).ToList();
@@ -149,6 +168,18 @@ namespace HOPPER.Application.Modrinth
                         unresolvable.Add(new UnresolvableNote(
                             item.Version.Name ?? projectId,
                             "this version publishes no downloadable jar",
+                            item.RequiredBy.FirstOrDefault() ?? "your selection"));
+                        continue;
+                    }
+
+                    // A dependency pinned by version id is fetched by that id and never filtered, so
+                    // without this a mod can drag in a build for another Minecraft version or loader
+                    // and the plan reports it as fine.
+                    if (Mismatch(item.Version) is { } wrong)
+                    {
+                        unresolvable.Add(new UnresolvableNote(
+                            file.FileName,
+                            wrong,
                             item.RequiredBy.FirstOrDefault() ?? "your selection"));
                         continue;
                     }
