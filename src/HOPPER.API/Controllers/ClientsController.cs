@@ -19,16 +19,9 @@ namespace HOPPER.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Report([FromBody] ClientReportDto body, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-                await mediator.Send(new RecordClientReportCommand(User.ServerId(), body, ip), cancellationToken);
-                return NoContent();
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            await mediator.Send(new RecordClientReportCommand(User.ServerId(), body, ip), cancellationToken);
+            return NoContent();
         }
     }
 }

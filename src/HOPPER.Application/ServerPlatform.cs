@@ -42,17 +42,19 @@ namespace HOPPER.Application
                 return null;
 
             if (trimmed.Length > 32)
-                throw new ArgumentException($"{what} is too long.");
+                throw new InvalidVersionException($"{what} is too long.");
 
             foreach (var c in trimmed)
             {
                 if (!char.IsAsciiLetterOrDigit(c) && c != '.' && c != '_' && c != '-' && c != '+')
-                    throw new ArgumentException($"{what} may only contain letters, digits, dots, dashes, underscores and plus signs.");
+                    throw new InvalidVersionException($"{what} may only contain letters, digits, dots, dashes, underscores and plus signs.");
             }
 
             return trimmed;
         }
     }
+
+    public sealed class InvalidVersionException(string message) : RuleViolationException(message);
 
     public sealed class ServerPlatformNotConfiguredException(string message) : Exception(message);
 }

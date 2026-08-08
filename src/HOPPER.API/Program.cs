@@ -174,86 +174,46 @@ async Task Answer(HttpContext context, int status, Exception ex)
     await context.Response.WriteAsJsonAsync(new { error = ex.Message });
 }
 
+// An unmapped exception must stay unmapped: StatusFor answering null makes the filter false, so it
+// keeps travelling to the host's 500 handling instead of being dressed up as a client error.
+static int? StatusFor(Exception ex) => ex switch
+{
+    DuplicateModFileNameException => StatusCodes.Status409Conflict,
+    DuplicateModIdException => StatusCodes.Status409Conflict,
+    DuplicateServerSlugException => StatusCodes.Status409Conflict,
+    IncompatibleModException => StatusCodes.Status409Conflict,
+
+    ServerNotFoundException => StatusCodes.Status404NotFound,
+    ImportNotFoundException => StatusCodes.Status404NotFound,
+    PendingModNotFoundException => StatusCodes.Status404NotFound,
+    ModrinthProjectNotFoundException => StatusCodes.Status404NotFound,
+
+    ModrinthApiException => StatusCodes.Status502BadGateway,
+    LoaderVersionUnavailableException => StatusCodes.Status502BadGateway,
+
+    LocatorTemplateMissingException => StatusCodes.Status503ServiceUnavailable,
+
+    ContentTooLargeException => StatusCodes.Status413PayloadTooLarge,
+
+    ServerPlatformNotConfiguredException => StatusCodes.Status400BadRequest,
+    PackImportException => StatusCodes.Status400BadRequest,
+    LocatorLoaderNotConfiguredException => StatusCodes.Status400BadRequest,
+    LocatorVariantNotAvailableException => StatusCodes.Status400BadRequest,
+    RuleViolationException => StatusCodes.Status400BadRequest,
+    ArgumentException => StatusCodes.Status400BadRequest,
+
+    _ => null,
+};
+
 app.Use(async (context, next) =>
 {
     try
     {
         await next();
     }
-    catch (DuplicateModFileNameException ex) when (!context.Response.HasStarted)
+    catch (Exception ex) when (StatusFor(ex) is int status && !context.Response.HasStarted)
     {
-        await Answer(context, StatusCodes.Status409Conflict, ex);
-    }
-    catch (DuplicateModIdException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status409Conflict, ex);
-    }
-    catch (DuplicateServerSlugException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status409Conflict, ex);
-    }
-    catch (ServerNotFoundException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status404NotFound, ex);
-    }
-    catch (ImportNotFoundException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status404NotFound, ex);
-    }
-    catch (PendingModNotFoundException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status404NotFound, ex);
-    }
-
-    catch (ModrinthProjectNotFoundException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status404NotFound, ex);
-    }
-
-    catch (IncompatibleModException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status409Conflict, ex);
-    }
-
-    catch (ServerPlatformNotConfiguredException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status400BadRequest, ex);
-    }
-
-    catch (ModrinthApiException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status502BadGateway, ex);
-    }
-    catch (LoaderVersionUnavailableException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status502BadGateway, ex);
-    }
-    catch (PackImportException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status400BadRequest, ex);
-    }
-
-    catch (LocatorTemplateMissingException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status503ServiceUnavailable, ex);
-    }
-
-    catch (LocatorLoaderNotConfiguredException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status400BadRequest, ex);
-    }
-    catch (LocatorVariantNotAvailableException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status400BadRequest, ex);
-    }
-
-    catch (ContentTooLargeException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status413PayloadTooLarge, ex);
-    }
-    catch (ArgumentException ex) when (!context.Response.HasStarted)
-    {
-        await Answer(context, StatusCodes.Status400BadRequest, ex);
+        await Answer(context, status, ex);
     }
 });
 

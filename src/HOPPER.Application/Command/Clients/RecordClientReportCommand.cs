@@ -11,6 +11,8 @@ namespace HOPPER.Application.Command.Clients
 {
     public record RecordClientReportCommand(Guid ServerId, ClientReportDto Body, string? IpAddress) : ICommand;
 
+    public sealed class InvalidClientReportException(string message) : RuleViolationException(message);
+
     public class RecordClientReportCommandHandler(HopperDbContext db, IConfiguration configuration)
         : ICommandHandler<RecordClientReportCommand>
     {
@@ -21,14 +23,14 @@ namespace HOPPER.Application.Command.Clients
             var body = command.Body;
 
             if (string.IsNullOrWhiteSpace(body.ClientId))
-                throw new ArgumentException("clientId is required.");
+                throw new InvalidClientReportException("clientId is required.");
 
             if (body.ClientId.Length > HopperLimits.MaxClientIdLength)
-                throw new ArgumentException($"clientId is longer than {HopperLimits.MaxClientIdLength} characters.");
+                throw new InvalidClientReportException($"clientId is longer than {HopperLimits.MaxClientIdLength} characters.");
 
             var maxMods = HopperLimits.MaxReportedMods(configuration);
             if (body.Mods.Count > maxMods)
-                throw new ArgumentException($"A client may report at most {maxMods} mods.");
+                throw new InvalidClientReportException($"A client may report at most {maxMods} mods.");
 
             var username = string.IsNullOrWhiteSpace(body.Username) ? null : body.Username.Trim();
 
@@ -69,12 +71,12 @@ namespace HOPPER.Application.Command.Clients
             foreach (var mod in body.Mods)
             {
                 if (string.IsNullOrWhiteSpace(mod.File) || string.IsNullOrWhiteSpace(mod.Sha256))
-                    throw new ArgumentException("Each reported mod needs a file and a sha256.");
+                    throw new InvalidClientReportException("Each reported mod needs a file and a sha256.");
 
                 var fileName = ModFileNameValidator.Validate(mod.File);
 
                 if (!IsSha256(mod.Sha256))
-                    throw new ArgumentException($"{fileName} was reported with something that is not a sha256.");
+                    throw new InvalidClientReportException($"{fileName} was reported with something that is not a sha256.");
 
                 db.ClientReportedMods.Add(new ClientReportedMod
                 {
