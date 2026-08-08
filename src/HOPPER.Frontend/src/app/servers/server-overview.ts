@@ -627,6 +627,12 @@ export class ServerOverview {
         count: tally('offline'),
       },
       {
+        label: 'Behind',
+        icon: 'lucideCircleDashed',
+        color: CHART_CATEGORY[0],
+        count: tally('behind'),
+      },
+      {
         label: 'Drifting',
         icon: 'lucideTriangleAlert',
         color: CHART_STATUS.serious,

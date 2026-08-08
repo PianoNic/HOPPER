@@ -7,10 +7,16 @@ import { toNumber } from './format';
 export type ClientDrift = {
   client: ClientDto;
 
+  /// Absent and already on the server when this client last launched, so it synced and still does
+  /// not have them. The only one of the two that is a fault.
   missing: ReadonlyArray<ModDto>;
 
+  /// Absent only because they were added after this client last launched. The next launch fetches
+  /// them, which is the entire point of HOPPER, so it is not drift.
+  behind: ReadonlyArray<ModDto>;
+
   unknown: number;
-  status: 'in sync' | 'drift' | 'offline';
+  status: 'in sync' | 'behind' | 'drift' | 'offline';
 };
 
 export const OFFLINE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -62,17 +68,34 @@ export function diffClient(
   now: number,
 ): ClientDrift {
   const reported = new Set(client.mods.map((m) => m.sha256));
-  const missing = required.filter((m) => reaches(m, client.side) && !reported.has(m.sha256));
+  const absent = required.filter((m) => reaches(m, client.side) && !reported.has(m.sha256));
 
   const unknown = client.mods.filter((m) => !m.known).length;
 
   const lastSeen = Date.parse(client.lastSeenAt);
   const offline = Number.isNaN(lastSeen) || lastSeen < now - OFFLINE_AFTER_MS;
 
+  // A mod added since the client last launched was never offered to it. Treating that as drift
+  // makes every client look broken the moment an admin adds anything.
+  const addedSince = (mod: ModDto): boolean => {
+    const added = Date.parse(mod.createdAt);
+    return !Number.isNaN(added) && !Number.isNaN(lastSeen) && added > lastSeen;
+  };
+
+  const behind = absent.filter(addedSince);
+  const missing = absent.filter((m) => !addedSince(m));
+
   return {
     client,
     missing,
+    behind,
     unknown,
-    status: offline ? 'offline' : missing.length === 0 && unknown === 0 ? 'in sync' : 'drift',
+    status: offline
+      ? 'offline'
+      : missing.length > 0 || unknown > 0
+        ? 'drift'
+        : behind.length > 0
+          ? 'behind'
+          : 'in sync',
   };
 }

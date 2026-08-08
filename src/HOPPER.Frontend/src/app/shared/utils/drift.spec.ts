@@ -126,6 +126,58 @@ describe('diffClient', () => {
   });
 });
 
+describe('a client that has not launched since mods were added', () => {
+  function addedAt(fileName: string, sha256: string, createdAt: string): ModDto {
+    return { ...mod(fileName, sha256), createdAt };
+  }
+
+  it('is behind rather than drifting, because the next launch fetches them', () => {
+    // Added at 11:00 on the 5th; this client last launched at 10:00 the same morning.
+    const required = [addedAt('new.jar', 'sha-new', '2026-08-05T11:00:00Z')];
+    const row = diffClient(client([], '2026-08-05T10:00:00Z'), required, NOW);
+
+    expect(row.status).toBe('behind');
+    expect(row.behind).toHaveLength(1);
+    expect(row.missing).toHaveLength(0);
+  });
+
+  it('still drifts for a mod that was already there when it last launched', () => {
+    const required = [addedAt('old.jar', 'sha-old', '2026-08-01T00:00:00Z')];
+    const row = diffClient(client([], '2026-08-05T10:00:00Z'), required, NOW);
+
+    expect(row.status).toBe('drift');
+    expect(row.missing).toHaveLength(1);
+    expect(row.behind).toHaveLength(0);
+  });
+
+  it('drifts when even one absent mod predates the last launch', () => {
+    const required = [
+      addedAt('old.jar', 'sha-old', '2026-08-01T00:00:00Z'),
+      addedAt('new.jar', 'sha-new', '2026-08-05T11:00:00Z'),
+    ];
+
+    const row = diffClient(client([], '2026-08-05T10:00:00Z'), required, NOW);
+
+    expect(row.status).toBe('drift');
+    expect(row.missing.map((m) => m.fileName)).toEqual(['old.jar']);
+    expect(row.behind.map((m) => m.fileName)).toEqual(['new.jar']);
+  });
+
+  it('is not counted as drifting on the Overview', () => {
+    const required = [addedAt('new.jar', 'sha-new', '2026-08-05T11:00:00Z')];
+    const row = diffClient(client([], '2026-08-05T10:00:00Z'), required, NOW);
+
+    expect(countDrift([row])).toEqual({ active: 1, drifting: 0 });
+  });
+
+  it('reports not launched before anything else, however far behind it is', () => {
+    const required = [addedAt('new.jar', 'sha-new', '2026-08-05T11:00:00Z')];
+    const longAgo = new Date(NOW - OFFLINE_AFTER_MS - 1000).toISOString();
+
+    expect(diffClient(client([], longAgo), required, NOW).status).toBe('offline');
+  });
+});
+
 describe('countDrift', () => {
   const required = [mod('jei.jar', 'aa')];
   const recent = new Date(NOW - OFFLINE_AFTER_MS + 1000).toISOString();
