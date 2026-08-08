@@ -15,10 +15,10 @@ namespace HOPPER.Application.Imports
                 })
                 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
-            services.AddSingleton<IImportQueue, ImportQueue>();
-            services.AddSingleton<IImportStaging, ImportStaging>();
+            services.AddSingleton<ImportQueue>();
+            services.AddSingleton<ImportStaging>();
             services.AddScoped<ICurseForgeClient, CurseForgeClient>();
-            services.AddScoped<IPackImporter, PackImporter>();
+            services.AddScoped<PackImporter>();
             services.AddHostedService<ImportWorker>();
 
             return services;

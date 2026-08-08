@@ -13,19 +13,14 @@ using Microsoft.Extensions.Logging;
 
 namespace HOPPER.Application.Imports
 {
-    public interface IPackImporter
-    {
-        Task RunAsync(Guid importId, CancellationToken cancellationToken);
-    }
-
     public class PackImporter(
         HopperDbContext db,
         IBlobStorage blobs,
-        IImportStaging staging,
+        ImportStaging staging,
         IHttpClientFactory httpClientFactory,
         ICurseForgeClient curseForge,
         IConfiguration configuration,
-        ILogger<PackImporter> logger) : IPackImporter
+        ILogger<PackImporter> logger)
     {
         private const int MaxRedirects = 5;
 

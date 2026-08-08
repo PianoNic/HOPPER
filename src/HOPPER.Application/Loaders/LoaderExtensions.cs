@@ -15,7 +15,7 @@ namespace HOPPER.Application.Loaders
             });
 
             services.AddMemoryCache();
-            services.AddScoped<ILoaderVersionClient, LoaderVersionClient>();
+            services.AddScoped<LoaderVersionClient>();
 
             return services;
         }

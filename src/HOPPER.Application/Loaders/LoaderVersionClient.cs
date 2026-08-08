@@ -9,11 +9,6 @@ namespace HOPPER.Application.Loaders
 {
     public sealed record LoaderVersion(string Version, bool Recommended);
 
-    public interface ILoaderVersionClient
-    {
-        Task<IReadOnlyList<LoaderVersion>> GetAsync(ModLoader loader, string? minecraftVersion, CancellationToken cancellationToken);
-    }
-
     public sealed class LoaderVersionsNotConfiguredException(ModLoader loader)
         : RuleViolationException(
             $"HOPPER has no version source for {loader}, so it cannot offer a list. Type the build by hand.");
@@ -23,7 +18,7 @@ namespace HOPPER.Application.Loaders
             $"Could not reach the {loader} version list. Type the build by hand, or try again once the network is back.",
             inner);
 
-    public sealed class LoaderVersionClient(IHttpClientFactory factory, IMemoryCache cache) : ILoaderVersionClient
+    public sealed class LoaderVersionClient(IHttpClientFactory factory, IMemoryCache cache)
     {
         public const string HttpClientName = "hopper-loaders";
 
