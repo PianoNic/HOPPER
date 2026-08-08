@@ -91,6 +91,32 @@ namespace HOPPER.Tests.ModMetadata
         }
 
         [Test]
+        public async Task AnAdoptedJar_GetsTheProjectNameAndIconToShowBesideIt()
+        {
+            using var fixture = new Fixture();
+            var row = await fixture.SeedAsync("jei.jar", sha512: "abc123");
+
+            var version = fixture.Client.AddMod("u6dRKJwZ", "v-jei", "Just Enough Items", "jei.jar");
+            fixture.Client.ByHash["abc123"] = version;
+
+            await fixture.RunAsync();
+
+            // Without these the row reads as Modrinth with nothing beside it.
+            await Assert.That(row.ProjectName).IsEqualTo("Just Enough Items");
+        }
+
+        [Test]
+        public async Task NothingMatched_MeansNoProjectLookupAtAll()
+        {
+            using var fixture = new Fixture();
+            await fixture.SeedAsync("my-own.jar", sha512: "no-match");
+
+            await fixture.RunAsync();
+
+            await Assert.That(fixture.Client.ProjectLookups).IsEmpty();
+        }
+
+        [Test]
         public async Task AJarModrinthDoesNotPublish_IsMarkedAskedRatherThanAskedForever()
         {
             using var fixture = new Fixture();
