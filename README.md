@@ -79,6 +79,7 @@ Fabric has no public hook that runs before mod discovery, so HOPPER syncs from t
 - 🛠️ **[Developer setup](docs/dev-setup.md)** - local dev, migrations, tests.
 - 🧩 **[How it works](docs/how-it-works.md)** - the locator, the generated jar, and version coverage.
 - 🔧 **[The locator build](docs/locator.md)** - one adapter per loader generation, and what each may touch.
+- 🧪 **[Locator verification](tools/locator-e2e/README.md)** - the harness that launches a real client per loader.
 
 ## License
 
