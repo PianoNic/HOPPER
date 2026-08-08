@@ -201,6 +201,46 @@ Both carry the same tags: the full version (`0.1.0`), the minor (`0.1`), the maj
 
 Pin the full version in production. `latest` moves under you on the next release, and an upgrade is meant to be a decision rather than a surprise.
 
+## Backing it up
+
+Two things hold a HOPPER install, and they only mean something together:
+
+| What | Where | Holds |
+| --- | --- | --- |
+| The rows | `hopper-db`, or your own Postgres | Which mod, which side, which server, which client, and the sha256 that points at the bytes |
+| The bytes | `hopper-data` | `blobs/`, addressed by that sha256, plus the data protection keys |
+
+Back up **both, from the same moment**. Restoring one without the other gives you one of two failures, and neither announces itself as a backup problem:
+
+- **Rows without bytes.** Every mod shows **Bytes missing** on the Mods page and every client takes a 404 per jar. Recoverable for anything from Modrinth by installing it again, which now repairs the blob in place. A jar someone uploaded by hand has a source URL only if HOPPER recognised it on Modrinth by its hash; if not, nothing on the server knows where it came from and it is gone.
+- **Bytes without rows.** The server has no mods. The reclaim sweep refuses to run in this state rather than deleting every jar, so the store survives your mistake - see the warning it logs.
+
+### Taking one
+
+Stopping the stack and copying both volumes is the simplest correct backup. To take one while it runs, dump the database first, then the blobs:
+
+```bash
+docker compose exec -T db pg_dump -U hopper -Fc hopper > hopper-$(date +%F).dump
+docker run --rm -v hopper-data:/data -v "$PWD":/out alpine \
+  tar czf /out/hopper-data-$(date +%F).tar.gz -C /data .
+```
+
+Dump first and copy the blobs second. In that order a mod added in between leaves a blob with no row, which is the harmless failure; the other order leaves a row with no blob, which is the one that breaks clients.
+
+That tar takes `keys/` along with `blobs/`, which is what you want - both live on the same volume.
+
+With an external Postgres, run `pg_dump` against it as usual and back up `hopper-data` the same way.
+
+Blobs are content-addressed and never rewritten, so `blobs/` only ever grows between sweeps. It rsyncs incrementally and a full second copy is never needed.
+
+### Putting it back
+
+Restore the database, restore the volume, start HOPPER. It migrates at boot, so a dump from an older version needs no separate step.
+
+Then check it worked, rather than assuming: open the Mods page for a server. Anything whose jar did not come back carries a **Bytes missing** badge, so a good restore is one where no server shows one. The Overview says the same thing in one line if there is anything to say.
+
+If the reclaim sweep logs that it is refusing to run, the database came back empty or points somewhere else. Fix that before doing anything else - it is the guard telling you the two halves do not match.
+
 ## Upgrading
 
 The API migrates the database at boot, so an upgrade is a `docker compose pull` and a restart. There is no separate migration step.
