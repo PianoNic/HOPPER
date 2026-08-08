@@ -317,6 +317,38 @@ namespace HOPPER.Tests.Modrinth
         }
 
         [Test]
+        public async Task Install_SameVersionWhoseBlobIsGone_RedownloadsItWithoutNeedingReplace()
+        {
+            using var fixture = new Fixture();
+            var bytes = Jar("a");
+            fixture.Client.AddDownloadableMod("PA", "v1", "A", "a.jar", bytes);
+
+            await fixture.RunAsync(new ModrinthInstallItem("v1", false));
+
+            var sha256 = (await fixture.Db.Mods.SingleAsync()).Sha256;
+            fixture.Blobs.Delete(sha256);
+
+            var result = await fixture.RunAsync(new ModrinthInstallItem("v1", false));
+
+            await Assert.That(result.Skipped).IsEqualTo(0);
+            await Assert.That(await fixture.Db.Mods.CountAsync()).IsEqualTo(1);
+            await Assert.That(fixture.Blobs.Exists(sha256)).IsTrue();
+        }
+
+        [Test]
+        public async Task Install_SameVersionWhoseBlobIsThere_IsStillSkippedWithoutDownloading()
+        {
+            using var fixture = new Fixture();
+            fixture.Client.AddDownloadableMod("PA", "v1", "A", "a.jar", Jar("a"));
+
+            await fixture.RunAsync(new ModrinthInstallItem("v1", false));
+            var result = await fixture.RunAsync(new ModrinthInstallItem("v1", false));
+
+            await Assert.That(result.Skipped).IsEqualTo(1);
+            await Assert.That(result.Result.Skipped.Single().Reason).Contains("already on this server at this version");
+        }
+
+        [Test]
         public async Task Install_WithReplace_KeepsTheSideTheAdminSetRatherThanTheProjectDefault()
         {
             using var fixture = new Fixture();
