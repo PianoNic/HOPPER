@@ -1,6 +1,6 @@
 using System.IO.Compression;
-using System.Text;
 using System.Text.Json;
+using HOPPER.Application.Imports;
 
 namespace HOPPER.Application.ModMetadata
 {
@@ -181,25 +181,9 @@ namespace HOPPER.Application.ModMetadata
 
         private static string? Text(ZipArchive archive, string name)
         {
-            var entry = archive.GetEntry(name);
-            if (entry is null || entry.Length > MaxMetadataBytes) return null;
-
             try
             {
-                using var stream = entry.Open();
-                using var buffer = new MemoryStream();
-
-                var chunk = new byte[8192];
-                int read;
-                while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
-                {
-                    if (buffer.Length + read > MaxMetadataBytes) return null;
-                    buffer.Write(chunk, 0, read);
-                }
-
-                var bytes = buffer.ToArray();
-                var offset = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-                return Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
+                return ZipEntryText.Read(archive, name, MaxMetadataBytes);
             }
             catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException)
             {

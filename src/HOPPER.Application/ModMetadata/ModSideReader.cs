@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using HOPPER.Application.Imports;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure.Interfaces;
 
@@ -26,11 +27,11 @@ namespace HOPPER.Application.ModMetadata
         {
             try
             {
-                var fabric = Text(archive, "fabric.mod.json");
+                var fabric = ZipEntryText.Read(archive, "fabric.mod.json", MaxMetadataBytes);
                 if (fabric is not null)
                     return FromFabricEnvironment(fabric);
 
-                var quilt = Text(archive, "quilt.mod.json");
+                var quilt = ZipEntryText.Read(archive, "quilt.mod.json", MaxMetadataBytes);
                 if (quilt is not null)
                     return FromQuiltEnvironment(quilt);
 
@@ -108,27 +109,5 @@ namespace HOPPER.Application.ModMetadata
             && value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
-
-        private static string? Text(ZipArchive archive, string name)
-        {
-            var entry = archive.GetEntry(name);
-            if (entry is null || entry.Length > MaxMetadataBytes)
-                return null;
-
-            using var stream = entry.Open();
-            using var buffer = new MemoryStream();
-
-            var chunk = new byte[8192];
-            int read;
-            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
-            {
-                if (buffer.Length + read > MaxMetadataBytes)
-                    return null;
-
-                buffer.Write(chunk, 0, read);
-            }
-
-            return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
-        }
     }
 }
