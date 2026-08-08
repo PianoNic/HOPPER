@@ -121,6 +121,7 @@ A fresh deployment has no servers and no tokens. Create the first one in the das
 | --- | --- | --- |
 | `ConnectionStrings__HopperDatabase` | compose `db` service | Postgres connection string. HOPPER is Postgres-only. |
 | `Blobs__Directory` | `/data/blobs` | Content-addressed jar store. Shared across servers, so a jar used twice is stored once. Staged packs and export scratch live on the same volume, and HOPPER reclaims unreferenced files once they are past the grace period below. |
+| `DataProtection__Directory` | `keys` beside the blob store | Where the ASP.NET key ring is written. It lives on the same volume as the blobs so it survives a container being recreated, and deliberately **beside** them rather than inside, because the reclaim sweep owns everything under the blob root. |
 | `Hopper__PublicBaseUrl` | derived from the request | Host written into every manifest URL. Leave unset behind a proxy that sends `X-Forwarded-*`. |
 | `Hopper__TrustedProxies` | loopback and the private ranges | Peers whose `X-Forwarded-For`, `-Proto` and `-Host` are believed, as IP addresses or CIDR networks, comma-separated. Setting it **replaces** the built-in list, so name every proxy that fronts HOPPER. Blank counts as unset and keeps the built-in list; write `127.0.0.1,::1` to believe nothing but the container itself. |
 | `Hopper__LocatorTemplateDirectory` | built into the image | Directory of template jars, one per loader generation. The download endpoint picks by the server's loader and Minecraft version. |
@@ -149,6 +150,20 @@ does not survive a restart. HOPPER ends those imports at startup and frees their
 replicas against one database would have each of them end the other's live imports.
 
 `.env.example` documents every setting.
+
+## One warning you will still see
+
+```
+warn: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[35]
+      No XML encryptor configured. Key {...} may be persisted to storage in unencrypted form.
+```
+
+Expected, and left alone on purpose. Encrypting the key ring at rest needs a certificate or a
+platform key store, and there is nothing to protect: HOPPER authenticates with bearer tokens it does
+not issue and holds no session or antiforgery state, so nothing is encrypted with these keys. They
+also sit on the same volume as every mod jar - anyone who can read them can already read the jars.
+
+The companion warning about keys not surviving the container is gone: they are written to the volume.
 
 ## Health checks
 
