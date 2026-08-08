@@ -55,10 +55,15 @@ namespace HOPPER.API.Extensions
                 var claim = RoleClaim(configuration);
                 var wanted = configuration.GetValue("Oidc:AdminRole", DefaultAdminRole);
 
-                var carried = context.Principal?.Claims
+                // HttpContext.User, not context.Principal: the handler builds ForbiddenContext
+                // without a principal, so reading it reports a token with no claims at all and
+                // sends whoever is debugging looking for the wrong problem.
+                var user = context.HttpContext.User;
+
+                var carried = user.Claims
                     .Where(c => string.Equals(c.Type, claim, StringComparison.Ordinal))
                     .Select(c => c.Value)
-                    .ToList() ?? [];
+                    .ToList();
 
                 var logger = context.HttpContext.RequestServices
                     .GetRequiredService<ILoggerFactory>()
@@ -72,7 +77,7 @@ namespace HOPPER.API.Extensions
                     wanted,
                     claim,
                     string.Join(", ", carried),
-                    string.Join(", ", context.Principal?.Claims.Select(c => c.Type).Distinct() ?? []));
+                    string.Join(", ", user.Claims.Select(c => c.Type).Distinct()));
 
                 return Task.CompletedTask;
             };
