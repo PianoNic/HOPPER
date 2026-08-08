@@ -28,8 +28,8 @@ Chart.defaults.font.family =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 Chart.defaults.font.size = 11;
 
-/* Status hues are reserved and deliberately not themed: the same four steps clear 3:1 on both
-   surfaces, so a state never changes colour when the dashboard does. */
+/* Not themed on purpose: all three clear 3:1 on either surface, so a state never changes colour
+   when the dashboard does. */
 export const CHART_STATUS = {
   good: '#0ca30c',
   neutral: '#898781',
@@ -100,9 +100,7 @@ export function inkOn(fill: string): string {
 
 const LABEL_FONT = `600 11px ${Chart.defaults.font.family}`;
 
-/* Every bar carries its own value, so the value axis is dropped entirely rather than doubled up
-   with gridlines. The label goes past the bar end when it measures small enough to fit there and
-   inside the end when it does not, so it is never clipped by the plot edge. */
+/* Drawn inside the bar end when it would otherwise be clipped by the plot edge. */
 export function valueAtTip(tokens: ChartTokens, format: (value: number) => string): Plugin<'bar'> {
   return {
     id: 'hopperValueAtTip',
@@ -130,9 +128,7 @@ export function valueAtTip(tokens: ChartTokens, format: (value: number) => strin
   };
 }
 
-/* An interior stacked segment has no free end to hang a label off, so the label only goes in when
-   the segment measures wide enough for it. The legend beside the chart carries every count anyway,
-   which is what keeps the sub-3:1 status fills readable on the light surface. */
+/* Skipped when the segment is too narrow to hold it; the legend carries every count regardless. */
 export function countInSegment(): Plugin<'bar'> {
   return {
     id: 'hopperCountInSegment',
@@ -166,10 +162,9 @@ export function countInSegment(): Plugin<'bar'> {
   };
 }
 
-/* Chart.js sizes the canvas from its parent and only shrinks again when the parent is the sizing
-   authority, so the host carries the box and the canvas is left without dimensions of its own.
-   Giving the canvas a width of its own instead leaves it stuck at its widest and clipped by the
-   card, which silently swallows the labels drawn past the bar ends. */
+/* The host carries the box and the canvas gets no dimensions of its own: Chart.js only shrinks a
+   canvas back down when the parent is the sizing authority. Size the canvas instead and it sticks
+   at its widest, clipped by the card, silently swallowing the labels past the bar ends. */
 @Component({
   selector: 'app-chart-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,

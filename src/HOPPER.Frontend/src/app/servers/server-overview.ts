@@ -118,7 +118,7 @@ function shortName(fileName: string): string {
                 <ng-icon [name]="stat.icon" size="16" class="text-muted-foreground" />
               </div>
               <div hlmCardContent>
-                <p class="text-2xl font-semibold">{{ stat.value }}</p>
+                <p class="text-2xl font-semibold tabular-nums">{{ stat.value }}</p>
                 <p class="text-muted-foreground mt-1 text-xs">{{ stat.hint }}</p>
               </div>
             </section>
@@ -347,8 +347,8 @@ export class ServerOverview {
     });
   });
 
-  /* The neutral sits between the two chromatic states on purpose: green beside orange is the pair
-     protanopes lose, and the gray between them keeps every touching pair above the CVD floor. */
+  /* The neutral sits between the two chromatic states on purpose: green touching orange is the
+     pair protanopes lose, and the gray between them keeps every adjacent pair separable. */
   protected readonly clientState = computed(() => {
     const rows = this.drift();
     const tally = (status: ClientDrift['status']): number =>
