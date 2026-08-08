@@ -96,6 +96,7 @@ builder.Services.AddBlobs();
 
 builder.Services.AddHostedService<ModMetadataBackfillService>();
 builder.Services.AddHostedService<ModIconBackfillService>();
+builder.Services.AddHostedService<ModrinthProvenanceService>();
 
 builder.Services.AddLocatorJar();
 

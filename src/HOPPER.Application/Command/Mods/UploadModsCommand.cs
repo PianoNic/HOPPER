@@ -1,3 +1,4 @@
+using HOPPER.Application.Modrinth;
 using System.IO.Compression;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
@@ -98,7 +99,11 @@ namespace HOPPER.Application.Command.Mods
                 if (await db.Mods.AnyAsync(m => m.ServerId == serverId && m.FileName.ToLower() == lowered, cancellationToken))
                     throw new DuplicateModFileNameException(validated);
 
-                staged = await blobs.StageAsync(content, HopperLimits.MaxModBytes(configuration), cancellationToken);
+                // Hashed on the way in so an uploaded jar can be recognised on Modrinth later. The
+                // stream is read once either way; leaveOpen because the caller owns it.
+                await using var hashing = new HashingStream(content, leaveOpen: true);
+
+                staged = await blobs.StageAsync(hashing, HopperLimits.MaxModBytes(configuration), cancellationToken);
 
                 var metadata = await ModJarReader.FromStagedAsync(blobs, staged, cancellationToken);
 
@@ -118,6 +123,9 @@ namespace HOPPER.Application.Command.Mods
                     ModIds = metadata.ModIds,
                     RequiredMods = metadata.RequiredMods,
                     IconSha256 = metadata.IconSha256,
+
+                    Sha1 = hashing.Sha1Hex,
+                    Sha512 = hashing.Sha512Hex,
                 };
 
                 db.Mods.Add(entry);

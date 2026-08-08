@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace HOPPER.Application.Modrinth
 {
-    public sealed class HashingStream(Stream inner) : Stream
+    public sealed class HashingStream(Stream inner, bool leaveOpen = false) : Stream
     {
         private readonly IncrementalHash _sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
         private readonly IncrementalHash _sha512 = IncrementalHash.CreateHash(HashAlgorithmName.SHA512);
@@ -69,7 +69,7 @@ namespace HOPPER.Application.Modrinth
         {
             if (disposing)
             {
-                inner.Dispose();
+                if (!leaveOpen) inner.Dispose();
                 _sha1.Dispose();
                 _sha512.Dispose();
             }

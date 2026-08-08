@@ -26,6 +26,11 @@ namespace HOPPER.Application.Modrinth
 
         Task<IReadOnlyList<ModrinthVersion>> GetVersionsAsync(IReadOnlyCollection<string> versionIds, CancellationToken cancellationToken);
 
+        /// The versions behind a set of file hashes, keyed by the hash that matched. Absent hashes
+        /// are files Modrinth does not publish.
+        Task<IReadOnlyDictionary<string, ModrinthVersion>> GetVersionsByHashAsync(
+            IReadOnlyCollection<string> sha512Hashes, CancellationToken cancellationToken);
+
         Task<ModrinthTags> GetTagsAsync(CancellationToken cancellationToken);
 
         Task<Stream> OpenDownloadAsync(Uri url, CancellationToken cancellationToken);

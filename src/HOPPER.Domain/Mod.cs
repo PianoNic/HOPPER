@@ -30,6 +30,11 @@ namespace HOPPER.Domain
 
         public string? Sha512 { get; set; }
 
+        /// When HOPPER last asked Modrinth what this jar is. Prism re-asks every run because a human
+        /// starts it; HOPPER sweeps unattended, so a jar Modrinth does not publish would be asked
+        /// about forever.
+        public DateTime? ProvenanceCheckedAt { get; set; }
+
         public string[]? ModIds { get; set; }
 
         public string[]? RequiredMods { get; set; }
