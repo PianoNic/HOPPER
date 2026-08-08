@@ -19,6 +19,75 @@ namespace HOPPER.Tests.Modrinth
             new ModrinthDependencyResolver(client).ResolveAsync(request, CancellationToken.None);
 
         [Test]
+        public async Task Resolve_PinnedDependencyForAnotherMinecraftVersion_IsUnresolvableNotPlanned()
+        {
+            // The shape found on a real 1.12.2 server: Xaero's World Map pins a XaeroLib version id,
+            // and the version behind it is a 1.16.5 build. Pinned ids are fetched by id, so nothing
+            // filtered it and the plan looked clean.
+            var client = new FakeModrinthClient();
+            client.AddMod("PMAP", "v-map", "Xaero's World Map", "worldmap.jar",
+                gameVersions: [GameVersion], loaders: [Loader],
+                dependencies: FakeModrinthClient.RequiredVersion("v-lib-wrong"));
+            client.AddMod("PLIB", "v-lib-wrong", "XaeroLib", "xaerolib-1.16.5.jar",
+                gameVersions: ["1.16.5"], loaders: [Loader]);
+
+            var result = await ResolveAsync(client, Request(["v-map"]));
+
+            await Assert.That(result.Nodes.Any(n => n.ProjectId == "PLIB")).IsFalse();
+
+            var note = result.Unresolvable.Single();
+            await Assert.That(note.Name).IsEqualTo("xaerolib-1.16.5.jar");
+            await Assert.That(note.Reason).Contains("1.16.5");
+            await Assert.That(note.Reason).Contains(GameVersion);
+            await Assert.That(note.RequestedBy).IsEqualTo("Xaero's World Map");
+        }
+
+        [Test]
+        public async Task Resolve_PinnedDependencyForAnotherLoader_IsUnresolvableNotPlanned()
+        {
+            var client = new FakeModrinthClient();
+            client.AddMod("PA", "v-a", "A", "a.jar",
+                gameVersions: [GameVersion], loaders: [Loader],
+                dependencies: FakeModrinthClient.RequiredVersion("v-b-fabric"));
+            client.AddMod("PB", "v-b-fabric", "B", "b-fabric.jar",
+                gameVersions: [GameVersion], loaders: ["fabric"]);
+
+            var result = await ResolveAsync(client, Request(["v-a"]));
+
+            await Assert.That(result.Nodes.Any(n => n.ProjectId == "PB")).IsFalse();
+            await Assert.That(result.Unresolvable.Single().Reason).Contains("fabric");
+        }
+
+        [Test]
+        public async Task Resolve_PinnedDependencyThatDoesMatch_IsStillPlanned()
+        {
+            var client = new FakeModrinthClient();
+            client.AddMod("PA", "v-a", "A", "a.jar",
+                gameVersions: [GameVersion], loaders: [Loader],
+                dependencies: FakeModrinthClient.RequiredVersion("v-b"));
+            client.AddMod("PB", "v-b", "B", "b.jar",
+                gameVersions: [GameVersion], loaders: [Loader]);
+
+            var result = await ResolveAsync(client, Request(["v-a"]));
+
+            await Assert.That(result.Nodes.Count).IsEqualTo(2);
+            await Assert.That(result.Unresolvable).IsEmpty();
+        }
+
+        [Test]
+        public async Task Resolve_AVersionModrinthPublishedNoMetadataFor_IsNotRefusedOverIt()
+        {
+            // Empty lists mean Modrinth said nothing, not that the jar supports nothing.
+            var client = new FakeModrinthClient();
+            client.AddMod("PA", "v-a", "A", "a.jar");
+
+            var result = await ResolveAsync(client, Request(["v-a"]));
+
+            await Assert.That(result.Nodes.Count).IsEqualTo(1);
+            await Assert.That(result.Unresolvable).IsEmpty();
+        }
+
+        [Test]
         public async Task Resolve_RequiredTwoLevelsDeep_PullsInBothAndRecordsWhoAskedForThem()
         {
             var client = new FakeModrinthClient();
