@@ -27,3 +27,6 @@ Thumbs.db
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# VitePress
+docs/.vitepress/cache/

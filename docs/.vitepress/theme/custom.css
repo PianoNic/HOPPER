@@ -1,0 +1,19 @@
+/* HOPPER is monochrome in the dashboard and slate in the icon, so the docs stay there too. */
+:root {
+  --vp-c-brand-1: #46566e;
+  --vp-c-brand-2: #5a6c87;
+  --vp-c-brand-3: #46566e;
+  --vp-c-brand-soft: rgba(70, 86, 110, 0.14);
+}
+
+.dark {
+  --vp-c-brand-1: #aeb8c7;
+  --vp-c-brand-2: #8e9aac;
+  --vp-c-brand-3: #6b7789;
+  --vp-c-brand-soft: rgba(174, 184, 199, 0.24);
+}
+
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #46566e, #8e9aac);
+}
