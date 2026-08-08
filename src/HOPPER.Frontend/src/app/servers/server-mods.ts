@@ -85,10 +85,7 @@ import { UploadModsDialogService } from './upload-mods-dialog';
     </app-content-header>
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
-        <h2 class="text-sm font-medium">
-          Mods
-          <span class="text-muted-foreground font-normal">{{ summary() }}</span>
-        </h2>
+        <h2 class="text-sm font-medium">Mods</h2>
         <div class="flex items-center gap-2">
           <div class="relative">
             <ng-icon
@@ -392,19 +389,6 @@ export class ServerMods {
     return this.mods().filter(
       (m) => m.fileName.toLowerCase().includes(q) || m.sha256.toLowerCase().includes(q),
     );
-  });
-
-  protected readonly summary = computed(() => {
-    const list = this.mods();
-    if (list.length === 0) return '';
-    const total = list.reduce((sum, m) => sum + toNumber(m.size), 0);
-    const base = `· ${list.length} jar${list.length === 1 ? '' : 's'} · ${formatBytes(total)}`;
-
-    const clients = list.filter((m) => m.side !== ModSide.ServerOnly).length;
-    const servers = list.filter((m) => m.side !== ModSide.ClientOnly).length;
-    if (clients === list.length && servers === list.length) return base;
-
-    return `${base} · ${clients} to clients · ${servers} to the server`;
   });
 
   protected readonly selectedCount = computed(() => this.selected().size);
