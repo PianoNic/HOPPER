@@ -24,11 +24,54 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
+System.Net.IPNetwork[] PrivateNetworks =
+[
+    new(System.Net.IPAddress.Parse("10.0.0.0"), 8),
+    new(System.Net.IPAddress.Parse("172.16.0.0"), 12),
+    new(System.Net.IPAddress.Parse("192.168.0.0"), 16),
+    new(System.Net.IPAddress.Parse("fc00::"), 7),
+];
+
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.ForwardLimit = 1;
+
+    var section = builder.Configuration.GetSection("Hopper:TrustedProxies");
+    var declared = (section.Value is { Length: > 0 } inline ? inline.Split(',') : section.Get<string[]>() ?? [])
+        .Select(entry => (entry ?? string.Empty).Trim())
+        .Where(entry => entry.Length > 0)
+        .ToArray();
+
+    // Unset means the shipped default: loopback plus the private ranges. ASP.NET on its own trusts
+    // loopback only, which would stop believing a reverse proxy that runs as its own container - the
+    // ordinary compose deployment - and quietly hand clients manifest URLs to the internal address.
+    if (declared.Length == 0)
+    {
+        foreach (var network in PrivateNetworks)
+            options.KnownIPNetworks.Add(network);
+
+        return;
+    }
+
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+
+    foreach (var entry in declared)
+    {
+        if (System.Net.IPNetwork.TryParse(entry, out var network))
+        {
+            options.KnownIPNetworks.Add(network);
+        }
+        else if (System.Net.IPAddress.TryParse(entry, out var address))
+        {
+            options.KnownProxies.Add(address);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Hopper:TrustedProxies contains '{entry}', which is neither an IP address nor a CIDR network.");
+        }
+    }
 });
 
 builder.Services.AddSpaStaticFiles(options => { options.RootPath = "wwwroot"; });
