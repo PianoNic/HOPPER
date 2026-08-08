@@ -8,6 +8,8 @@ namespace HOPPER.Application.ModMetadata
 
         public const long MaxUploadBytes = 4 * 1024 * 1024;
 
+        public const long MaxPixels = 4096L * 4096L;
+
         public static byte[]? ToServerIcon(Stream source)
         {
             try
@@ -20,7 +22,20 @@ namespace HOPPER.Application.ModMetadata
 
                 buffer.Position = 0;
 
-                using var decoded = SKBitmap.Decode(buffer);
+                using var codec = SKCodec.Create(buffer);
+                if (codec is null)
+                    return null;
+
+                var declared = codec.Info;
+                if (declared.Width <= 0 || declared.Height <= 0)
+                    return null;
+
+                // A flat-colour PNG of 30000x30000 fits in a few hundred KiB and asks Skia for 3.6 GB,
+                // so the dimensions have to be refused from the header rather than after the decode.
+                if ((long)declared.Width * declared.Height > MaxPixels)
+                    return null;
+
+                using var decoded = DecodeNoLargerThanNeeded(codec);
                 if (decoded is null || decoded.Width == 0 || decoded.Height == 0)
                     return null;
 
@@ -34,6 +49,21 @@ namespace HOPPER.Application.ModMetadata
             {
                 return null;
             }
+        }
+
+        // Codecs only honour a handful of discrete scales, so this is a ceiling on what gets
+        // allocated rather than the final size - the crop below still does the exact fit.
+        private static SKBitmap? DecodeNoLargerThanNeeded(SKCodec codec)
+        {
+            var edge = Math.Min(codec.Info.Width, codec.Info.Height);
+            var scaled = codec.GetScaledDimensions(Math.Min(1f, (float)Size / edge));
+
+            if (scaled.Width <= 0 || scaled.Height <= 0)
+                return null;
+
+            return SKBitmap.Decode(
+                codec,
+                new SKImageInfo(scaled.Width, scaled.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
         }
 
         // Centre-cropped to a square before the downscale, because Minecraft draws the icon into a

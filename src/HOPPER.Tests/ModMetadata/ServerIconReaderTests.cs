@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 using HOPPER.Application.ModMetadata;
 using SkiaSharp;
@@ -20,6 +21,35 @@ namespace HOPPER.Tests.ModMetadata
             using var data = image.Encode(format, 90);
 
             return new MemoryStream(data.ToArray());
+        }
+
+        // A real PNG with only the IHDR dimensions rewritten, so the header claims a size nothing
+        // could allocate while the file itself stays small enough to reach the reader.
+        private static MemoryStream ImageClaiming(int width, int height)
+        {
+            using var small = Image(8, 8, SKEncodedImageFormat.Png);
+            var png = small.ToArray();
+
+            BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(16, 4), width);
+            BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(20, 4), height);
+            BinaryPrimitives.WriteUInt32BigEndian(png.AsSpan(29, 4), Crc32(png.AsSpan(12, 17)));
+
+            return new MemoryStream(png);
+        }
+
+        private static uint Crc32(ReadOnlySpan<byte> data)
+        {
+            var crc = 0xFFFFFFFFu;
+
+            foreach (var b in data)
+            {
+                crc ^= b;
+
+                for (var i = 0; i < 8; i++)
+                    crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+            }
+
+            return crc ^ 0xFFFFFFFFu;
         }
 
         private static (int Width, int Height) SizeOf(byte[] png)
@@ -86,6 +116,14 @@ namespace HOPPER.Tests.ModMetadata
         public async Task AnUploadOverTheCap_IsRefusedBeforeItIsDecoded()
         {
             using var source = new MemoryStream(new byte[ServerIconReader.MaxUploadBytes + 1]);
+
+            await Assert.That(ServerIconReader.ToServerIcon(source)).IsNull();
+        }
+
+        [Test]
+        public async Task AnImageWithMorePixelsThanTheCap_IsRefusedBeforeItIsDecoded()
+        {
+            using var source = ImageClaiming(30000, 30000);
 
             await Assert.That(ServerIconReader.ToServerIcon(source)).IsNull();
         }
