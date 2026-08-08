@@ -8,6 +8,8 @@ namespace HOPPER.API.Extensions
     {
         public const string DefaultAdminRole = "hopper-admin";
 
+        public const string DefaultRoleClaim = "roles";
+
         public static IServiceCollection AddHopperAuthentication(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -33,11 +35,47 @@ namespace HOPPER.API.Extensions
             options.MapInboundClaims = false;
 
             options.TokenValidationParameters.NameClaimType = "name";
-            options.TokenValidationParameters.RoleClaimType = "roles";
+            // Configurable because issuers disagree: Pocket ID, Authentik and Keycloak publish
+            // membership as `groups`, and looking in the wrong claim 403s every admin request while
+            // the token itself is perfectly valid.
+            options.TokenValidationParameters.RoleClaimType = RoleClaim(configuration);
 
             options.TokenValidationParameters.ValidateAudience = configuration.GetValue("Oidc:ValidateAudience", true);
             options.TokenValidationParameters.ValidAudiences = ValidAudiences(configuration);
+
+            options.Events = new JwtBearerEvents { OnForbidden = ExplainForbidden(configuration) };
         }
+
+        /// A 403 here means the token was accepted and the role was not found, which is invisible
+        /// from the outside: an empty body, and a valid login. Say which claim was read and what the
+        /// token actually carried, because that pair is the whole answer.
+        private static Func<ForbiddenContext, Task> ExplainForbidden(IConfiguration configuration) =>
+            context =>
+            {
+                var claim = RoleClaim(configuration);
+                var wanted = configuration.GetValue("Oidc:AdminRole", DefaultAdminRole);
+
+                var carried = context.Principal?.Claims
+                    .Where(c => string.Equals(c.Type, claim, StringComparison.Ordinal))
+                    .Select(c => c.Value)
+                    .ToList() ?? [];
+
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("HOPPER.Auth");
+
+                logger.LogWarning(
+                    "{Path} refused: the token is valid but carries no {Role} in its '{Claim}' claim. "
+                    + "It carries [{Carried}] there, and these claim types: [{Types}]. "
+                    + "Set Oidc:RoleClaim if your issuer publishes membership somewhere else.",
+                    context.HttpContext.Request.Path,
+                    wanted,
+                    claim,
+                    string.Join(", ", carried),
+                    string.Join(", ", context.Principal?.Claims.Select(c => c.Type).Distinct() ?? []));
+
+                return Task.CompletedTask;
+            };
 
         public static IReadOnlyList<string> ValidAudiences(IConfiguration configuration)
         {
@@ -53,6 +91,9 @@ namespace HOPPER.API.Extensions
             services.AddAuthorization(options => options.FallbackPolicy = BuildAdminPolicy(configuration));
             return services;
         }
+
+        public static string RoleClaim(IConfiguration configuration) =>
+            NullIfBlank(configuration["Oidc:RoleClaim"]) ?? DefaultRoleClaim;
 
         public static AuthorizationPolicy BuildAdminPolicy(IConfiguration configuration)
         {

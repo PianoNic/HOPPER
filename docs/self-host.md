@@ -136,6 +136,7 @@ The sweep refuses to run at all when the database holds no servers but the blob 
 | `Hopper__ImportStallTimeout` | `02:00:00` | How long an import may sit queued or running without progress before HOPPER ends it and frees its staged pack. |
 | `Oidc__Authority` | *(unset)* | OIDC issuer for admin access. Nothing is trusted until you set it. |
 | `Oidc__AdminRole` | `hopper-admin` | Role an account must carry to administer HOPPER. Empty means any authenticated user. |
+| `Oidc__RoleClaim` | `roles` | Claim HOPPER reads membership from. Pocket ID, Authentik and Keycloak publish groups as `groups`; pointing this at the wrong claim answers **403** to every admin request while the login itself succeeds. `Oidc__RoleClaim=groups` with `Oidc__AdminRole=<group>` maps a group you already have onto admin. |
 | `Oidc__ValidAudiences__0` | `Oidc__ClientId` | Accepted `aud` values. Set when your issuer stamps something else. |
 | `Oidc__InternalAuthority` | unset | Set when the API reaches the IdP on a different address than the browser does. |
 | `Otel__Endpoint` | *(unset)* | OTLP collector, for example `http://collector:4317`. Unset registers no exporter at all rather than retrying against a collector that is not there. |

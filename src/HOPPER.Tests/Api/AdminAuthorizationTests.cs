@@ -109,6 +109,56 @@ namespace HOPPER.Tests.Api
         }
 
         [Test]
+        public async Task RoleClaim_DefaultsToRoles()
+        {
+            var options = new JwtBearerOptions();
+            AuthExtensions.ConfigureJwtBearer(options, Config());
+
+            await Assert.That(options.TokenValidationParameters.RoleClaimType).IsEqualTo("roles");
+        }
+
+        [Test]
+        public async Task RoleClaim_CanBeTheGroupsClaimAnIdpAlreadyPublishes()
+        {
+            // Pocket ID, Authentik and Keycloak publish membership as `groups`. Reading `roles`
+            // there refuses every admin request while the token itself is perfectly valid.
+            var options = new JwtBearerOptions();
+            AuthExtensions.ConfigureJwtBearer(options, Config(("Oidc:RoleClaim", "groups")));
+
+            await Assert.That(options.TokenValidationParameters.RoleClaimType).IsEqualTo("groups");
+        }
+
+        [Test]
+        public async Task AdminPolicy_MatchesAGroupWhenTheRoleClaimPointsAtGroups()
+        {
+            var configuration = Config(("Oidc:RoleClaim", "groups"), ("Oidc:AdminRole", "private"));
+
+            var member = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("name", "someone"), new Claim("groups", "private")],
+                authenticationType: JwtBearerDefaults.AuthenticationScheme,
+                nameType: "name",
+                roleType: AuthExtensions.RoleClaim(configuration)));
+
+            var outsider = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("name", "someone"), new Claim("groups", "community")],
+                authenticationType: JwtBearerDefaults.AuthenticationScheme,
+                nameType: "name",
+                roleType: AuthExtensions.RoleClaim(configuration)));
+
+            await Assert.That(await Allows(configuration, member)).IsTrue();
+            await Assert.That(await Allows(configuration, outsider)).IsFalse();
+        }
+
+        [Test]
+        public async Task RoleClaim_BlankIsTreatedAsUnsetRatherThanAsAnEmptyClaimName()
+        {
+            var options = new JwtBearerOptions();
+            AuthExtensions.ConfigureJwtBearer(options, Config(("Oidc:RoleClaim", "  ")));
+
+            await Assert.That(options.TokenValidationParameters.RoleClaimType).IsEqualTo("roles");
+        }
+
+        [Test]
         public async Task Audience_ExplicitListWins()
         {
             var configuration = Config(
