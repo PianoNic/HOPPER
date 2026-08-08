@@ -10,7 +10,6 @@
 import { ManifestModDtoSize } from './manifestModDtoSize';
 import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 import { PlanNodeStatus } from './planNodeStatus';
-import { PlanNodeKind } from './planNodeKind';
 
 
 export interface ModrinthPlanNodeDto { 
@@ -23,7 +22,6 @@ export interface ModrinthPlanNodeDto {
     versionType?: string | null;
     fileName: string;
     fileSize: ManifestModDtoSize;
-    kind: PlanNodeKind;
     status: PlanNodeStatus;
     depth: DeleteModsResultDtoDeleted;
     requiredBy: Array<string>;
