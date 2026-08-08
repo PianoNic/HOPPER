@@ -1,4 +1,5 @@
 using HOPPER.Domain.Enums;
+using Microsoft.Extensions.Configuration;
 
 namespace HOPPER.Infrastructure.Services
 {
@@ -20,6 +21,18 @@ namespace HOPPER.Infrastructure.Services
         private static readonly Template QuiltPlugin = new("hopper-quilt-plugin.jar", "quilt.mod.json");
 
         public const string QuiltPluginVariant = "quilt-plugin";
+
+        /* Against the app's own directory, never the process working directory. The two are the
+           same in the container and differ under `dotnet run`, which is how the readiness probe
+           came to answer 503 for a directory the jar endpoint was serving from happily. */
+        public static string ResolveDirectory(IConfiguration configuration)
+        {
+            var configured = configuration["Hopper:LocatorTemplateDirectory"];
+
+            return string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.BaseDirectory, "locator")
+                : Path.GetFullPath(configured, AppContext.BaseDirectory);
+        }
 
         public static Template For(ModLoader loader, string? minecraftVersion, string? variant = null)
         {

@@ -14,7 +14,7 @@ namespace HOPPER.Infrastructure.Services
             string? variant = null)
         {
             var selected = LocatorTemplates.For(loader, minecraftVersion, variant);
-            var template = Path.Combine(ResolveTemplateDirectory(), selected.FileName);
+            var template = Path.Combine(LocatorTemplates.ResolveDirectory(configuration), selected.FileName);
 
             if (!File.Exists(template))
                 throw new LocatorTemplateMissingException(template);
@@ -70,13 +70,5 @@ namespace HOPPER.Infrastructure.Services
             return buffer.ToArray();
         }
 
-        private string ResolveTemplateDirectory()
-        {
-            var configured = configuration["Hopper:LocatorTemplateDirectory"];
-
-            return string.IsNullOrWhiteSpace(configured)
-                ? Path.Combine(AppContext.BaseDirectory, "locator")
-                : Path.GetFullPath(configured, AppContext.BaseDirectory);
-        }
     }
 }
