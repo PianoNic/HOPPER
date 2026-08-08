@@ -13,7 +13,7 @@
 
 ---
 
-> **Heads up:** HOPPER is in early development. Expect rough edges and breaking changes between versions.
+> **Heads up:** HOPPER is young and self-hosted. The manifest a client reads is a fixed contract, so upgrading the server will not break a jar already in someone's `mods/`. The dashboard, the rest of the API and the configuration around them are still moving, so skim the release notes before you upgrade.
 
 ## What is HOPPER?
 
