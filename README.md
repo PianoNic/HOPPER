@@ -82,7 +82,7 @@ Fabric has no public hook that runs before mod discovery, so HOPPER syncs from t
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE). Copyright PianoNic.
+[PolyForm Noncommercial 1.0.0](LICENSE.md). Copyright PianoNic.
 
 The whole repository: the API, the dashboard, and the Java locator that ships inside every client
 jar. Read it, change it, and run it for any noncommercial purpose - your own server, your friends',
