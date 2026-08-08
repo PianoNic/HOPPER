@@ -62,6 +62,11 @@ namespace HOPPER.Application.ModMetadata
 
                     asked += rows.Count;
 
+                    // The name and icon live on the project, not the version, so a row adopted
+                    // without them reads as Modrinth with nothing beside it. Only for hashes that
+                    // matched - a jar Modrinth does not publish causes no second call.
+                    var projects = await ProjectsAsync(modrinth, found.Values, stoppingToken);
+
                     foreach (var row in rows)
                     {
                         row.ProvenanceCheckedAt = DateTime.UtcNow;
@@ -69,7 +74,7 @@ namespace HOPPER.Application.ModMetadata
                         if (!found.TryGetValue(row.Sha512!, out var version))
                             continue;
 
-                        Adopt(row, version);
+                        Adopt(row, version, projects.GetValueOrDefault(version.ProjectId ?? string.Empty));
                         identified++;
                     }
 
@@ -88,9 +93,28 @@ namespace HOPPER.Application.ModMetadata
             }
         }
 
+        private static async Task<Dictionary<string, ModrinthProject>> ProjectsAsync(
+            IModrinthClient modrinth, IEnumerable<ModrinthVersion> versions, CancellationToken cancellationToken)
+        {
+            var ids = versions
+                .Select(v => v.ProjectId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.Ordinal)
+                .ToList()!;
+
+            if (ids.Count == 0)
+                return new Dictionary<string, ModrinthProject>(StringComparer.Ordinal);
+
+            var projects = await modrinth.GetProjectsAsync(ids!, cancellationToken);
+
+            return projects
+                .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+                .ToDictionary(p => p.Id!, p => p, StringComparer.Ordinal);
+        }
+
         /// The same bytes under the same hash, so this is not a guess about what the jar is - it is
         /// the release Modrinth publishes. The filename stays as uploaded.
-        private static void Adopt(Domain.Mod row, ModrinthVersion version)
+        private static void Adopt(Domain.Mod row, ModrinthVersion version, ModrinthProject? project)
         {
             var file = version.PrimaryFile();
 
@@ -99,6 +123,11 @@ namespace HOPPER.Application.ModMetadata
             row.VersionId = version.Id;
             row.DownloadUrl = file?.Url;
             row.Sha1 ??= file?.Sha1;
+
+            row.ProjectName = project?.Title;
+
+            // A fallback only: the table prefers the icon read out of the jar itself.
+            row.IconUrl = project?.IconUrl;
         }
     }
 }

@@ -26,10 +26,13 @@ namespace HOPPER.Tests.Modrinth
             return Task.FromResult<IReadOnlyList<ModrinthVersion>>(found);
         }
 
+        public List<IReadOnlyCollection<string>> ProjectLookups { get; } = [];
+
         public Task<IReadOnlyList<ModrinthProject>> GetProjectsAsync(
             IReadOnlyCollection<string> idsOrSlugs, CancellationToken cancellationToken)
         {
             Calls.Add($"projects:{string.Join(',', idsOrSlugs)}");
+            ProjectLookups.Add(idsOrSlugs.ToList());
 
             var found = idsOrSlugs
                 .Where(Projects.ContainsKey)
