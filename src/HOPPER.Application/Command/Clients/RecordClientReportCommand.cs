@@ -42,13 +42,9 @@ namespace HOPPER.Application.Command.Clients
             var client = await db.Clients.FirstOrDefaultAsync(
                 c => c.ServerId == command.ServerId && c.ClientId == body.ClientId, cancellationToken);
 
-            // The client id lives in hoppermods/client-id, so wiping or copying an instance mints a
-            // new one and the same player arrives as a stranger. A named account on the same side is
-            // that player, so the row is taken over rather than duplicated.
-            //
-            // Only when named: an offline launch reports no username, and two anonymous clients are
-            // not evidence of one person. Side is part of it too, or a dedicated server and its owner
-            // collapse into one row when they share an account name.
+            // Copying or wiping an instance mints a new client id, and the player arrives as a
+            // stranger. Named only - two anonymous clients are not one person - and per side, or a
+            // dedicated server and its owner collapse into one row.
             client ??= username is null
                 ? null
                 : await db.Clients.FirstOrDefaultAsync(
