@@ -126,7 +126,7 @@ const POLL_MS = 10000;
               <tr hlmTableRow>
                 <th hlmTableHead>Username</th>
                 <th hlmTableHead>Client ID</th>
-                <th hlmTableHead>Last seen</th>
+                <th hlmTableHead>Last launch</th>
                 <th hlmTableHead class="text-right">Mods</th>
                 <th hlmTableHead>Diff</th>
                 <th hlmTableHead class="text-right">Status</th>
@@ -186,7 +186,7 @@ const POLL_MS = 10000;
                         <span hlmBadge variant="destructive" class="text-xs">drift</span>
                       }
                       @default {
-                        <span hlmBadge variant="secondary" class="text-xs">offline</span>
+                        <span hlmBadge variant="secondary" class="text-xs" title="Has not launched since the window; HOPPER only hears from a client at launch">not launched</span>
                       }
                     }
                   </td>
