@@ -62,10 +62,7 @@ namespace HOPPER.API.Extensions
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            var directory = configuration["Hopper:LocatorTemplateDirectory"];
-
-            if (string.IsNullOrWhiteSpace(directory))
-                return Task.FromResult(HealthCheckResult.Healthy("not configured, so the built-in location is used"));
+            var directory = LocatorTemplates.ResolveDirectory(configuration);
 
             if (!Directory.Exists(directory))
                 return Task.FromResult(HealthCheckResult.Unhealthy($"{directory} does not exist, so every jar download 503s"));

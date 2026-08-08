@@ -277,6 +277,28 @@ namespace HOPPER.Tests.Infrastructure
         }
 
         [Test]
+        [Arguments("templates")]
+        [Arguments("../../../../HOPPER.Locator/build/templates")]
+        public async Task ARelativeTemplateDirectoryIsReadFromTheAppDirectory(string relative)
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Hopper:LocatorTemplateDirectory"] = relative })
+                .Build();
+
+            await Assert.That(LocatorTemplates.ResolveDirectory(configuration))
+                .IsEqualTo(Path.GetFullPath(relative, AppContext.BaseDirectory));
+        }
+
+        [Test]
+        public async Task AnUnsetTemplateDirectoryIsTheAppsOwnLocatorFolder()
+        {
+            var configuration = new ConfigurationBuilder().Build();
+
+            await Assert.That(LocatorTemplates.ResolveDirectory(configuration))
+                .IsEqualTo(Path.Combine(AppContext.BaseDirectory, "locator"));
+        }
+
+        [Test]
         public async Task Build_MissingTemplate_ThrowsAndNamesThePathAndTheKey()
         {
             using var dir = new TempDir();
