@@ -80,7 +80,7 @@ differ between a Windows host and the Docker JDK stage.
 **Every adapter embeds the core.** The loader resolves one jar out of `mods/` and nothing else, so a
 jar that merely referenced a separate core jar would die with `NoClassDefFoundError`. Each adapter
 copies the core's class files in. The dependency is `compileOnly` rather than `implementation` on
-purpose: that makes the copy the only mechanism putting the core anywhere, so nobody can start
+purpose. That makes the copy the only mechanism putting the core anywhere, so nobody can start
 relying on a Gradle runtime classpath that does not exist inside Minecraft. The copy takes the
 `sourceSets` output rather than `zipTree(coreJar)` - it carries its own task dependency, brings no
 second `META-INF/MANIFEST.MF` to merge away, and keeps the release-8 bytecode the core compiled to.
@@ -103,7 +103,8 @@ this directory, and before a release. Its README explains each column of the res
 ## What the jar says it is
 
 Every adapter jar carries the same identity: `hopper-icon.png` at the root, a loader descriptor, and
-`Implementation-*`/`Specification-*` manifest attributes. The icon lives in `hopper-core` and reaches
+`Implementation-*`/`Specification-*` manifest attributes. The icon lives in `hopper-core` and
+reaches
 all seven jars through the same source-set copy that carries the core's classes.
 
 **The version comes from `application.properties`,** the file the release workflow bumps, read by a
@@ -132,23 +133,26 @@ excluded from mod scanning, so its descriptor is never parsed by the running gam
   "already located earlier" and skips it.
 - Forge 1.12.2 - `CoreModManager` adds a coremod to `ignoredModFiles` and logs "it will not be
   examined again", unless the manifest carries `FMLCorePluginContainsFMLMod`. That marker makes FML
-  warn that `@Mod`s belong in a separate jar and then demand a `@Mod` class this jar has no reason to
+  warn that `@Mod`s belong in a separate jar and then demand a `@Mod` class this jar has no reason
+to
   have, so it is not set.
 
-The `mods.toml`, `neoforge.mods.toml` and `mcmod.info` files are still worth shipping: launchers read
+The `mods.toml`, `neoforge.mods.toml` and `mcmod.info` files are still worth shipping: launchers
+read
 them. Prism's local mod parser names and icons a jar in `mods/` from exactly these files, so without
-one the entry is a bare filename. They declare `lowcodefml` because the jar genuinely carries no mod
-entrypoint - and because nothing in the game ever reads the field, it costs nothing on 1.16.5, where
-that language provider does not exist.
+one the entry is a bare filename. They declare `lowcodefml` because the jar genuinely carries no
+mod entrypoint. Nothing in the game reads the field, so it costs nothing on 1.16.5, where that
+language provider does not exist.
 
 ## hopper-core
 
 Download, sha256 verify, stale sweep, report POST, config merge. The hash check and the
 path-traversal check exist exactly once, here.
 
-Release 8 is the constraint that shapes the whole build: Minecraft 1.16.5 and older run on Java 8,
-so the core has to compile at 8 for every adapter to embed it, whether that adapter targets 1.12.2
-on an 8u JVM or Forge 26.2 on Java 25. Concretely that costs `HttpURLConnection` instead of
+Release 8 is the constraint that shapes the whole build. Minecraft 1.16.5 and older run on Java 8,
+so the core has to compile at 8 for every adapter to embed it. That holds whether the adapter
+targets 1.12.2 on an 8u JVM or Forge 26.2 on Java 25. Concretely that costs `HttpURLConnection`
+instead of
 `java.net.http.HttpClient` (11+), plain classes instead of records (16+), no `var` (10+), no text
 blocks (15+), no switch expressions (14+), no `InputStream.readAllBytes` (9+), no `List.of` or
 `Files.readString` (9+/11+).
@@ -193,8 +197,8 @@ Three attributes are deliberately absent:
 ## hopper-forge-1165
 
 An `IModLocator`, but not the modern one. At forgespi 3.2.0 and below the interface has no
-`IModProvider` supertype, `scanMods()` returns `List<IModFile>`, and `findPath` / `findManifest` are
-abstract, so `HopperLocator` from `hopper-forge-modern` cannot be reused - same delegate pattern,
+`IModProvider` supertype, `scanMods()` returns `List<IModFile>`, and `findPath` / `findManifest`
+are abstract. `HopperLocator` from `hopper-forge-modern` cannot be reused: same delegate pattern,
 different method set.
 
 1.13.2 is out of reach: it ships forgespi 0.13.0, which has no `IModLocator` class at all. The
@@ -204,7 +208,8 @@ ceiling is 1.16.5 and stays there - 1.17.1 ships forgespi 4.0.9, which deleted `
 The build compiles against the oldest forgespi in the range so the compiler enforces the floor:
 1.14.4 ships 1.5.0, 1.15.2 ships 3.0.0, 1.16.5 ships 3.2.0, and 3.2.0 only adds the
 `findManifestAndSigners` default, so code written against 1.5.0 satisfies all three.
-`Environment.Keys` at 1.5.0 is `DIST`, `MODFOLDERFACTORY`, `MODDIRECTORYFACTORY`, `PROGRESSMESSAGE` -
+`Environment.Keys` at 1.5.0 is `DIST`, `MODFOLDERFACTORY`, `MODDIRECTORYFACTORY`,
+`PROGRESSMESSAGE` -
 `MODFILEFACTORY` does not exist yet, so do not touch that key.
 
 modlauncher 8.1.3 is what 1.16.5 ships, and the one signature this module touches -
@@ -251,8 +256,8 @@ No shipped Forge uses forgespi 4.0.2-4.0.8 (which still had `findPath`/`findMani
 (which briefly had `IModProvider` with `List<IModFile>`), so neither is claimed. 5.0.x never reached
 a release at all: 1.19-41.0.0 was still on 4.0.10 and 1.19-41.0.63 was already on 6.0.0.
 
-Release 16, not 17: Minecraft 1.17.1 runs on Java 16 and is the floor. 1.18+ runs on Java 17, which
-loads classfile 60 without complaint, and both forgespi 4.0.x and modlauncher 9.x are themselves
+Release 16, not 17: Minecraft 1.17.1 runs on Java 16 and is the floor. 1.18+ runs on Java 17,
+which loads classfile 60 without complaint. Both forgespi 4.0.x and modlauncher 9.x are themselves
 classfile 60, so 16 is also the lowest release that can see them.
 
 4.0.9 is the oldest forgespi in the range. Its `IModLocator` declares exactly five abstract methods
@@ -264,11 +269,11 @@ because that one also demands `findPath` and `findManifest`.
 `Launcher.INSTANCE.environment().getProperty(TypesafeMap$Key)` and `IEnvironment$Keys.GAMEDIR` are
 byte-identical in modlauncher 9.0.7 and 9.1.3, checked with javap on both jars.
 
-`Automatic-Module-Name` is required here, unlike on 1.16.5, and for the same reason as on 1.19+:
-FML 37.x and 40.x both build the `ServiceLoader` with
-`ServiceLoader.load(ModuleLayer, IModLocator.class)` against `IModuleLayerManager.Layer.SERVICE`,
-verified by javap on fmlloader 1.17.1-37.0.0 and 1.18.2-40.3.12, so this jar becomes a JPMS module
-and its name must not come from the filename.
+`Automatic-Module-Name` is required here, unlike on 1.16.5, and for the same reason as on 1.19+.
+FML 37.x and 40.x both build the `ServiceLoader` with `ServiceLoader.load(ModuleLayer,
+IModLocator.class)` against `IModuleLayerManager.Layer.SERVICE`, verified by javap on fmlloader
+1.17.1-37.0.0 and 1.18.2-40.3.12. This jar becomes a JPMS module, so its name must not come from
+the filename.
 
 `ModDirTransformerDiscoverer` on both 1.17.1 and 1.18.2 opens each jar in `mods/` as a zip and looks
 for the literal services entry name; it does not read the module descriptor here, unlike 1.19+. The
@@ -319,10 +324,11 @@ Re-prove the ceiling when a new Forge ships:
     -PforgespiVersion=8.0.0 -PmodlauncherCoordinate=net.minecraftforge:modlauncher:10.2.6
 ```
 
-modlauncher is a whole GAV rather than a bare version, and that is not tidiness: the groupId changed
-from `cpw.mods` to `net.minecraftforge` at 10.1.1 (Forge 1.20.4), and `cpw.mods:modlauncher` stops
-at 10.0.9, so a version-only knob cannot reach the ceiling at all - it resolves nothing and the
-check fails for the wrong reason. The Java package is `cpw.mods.modlauncher` in both.
+modlauncher is a whole GAV rather than a bare version, and that is not tidiness. The groupId
+changed from `cpw.mods` to `net.minecraftforge` at 10.1.1 (Forge 1.20.4), and
+`cpw.mods:modlauncher` stops at 10.0.9. A version-only knob cannot reach the ceiling at all: it
+resolves nothing, and the check fails for the wrong reason. The Java package is
+`cpw.mods.modlauncher` in both.
 
 ## hopper-neoforge
 
@@ -377,7 +383,7 @@ resolution - then `loader.freeze()`, then Mixin bootstrap, then the transformers
 mods throw `IllegalStateException`. There is no ordering trick that changes this.
 
 The one lever is the `fabric.addMods` system property, read inside `discoverMods`, so setting it
-from `preLaunch` is far too late; setting it early enough means a JVM command-line argument, which
+from `preLaunch` is far too late. Setting it early enough means a JVM command-line argument, which
 is a launcher setting HOPPER refuses to need. So: sync in `preLaunch`, and when something changed,
 tell the player a restart is required.
 
@@ -396,9 +402,10 @@ it, and a `ModsFolderMirror` owns exactly the filenames it records in `hopper/mo
 file in `mods/` that is not in that list is never touched.
 
 And it is opt-in. Writing into a player's directory is the one thing in this project that can
-destroy something of theirs, so it needs a human to have said yes: `fabricMirrorMods=true` in
-`config/hopper.properties`, read from the player's file and never from the server-written properties
-embedded in the jar. Off, the adapter still syncs `hopper/` and then states plainly that nothing
+destroy something of theirs, so it needs a human to have said yes. That is `fabricMirrorMods=true`
+in `config/hopper.properties`, read from the player's own file and never from the server-written
+properties embedded in the jar. Off, the adapter still syncs `hopper/` and then states plainly
+that nothing
 will load and which line to add. See `Config.mirrorMods()`.
 
 ## hopper-quilt

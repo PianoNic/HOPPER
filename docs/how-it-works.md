@@ -2,11 +2,18 @@
 
 ## No restart
 
-HOPPER is a **mod locator**, not a mod. Forge's `ModDirTransformerDiscoverer` walks `mods/`, reads each jar's module descriptor, and lifts any jar that *provides* `net.minecraftforge.forgespi.locating.IModLocator` into the SERVICE layer. That layer is built **before** `ModDiscoverer` scans for mods.
+HOPPER is a **mod locator**, not a mod.
 
-So HOPPER downloads the required set, and FML then picks those jars up in the same launch. That is why there is no restart, and why it does not care which launcher started the game.
+Forge's `ModDirTransformerDiscoverer` walks `mods/` and lifts any jar providing
+`net.minecraftforge.forgespi.locating.IModLocator` into the SERVICE layer. That layer is built
+**before** `ModDiscoverer` scans for mods. HOPPER downloads the required set from there, and FML
+picks those jars up in the same launch.
 
-A normal `@Mod` runs after the jar scan. On Windows the open jars cannot be replaced, which forces a restart plus a second process to apply the files. HOPPER avoids that entirely by never writing into `mods/`: downloads land in `hoppermods/`, a directory it owns outright, so a player's own mods are never touched either.
+That is why there is no restart, and why it does not care which launcher started the game.
+
+A normal `@Mod` runs after the jar scan. On Windows the open jars cannot be replaced, so applying
+files needs a restart and a second process. HOPPER avoids that by never writing into `mods/` at all.
+Downloads land in `hoppermods/`, a directory it owns outright.
 
 ## The generated jar
 
@@ -30,7 +37,8 @@ Settings merge **per key**, jar first:
 | `token` | written on download | fallback |
 | `enabled` | never written | **the only source** |
 
-`enabled` is deliberately left out of the jar, so `enabled=false` still stops a downloaded jar from syncing. The player keeps a local kill switch on a jar that otherwise configures itself.
+`enabled` is left out of the jar on purpose, so `enabled=false` still stops a downloaded jar from
+syncing. The player keeps a local kill switch on a jar that otherwise configures itself.
 
 ## The API the client talks to
 
@@ -41,7 +49,13 @@ POST /api/clients/report        what this client ended up with
 GET  /api/servers/{id}/jar      the jar with all of the above baked in
 ```
 
-None of the three client endpoints carries a server segment, and that is deliberate: the Java client derives its report URL from its manifest URL, so a segment on one would silently move the other. The server is resolved from the bearer token instead.
+None of the three client endpoints carries a server segment. The server is resolved from the bearer
+token instead.
+
+::: info Why no server segment
+The Java client derives its report URL from its manifest URL. A segment on one would silently move
+the other.
+:::
 
 ```json
 {
@@ -60,15 +74,12 @@ None of the three client endpoints carries a server segment, and that is deliber
 
 - A file is downloaded only if it is missing or its sha256 does not match.
 - Anything in `hoppermods/` the manifest no longer lists is disposed of by where it came from. A jar
-  HOPPER downloaded is deleted, because the server still has it and the next sync fetches it again.
-  Anything else - a jar you dropped in by hand, or one HOPPER moved out of your `mods/` folder - is
-  moved to `hoppermods/parked/` with a `.parked` suffix, where no loader sees it and nothing is
-  destroyed for three days - after that the sweep deletes it, on the grounds that nobody is coming
-  back for it, and says so in the log. Deleting a file a person put there is the one thing HOPPER will not do, and parking
-  everything instead would grow that folder by the size of the pack on every update.
-- HOPPER knows which is which from `hoppermods/downloaded`, the list it writes after every sync.
-  Delete that file and HOPPER forgets the claim: from then on everything stale is parked, which is
-  the safe direction to be wrong in.
+  HOPPER downloaded is deleted, since the server still has it. Anything a person put there is moved
+  to `hoppermods/parked/` with a `.parked` suffix, where no loader sees it, and deleted three days
+  later with a line in the log.
+- HOPPER tells them apart from `hoppermods/downloaded`, written after every sync. Delete that file
+  and HOPPER forgets the claim: everything stale is parked from then on, which is the safe direction
+  to be wrong in.
 - `client-id`, `downloaded`, `mods-mirror.txt` and `parked/` are HOPPER's own bookkeeping and are
   never swept. A leftover `.part` from an interrupted download is.
 - A download whose hash does not match is discarded, not installed.
@@ -77,7 +88,8 @@ None of the three client endpoints carries a server segment, and that is deliber
 
 ## Loader coverage
 
-Every loader that exposes a hook running *before* mod discovery can do the no-restart trick. The hook is different in each of them, so one jar cannot serve them all:
+Any loader with a hook that runs *before* mod discovery can do the no-restart trick. The hook
+differs in each, so one jar cannot serve them all:
 
 | Loader | Same launch | Side detected from | Hook |
 | --- | --- | --- | --- |
@@ -88,15 +100,19 @@ Every loader that exposes a hook running *before* mod discovery can do the no-re
 | Fabric | **no** | `FabricLoader.getEnvironmentType()` | see below |
 | Forge 1.12.2 and older | yes | `FMLLaunchHandler.side()` | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
 
-Forge keeps the same class name across generations while changing the signature, so those two are binary incompatible with each other: a single class cannot implement both. Supporting more loaders means a shared core plus one thin adapter each.
+Forge keeps the same class name across generations while changing the signature, so those two are
+binary incompatible. A single class cannot implement both.
 
-Only the adapter is loader-specific. `Syncer` imports nothing from any loader, which is what makes this cheap.
+Only the adapter is loader-specific. `Syncer` imports nothing from any loader, which is what makes
+adding one cheap.
 
 ## Sides
 
-The same jar runs on a player's machine and on a dedicated server. There is no separate server download: the adapter asks its loader which side it is, and requests the matching set.
+The same jar runs on a player's machine and on a dedicated server. The adapter asks its loader which
+side it is on and requests the matching set.
 
-Every mod carries one of three values, and `Both` is the default, so a server that has never classified anything behaves exactly as it did before sides existed:
+Every mod carries one of three values. `Both` is the default, so a server that has never classified
+anything behaves as it always did:
 
 | Side | Goes to players | Goes to the dedicated server |
 | --- | --- | --- |
@@ -104,31 +120,60 @@ Every mod carries one of three values, and `Both` is the default, so a server th
 | `Client only` | yes | no |
 | `Server only` | no | yes |
 
-That matters because a client-only mod on a dedicated server is at best pointless and at worst a crash on boot - JEI, Xaero's Minimap, Sodium and Iris all have no business there.
+A client-only mod on a dedicated server is at best pointless and at worst a crash on boot. JEI,
+Xaero's Minimap, Sodium and Iris all have no business there.
 
-Mechanically it is one query parameter. A client asks for `/api/manifest`, exactly as every jar shipped before this did, and gets `Both` plus `Client only`. A dedicated server asks for `/api/manifest?side=server` and gets `Both` plus `Server only`. The blob endpoint applies the same rule, so a jar cannot be fetched by hash by a side it was not sent to, and the manifest bakes the side into the download URLs it hands out.
+Mechanically it is one query parameter. A client asks for `/api/manifest` and gets `Both` plus
+`Client only`. A dedicated server asks for `/api/manifest?side=server` and gets `Both` plus
+`Server only`. The blob endpoint applies the same rule, so a jar cannot be fetched by hash by a side
+it was never sent to.
 
-HOPPER fills the side in for you wherever the source knows it: the `env` object on an `.mrpack` entry, the `client-overrides/` and `server-overrides/` folders, Modrinth's `client_side` and `server_side`, and failing all of those the `environment` field in a jar's own `fabric.mod.json` or `quilt.mod.json`. A Prism or CurseForge pack carries no side, so those fall back to the jar, as does a jar you collect by hand after an import could not fetch it. Anything with no signal at all stays `Both`, and the Mods page is where you correct it - select any number of rows and set them at once.
+HOPPER fills the side in wherever the source knows it:
 
-Exporting reverses the same knowledge, and the three formats differ because they are different things. An `.mrpack` records a side per file, so a side survives a round trip through it unchanged. A CurseForge pack carries no side and is a distributable a server operator installs too, so it ships both sets together. A Prism instance is one machine's game directory rather than a distributable, and in practice a client one, so it gets the jars a player gets and the export dialog names what it left out.
+- The `env` object on an `.mrpack` entry
+- The `client-overrides/` and `server-overrides/` folders
+- Modrinth's `client_side` and `server_side`
+- Failing those, the `environment` field in the jar's own `fabric.mod.json` or `quilt.mod.json`
+
+Prism and CurseForge packs carry no side, so they fall back to the jar. Anything with no signal
+stays `Both`. Correct it on the Mods page, which sets any number of rows at once.
+
+Exporting reverses the same knowledge, and the three formats differ:
+
+| Format | Sides |
+| --- | --- |
+| `.mrpack` | Records a side per file, so it survives a round trip unchanged |
+| CurseForge | Carries no side and a server operator installs it too, so it ships both sets |
+| Prism | One machine's game directory, in practice a client, so it gets what a player gets |
 
 ### Fabric
 
-Fabric has no public pre-discovery hook. Its only lever is the `fabric.addMods` system property, read by `ArgumentModCandidateFinder` during discovery, and a system property means a JVM argument, which means a launcher setting. That is exactly what HOPPER avoids, because the CurseForge app does not expose one.
+Fabric has no public pre-discovery hook. Its only lever is the `fabric.addMods` system property,
+which means a JVM argument, which means a launcher setting. The CurseForge app does not expose one.
+Everything else in Fabric's discovery lives under the internal `net.fabricmc.loader.impl`.
 
-Everything else in Fabric's discovery lives under `net.fabricmc.loader.impl`, which is internal and free to break at any time.
-
-So Fabric gets the honest version instead: sync from the `preLaunch` entrypoint, and when something changed, tell the player a restart is needed. That is what AutoModpack does, and for the same reason. Same `core/`, worse promise.
+So Fabric gets the honest version: sync from the `preLaunch` entrypoint, and tell the player a
+restart is needed when something changed. AutoModpack does the same, for the same reason.
 
 ### Quilt
 
-Quilt has the right hook, and a declaration Quilt refuses to read. `V1ModMetadataImpl` throws a `ParseException` - a hard failure, not a degradation - the moment it sees the `experimental_quilt_loader_plugin` key while `-Dloader.experimental.allow_loading_plugins=true` is unset. So a Quilt server is served `hopper-fabric.jar` by default: Quilt runs Fabric mods through `StandardFabricPlugin`, the `preLaunch` entrypoint works unchanged, and the player gets the Fabric promise - it works, it needs a restart.
+Quilt has the right hook and a declaration it refuses to read. `V1ModMetadataImpl` throws a
+`ParseException` the moment it sees the `experimental_quilt_loader_plugin` key while
+`-Dloader.experimental.allow_loading_plugins=true` is unset. That is a hard failure, not a
+degradation.
 
-The plugin jar is built, tested and shipped as `hopper-quilt-plugin.jar` all the same. A player who has set that JVM flag downloads it from `GET /api/servers/{id}/jar?variant=quilt-plugin` and gets same-launch loading. Asking for that variant on any other loader is a 400 rather than a jar that will not parse.
+So a Quilt server is served `hopper-fabric.jar`. Quilt runs Fabric mods through
+`StandardFabricPlugin`, the `preLaunch` entrypoint works unchanged, and the player gets the Fabric
+promise: it works, it needs a restart.
+
+The plugin jar is built, tested and shipped as `hopper-quilt-plugin.jar` all the same.
 
 ## Limits
 
 - HOPPER cannot update its own jar; it is open while it runs.
 - Someone places that first jar by hand. Nothing can reach a client that has not run anything yet.
-- One token per server, shared by every client of that server, sitting in plain text inside a jar on machines you do not control. It gates read access to that one server's mod set. Rotating it invalidates every jar already handed out.
-- `username` is self-reported and unverified. It labels a row in the dashboard; it is not an identity.
+- One token per server, shared by every client, in plain text inside a jar on machines you do not
+  control. It gates read access to that server's mod set. Rotating it invalidates every jar already
+  handed out.
+- `username` is self-reported and unverified. It labels a row in the dashboard. It is not an
+  identity.
