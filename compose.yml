@@ -33,7 +33,6 @@ services:
       Oidc__RedirectUri: "${Oidc__RedirectUri:-}"
       Oidc__PostLogoutRedirectUri: "${Oidc__PostLogoutRedirectUri:-${Oidc__RedirectUri:-}}"
       Oidc__Scope: "${Oidc__Scope:-openid profile email roles}"
-      Hopper__BootstrapClientToken: "${Hopper__BootstrapClientToken:-}"
       Hopper__PublicBaseUrl: "${Hopper__PublicBaseUrl:-}"
       ConnectionStrings__HopperDatabase: "${ConnectionStrings__HopperDatabase:-Host=db;Port=5432;Database=${Postgres__Database:-hopper};Username=${Postgres__User:-hopper};Password=${Postgres__Password:-hopper}}"
     depends_on:

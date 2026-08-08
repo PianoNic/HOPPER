@@ -90,7 +90,6 @@ builder.Services.AddHopperAuthorization(builder.Configuration);
 var app = builder.Build();
 
 app.ApplyMigrations();
-await app.ApplySeedsAsync();
 
 app.UseForwardedHeaders();
 

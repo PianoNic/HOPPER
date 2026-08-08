@@ -35,7 +35,6 @@ services:
       - "58722:8080"
     environment:
       ConnectionStrings__HopperDatabase: "Host=db;Port=5432;Database=hopper;Username=hopper;Password=hopper"
-      Hopper__BootstrapClientToken: "change-me"
       Oidc__Authority: "https://id.example.com/realms/hopper"
       Oidc__ClientId: hopper
       Oidc__RedirectUri: "https://hopper.example.com/"
@@ -114,7 +113,7 @@ Forge, NeoForge and Fabric dedicated servers are all supported. The Fabric cavea
 - **Admin** (the dashboard, `/api/servers/...`) is OIDC. Point `Oidc__Authority` at your own provider, and grant yourself `hopper-admin`.
 - **Client** (`/api/manifest`, `/api/blobs/{sha256}`, `/api/clients/report`) is a per-server token, minted by HOPPER and resolved to a server on every request. A token matching no server is a 401, and a database with no servers rejects every client rather than opening the door.
 
-`Hopper__BootstrapClientToken` only seeds the token of the `Default` server created on an empty database. It is applied while the Servers table is empty and never again, so rotating in the dashboard afterwards sticks.
+A fresh deployment has no servers and no tokens. Create the first one in the dashboard; it is minted a token there, and the jar you download already carries it.
 
 ## Configuration
 
@@ -123,7 +122,6 @@ Forge, NeoForge and Fabric dedicated servers are all supported. The Fabric cavea
 | `ConnectionStrings__HopperDatabase` | compose `db` service | Postgres connection string. HOPPER is Postgres-only. |
 | `Blobs__Directory` | `/data/blobs` | Content-addressed jar store. Shared across servers, so a jar used twice is stored once. Staged packs and export scratch live on the same volume, and HOPPER reclaims unreferenced files once they are past the grace period below. |
 | `Hopper__PublicBaseUrl` | derived from the request | Host written into every manifest URL. Leave unset behind a proxy that sends `X-Forwarded-*`. |
-| `Hopper__BootstrapClientToken` | `change-me` | Token of the `Default` server created on an empty database. |
 | `Hopper__LocatorTemplateDirectory` | built into the image | Directory of template jars, one per loader generation. The download endpoint picks by the server's loader and Minecraft version. |
 | `Hopper__PackDownloadHosts` | Modrinth, GitHub, GitLab and the two forgecdn hosts | Hosts a pack may be downloaded from. Setting it **replaces** the built-in list rather than adding to it, so list every host you want, including `cdn.modrinth.com` and `edge.forgecdn.net`. |
 | `Hopper__MaxImportBytes` | `2147483648` | Ceiling on one import: the compressed pack, the archive an admin uploads, and the summed size the pack declares. |
