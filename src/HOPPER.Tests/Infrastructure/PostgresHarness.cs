@@ -9,7 +9,13 @@ namespace HOPPER.Tests.Infrastructure
     {
         private static readonly Lazy<PostgreSqlContainer> Container = new(() =>
         {
-            var postgres = new PostgreSqlBuilder("postgres:18.3").WithCleanUp(true).Build();
+            // Only the flag. Testcontainers appends to the command the Postgres module already
+            // configured, so passing the "postgres" argv[0] as well splices two commands together
+            // and the container exits 1 before anything listens.
+            var postgres = new PostgreSqlBuilder("postgres:18.3")
+                .WithCommand("-c", "max_connections=500")
+                .WithCleanUp(true)
+                .Build();
             postgres.StartAsync().GetAwaiter().GetResult();
 
             AppDomain.CurrentDomain.ProcessExit += (_, _) =>
@@ -21,10 +27,15 @@ namespace HOPPER.Tests.Infrastructure
             return postgres;
         });
 
+        // One CREATE DATABASE per test through a pool Npgsql would otherwise let grow to a hundred
+        // idle connections, on a server every test is also holding one of its own.
+        private static string Admin() =>
+            new NpgsqlConnectionStringBuilder(Container.Value.GetConnectionString()) { MaxPoolSize = 8 }.ConnectionString;
+
         public static async Task<string> NewDatabaseAsync()
         {
             var name = "hopper_" + Guid.NewGuid().ToString("N");
-            var admin = Container.Value.GetConnectionString();
+            var admin = Admin();
 
             await using (var connection = new NpgsqlConnection(admin))
             {
