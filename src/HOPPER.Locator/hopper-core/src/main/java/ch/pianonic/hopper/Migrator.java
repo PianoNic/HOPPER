@@ -119,14 +119,26 @@ final class Migrator {
         return index;
     }
 
+    private Set<String> mirrorOwned() {
+        Path list = hopperDir.resolve(Syncer.MIRROR_LIST);
+        if (!Files.isRegularFile(list)) return Collections.emptySet();
+
+        return new Ledger(list, "", log).read();
+    }
+
     private Map<Syncer.Entry, List<Path>> matchJars(Map<String, Syncer.Entry> index)
             throws IOException {
+        // Only what the player put there. The mirror's own copies match every manifest entry.
+        Set<String> mirrored = mirrorOwned();
+
         List<Path> jars = new ArrayList<Path>();
         DirectoryStream<Path> listing = Files.newDirectoryStream(modsDir);
         try {
             for (Path p : listing) {
                 if (!Files.isRegularFile(p)) continue;
-                if (!p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
+                String name = p.getFileName().toString();
+                if (!name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
+                if (mirrored.contains(name)) continue;
                 jars.add(p);
             }
         } finally {
