@@ -11,8 +11,7 @@ namespace HOPPER.Application.Loaders
 
     public static class LoaderDescriptors
     {
-        // The one table. Every other spelling of forge/neoforge/fabric/quilt in C# reads from here,
-        // so adding a loader is a row plus a version source rather than a hunt through the codebase.
+        // The one table. Every other spelling of a loader in C# reads from here.
         private static readonly LoaderDescriptor[] All =
         [
             new(ModLoader.Forge, "forge", "forge", "net.minecraftforge", "forge"),

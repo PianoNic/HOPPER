@@ -3,9 +3,7 @@ using System.Text;
 
 namespace HOPPER.API.Extensions
 {
-    /// The other half of the digest written by the `templates` task in src/HOPPER.Locator/build.gradle.
-    /// Both walk every .java outside build/, sorted by path, and hash "relative/path\n" then the bytes.
-    /// Change one and the other stops matching, which reads as permanently stale.
+    /// Pairs with the templatesStamp task in src/HOPPER.Locator/build.gradle - see docs/locator.md.
     public static class LocatorSourceDigest
     {
         public const string StampFileName = "templates.stamp";

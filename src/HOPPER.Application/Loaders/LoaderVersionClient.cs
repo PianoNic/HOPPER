@@ -43,9 +43,7 @@ namespace HOPPER.Application.Loaders
                     ModLoader.Fabric => await FabricAsync(cancellationToken),
                     ModLoader.Quilt => await QuiltAsync(cancellationToken),
 
-                    // Not an empty list. A loader with no version source here answered 200 with
-                    // nothing in it, so the dropdown was blank and looked like an upstream outage
-                    // rather than a loader that was never wired up.
+                    // Not an empty list, which answered 200 and left the dropdown silently blank.
                     _ => throw new LoaderVersionsNotConfiguredException(loader),
                 };
             }

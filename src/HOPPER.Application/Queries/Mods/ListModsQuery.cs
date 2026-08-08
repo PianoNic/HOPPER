@@ -18,8 +18,7 @@ namespace HOPPER.Application.Queries.Mods
                 .Where(m => m.ServerId == query.ServerId)
                 .OrderBy(m => m.FileName)
                 .ToListAsync(cancellationToken);
-            // One stat per distinct hash rather than per row: blobs are shared, so a server that
-            // lists the same jar twice under two names would otherwise pay for it twice.
+            // Per distinct hash, not per row: blobs are shared.
             var present = rows.Select(m => m.Sha256).Distinct(StringComparer.Ordinal)
                 .ToDictionary(sha => sha, blobs.Exists, StringComparer.Ordinal);
 
@@ -29,8 +28,7 @@ namespace HOPPER.Application.Queries.Mods
                 .Select(m => m.ToDto() with
                 {
                     BytesMissing = !present[m.Sha256],
-                    // TryGetValue, not GetValueOrDefault: the default of a non-nullable enum is
-                    // SyncSide.Client, so every mod that collides with nothing would claim it does.
+                    // Not GetValueOrDefault: a missing key would come back as SyncSide.Client.
                     CollidesOn = collisions.TryGetValue(m.Id, out var side) ? side : null,
                 })
                 .ToList();
