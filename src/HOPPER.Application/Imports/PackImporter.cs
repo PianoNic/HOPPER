@@ -445,22 +445,16 @@ namespace HOPPER.Application.Imports
                     return;
                 }
 
-                await using var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken);
-
                 db.Mods.Add(mod);
                 import.ImportedCount++;
 
-                try
-                {
-                    await db.SaveChangesAsync(cancellationToken);
-                    blobs.Promote(staged);
-                    await hold.CommitAsync(cancellationToken);
-                }
-                catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+                duplicate = await BlobLock.SaveWithBlobAsync(db, blobs, staged, cancellationToken)
+                    is BlobSaveOutcome.Duplicate;
+
+                if (duplicate)
                 {
                     db.Entry(mod).State = EntityState.Detached;
                     import.ImportedCount--;
-                    duplicate = true;
                 }
             }
             finally

@@ -63,23 +63,13 @@ namespace HOPPER.Application.Command.Imports
                     IconSha256 = metadata.IconSha256,
                 };
 
-                await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
+                db.Mods.Add(entry);
+                db.PendingMods.Remove(pending);
+
+                if (await BlobLock.SaveWithBlobAsync(db, blobs, staged, cancellationToken) is BlobSaveOutcome.Duplicate)
                 {
-                    db.Mods.Add(entry);
-                    db.PendingMods.Remove(pending);
-
-                    try
-                    {
-                        await db.SaveChangesAsync(cancellationToken);
-                    }
-                    catch (DbUpdateException ex) when (ex.IsUniqueViolation())
-                    {
-                        db.Entry(entry).State = EntityState.Detached;
-                        throw new DuplicateModFileNameException(fileName);
-                    }
-
-                    blobs.Promote(staged);
-                    await hold.CommitAsync(cancellationToken);
+                    db.Entry(entry).State = EntityState.Detached;
+                    throw new DuplicateModFileNameException(fileName);
                 }
 
                 return entry.ToDto();

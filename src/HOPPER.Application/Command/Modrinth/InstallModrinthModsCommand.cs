@@ -243,24 +243,14 @@ namespace HOPPER.Application.Command.Modrinth
 
                 db.Mods.Add(entry);
 
-                await using (var hold = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
+                if (await BlobLock.SaveWithBlobAsync(db, blobs, staged, cancellationToken) is BlobSaveOutcome.Duplicate)
                 {
-                    try
-                    {
-                        await db.SaveChangesAsync(cancellationToken);
-                    }
-                    catch (DbUpdateException ex) when (ex.IsUniqueViolation())
-                    {
-                        db.Entry(entry).State = EntityState.Detached;
+                    db.Entry(entry).State = EntityState.Detached;
 
-                        if (displaced is not null)
-                            db.Entry(displaced).State = EntityState.Unchanged;
+                    if (displaced is not null)
+                        db.Entry(displaced).State = EntityState.Unchanged;
 
-                        throw new DuplicateModFileNameException(fileName);
-                    }
-
-                    blobs.Promote(staged);
-                    await hold.CommitAsync(cancellationToken);
+                    throw new DuplicateModFileNameException(fileName);
                 }
 
                 if (displaced is not null)
