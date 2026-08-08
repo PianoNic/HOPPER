@@ -13,6 +13,9 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -470,10 +473,80 @@ class SyncerTest {
         return f;
     }
 
+    @Test
+    void oneDeadDownloadCostsOnlyThatMod(@TempDir Path game) throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        byte[] good = "a mod that is there".getBytes(StandardCharsets.UTF_8);
+        byte[] missing = "a mod whose bytes are gone".getBytes(StandardCharsets.UTF_8);
+
+        Stub stub = new Stub();
+        try {
+            stub.blobs.put("good", good);
+            stub.gone.add("gone");
+
+            stub.manifest("{\"mods\":["
+                    + "{\"file\":\"gone.jar\",\"url\":\"" + stub.blobUrl("gone")
+                    + "\",\"sha256\":\"" + sha256(missing) + "\",\"size\":" + missing.length + "},"
+                    + "{\"file\":\"good.jar\",\"url\":\"" + stub.blobUrl("good")
+                    + "\",\"sha256\":\"" + sha256(good) + "\",\"size\":" + good.length + "}"
+                    + "]}");
+
+            Syncer syncer = new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS,
+                    HopperLog.STDOUT);
+            Set<String> ready = syncer.sync();
+
+            assertTrue(Files.exists(dir.resolve("good.jar")));
+            assertTrue(ready.contains("good.jar"));
+
+            assertFalse(Files.exists(dir.resolve("gone.jar")));
+            assertFalse(ready.contains("gone.jar"));
+
+            assertEquals(1, syncer.failures().size());
+            assertTrue(syncer.failures().get(0).startsWith("gone.jar"));
+        } finally {
+            stub.stop();
+        }
+    }
+
+    @Test
+    void aFailedDownloadDoesNotDeleteTheCopyThePlayerAlreadyHad(@TempDir Path game) throws Exception {
+        Path mods = Files.createDirectories(game.resolve("mods"));
+        Path dir = Files.createDirectories(game.resolve(Hopper.DIR));
+
+        // An older build already on disk, and a manifest asking for a newer one the server cannot
+        // serve. Nothing about that makes the copy the player has worth deleting.
+        byte[] old = "the build already installed".getBytes(StandardCharsets.UTF_8);
+        byte[] wanted = "the build the server wants".getBytes(StandardCharsets.UTF_8);
+
+        Path target = dir.resolve("jade.jar");
+        Files.write(target, old);
+
+        Stub stub = new Stub();
+        try {
+            stub.gone.add("jade");
+            stub.manifest("{\"mods\":[{\"file\":\"jade.jar\",\"url\":\"" + stub.blobUrl("jade")
+                    + "\",\"sha256\":\"" + sha256(wanted) + "\",\"size\":" + wanted.length + "}]}");
+
+            Syncer syncer = new Syncer(stub.manifestUrl(), null, dir, mods, NO_PROGRESS,
+                    HopperLog.STDOUT);
+            syncer.sync();
+
+            assertTrue(Files.exists(target));
+            assertArrayEquals(old, Files.readAllBytes(target));
+            assertEquals(1, syncer.failures().size());
+        } finally {
+            stub.stop();
+        }
+    }
+
     private static final class Stub {
         private final HttpServer server;
         private byte[] manifest = new byte[0];
         byte[] blob = new byte[0];
+        final Map<String, byte[]> blobs = new HashMap<String, byte[]>();
+        final Set<String> gone = new HashSet<String>();
         int downloads;
 
         Stub() throws IOException {
@@ -488,7 +561,17 @@ class SyncerTest {
                 @Override
                 public void handle(HttpExchange exchange) throws IOException {
                     downloads++;
-                    respond(exchange, blob);
+
+                    String path = exchange.getRequestURI().getPath();
+                    String key = path.substring(path.lastIndexOf('/') + 1);
+
+                    if (gone.contains(key)) {
+                        exchange.sendResponseHeaders(404, -1);
+                        exchange.close();
+                        return;
+                    }
+
+                    respond(exchange, blobs.containsKey(key) ? blobs.get(key) : blob);
                 }
             });
             server.start();
@@ -513,7 +596,11 @@ class SyncerTest {
         }
 
         String blobUrl() {
-            return "http://127.0.0.1:" + server.getAddress().getPort() + "/api/blobs/x";
+            return blobUrl("x");
+        }
+
+        String blobUrl(String key) {
+            return "http://127.0.0.1:" + server.getAddress().getPort() + "/api/blobs/" + key;
         }
 
         void stop() {

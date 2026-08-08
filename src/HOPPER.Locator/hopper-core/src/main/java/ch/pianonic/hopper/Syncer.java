@@ -47,6 +47,8 @@ final class Syncer {
 
     private final List<Mod> installed = new ArrayList<Mod>();
 
+    private final List<String> failures = new ArrayList<String>();
+
     private int added;
     private int removed;
     private int migrated;
@@ -91,6 +93,13 @@ final class Syncer {
 
         owned.removeAll(migration.migrated);
 
+        // Everything the manifest lists, whether or not it arrives. The sweep below deletes what is
+        // not in here, so a jar that merely failed to download must still be named or the next run
+        // would delete the copy the player already had.
+        Set<String> ready = new LinkedHashSet<String>();
+
+        failures.clear();
+
         for (Entry e : mods) {
             String name = sanitize(e.file);
 
@@ -101,11 +110,20 @@ final class Syncer {
             Path target = dir.resolve(name);
             String have = Files.exists(target) ? sha256(target) : null;
             if (have == null || !have.equalsIgnoreCase(e.sha256)) {
-                have = download(e, target);
-                owned.add(name);
-                added++;
+                try {
+                    have = download(e, target);
+                    owned.add(name);
+                    added++;
+                } catch (Exception ex) {
+                    // One jar, not the run. A first sync that gave up here left the player with
+                    // nothing at all, including the mods whose bytes were fine.
+                    failures.add(name + ": " + ex.getMessage());
+                    log.warn("[HOPPER] could not download " + name + "; carrying on with the rest", ex);
+                    continue;
+                }
             }
 
+            ready.add(name);
             installed.add(new Mod(name, have));
         }
 
@@ -150,7 +168,17 @@ final class Syncer {
         owned.retainAll(wanted);
         ledger.write(owned);
 
-        return wanted;
+        if (!failures.isEmpty()) {
+            log.warn("[HOPPER] " + failures.size() + " of " + wanted.size()
+                    + " mod(s) could not be downloaded: " + String.join(", ", failures), null);
+            progress.accept("HOPPER: " + failures.size() + " mod(s) unavailable");
+        }
+
+        return ready;
+    }
+
+    List<String> failures() {
+        return failures;
     }
 
     boolean changed() {
