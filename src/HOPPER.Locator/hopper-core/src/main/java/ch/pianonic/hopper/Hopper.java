@@ -28,8 +28,10 @@ public final class Hopper {
 
         public final int deferred;
 
+        public final int failed;
+
         Result(Path dir, Set<String> wanted, boolean changed, int added, int removed,
-                int migrated, int deferred) {
+                int migrated, int deferred, int failed) {
             this.dir = dir;
             this.wanted = wanted == null ? null : Collections.unmodifiableSet(wanted);
             this.count = wanted == null ? 0 : wanted.size();
@@ -38,6 +40,7 @@ public final class Hopper {
             this.removed = removed;
             this.migrated = migrated;
             this.deferred = deferred;
+            this.failed = failed;
         }
     }
 
@@ -61,7 +64,7 @@ public final class Hopper {
 
             if (!cfg.enabled()) {
                 log.info("[HOPPER] disabled in config; loading what is already downloaded");
-                return new Result(dir, null, false, 0, 0, 0, 0);
+                return new Result(dir, null, false, 0, 0, 0, 0, 0);
             }
 
             log.info("[HOPPER] syncing from " + cfg.manifestUrl()
@@ -75,11 +78,11 @@ public final class Hopper {
             syncer.report(username);
 
             return new Result(dir, wanted, syncer.changed(), syncer.added(), syncer.removed(),
-                    syncer.migrated(), syncer.deferred());
+                    syncer.migrated(), syncer.deferred(), syncer.failures().size());
         } catch (Throwable t) {
             log.error("[HOPPER] sync failed; launching with the previously downloaded mods", t);
             sink.accept("HOPPER: sync failed, using cached mods");
-            return new Result(dir, null, false, 0, 0, 0, 0);
+            return new Result(dir, null, false, 0, 0, 0, 0, 0);
         }
     }
 
