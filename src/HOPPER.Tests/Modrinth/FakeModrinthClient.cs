@@ -72,6 +72,22 @@ namespace HOPPER.Tests.Modrinth
             int offset, int limit, CancellationToken cancellationToken) =>
             Task.FromResult(new ModrinthSearchResponse());
 
+        public Dictionary<string, ModrinthVersion> ByHash { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public List<IReadOnlyCollection<string>> HashLookups { get; } = [];
+
+        public Task<IReadOnlyDictionary<string, ModrinthVersion>> GetVersionsByHashAsync(
+            IReadOnlyCollection<string> sha512Hashes, CancellationToken cancellationToken)
+        {
+            HashLookups.Add(sha512Hashes.ToList());
+
+            IReadOnlyDictionary<string, ModrinthVersion> found = sha512Hashes
+                .Where(ByHash.ContainsKey)
+                .ToDictionary(h => h, h => ByHash[h], StringComparer.OrdinalIgnoreCase);
+
+            return Task.FromResult(found);
+        }
+
         public Task<ModrinthTags> GetTagsAsync(CancellationToken cancellationToken) =>
             Task.FromResult(new ModrinthTags([], []));
 

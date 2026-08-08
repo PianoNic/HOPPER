@@ -18,6 +18,7 @@ namespace HOPPER.Application.ModMetadata
             {
                 var ids = 0;
                 var dependencies = 0;
+                var hashes = 0;
 
                 List<Guid> pending;
 
@@ -25,7 +26,7 @@ namespace HOPPER.Application.ModMetadata
                 {
                     var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
                     pending = await db.Mods.AsNoTracking()
-                        .Where(m => m.ModIds == null || m.RequiredMods == null)
+                        .Where(m => m.ModIds == null || m.RequiredMods == null || m.Sha512 == null)
                         .OrderBy(m => m.Id)
                         .Select(m => m.Id)
                         .ToListAsync(stoppingToken);
@@ -54,16 +55,25 @@ namespace HOPPER.Application.ModMetadata
                             row.RequiredMods = required;
                             dependencies++;
                         }
+
+                        // Modrinth identifies a file by sha512, so a jar uploaded before HOPPER
+                        // recorded one can never be matched to the release it actually is.
+                        if (row.Sha512 is null && BlobHashes.Sha512(blobs, row.Sha256) is { } sha512)
+                        {
+                            row.Sha512 = sha512;
+                            hashes++;
+                        }
                     }
 
                     await db.SaveChangesAsync(stoppingToken);
                 }
 
-                if (ids > 0 || dependencies > 0)
+                if (ids > 0 || dependencies > 0 || hashes > 0)
                 {
                     log.LogInformation(
-                        "Backfilled mod ids for {Ids} row(s) and declared dependencies for {Dependencies}.",
-                        ids, dependencies);
+                        "Backfilled mod ids for {Ids} row(s), declared dependencies for {Dependencies} "
+                        + "and sha512 for {Hashes}.",
+                        ids, dependencies, hashes);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

@@ -1,3 +1,4 @@
+using System.Text;
 using HOPPER.Application.Loaders;
 using HOPPER.Application;
 using System.Net;
@@ -213,6 +214,65 @@ namespace HOPPER.Application.Modrinth
             }
 
             return trimmed;
+        }
+
+        /// The endpoint Prism uses to identify a jar it has no metadata for. Bulk, because asking
+        /// per file is a round trip per mod.
+        public async Task<IReadOnlyDictionary<string, ModrinthVersion>> GetVersionsByHashAsync(
+            IReadOnlyCollection<string> sha512Hashes, CancellationToken cancellationToken)
+        {
+            var wanted = sha512Hashes
+                .Where(h => !string.IsNullOrWhiteSpace(h))
+                .Select(h => h.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (wanted.Count == 0)
+                return new Dictionary<string, ModrinthVersion>(StringComparer.OrdinalIgnoreCase);
+
+            var body = JsonSerializer.Serialize(new { hashes = wanted, algorithm = "sha512" });
+
+            var found = await PostAsync<Dictionary<string, ModrinthVersion>>(
+                "version_files", body, cancellationToken);
+
+            return new Dictionary<string, ModrinthVersion>(
+                found ?? new Dictionary<string, ModrinthVersion>(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        private async Task<T?> PostAsync<T>(string relativeUrl, string json, CancellationToken cancellationToken)
+        {
+            var http = factory.CreateClient(ModrinthHttpClients.Modrinth);
+
+            HttpResponseMessage response;
+            try
+            {
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                response = await http.PostAsync(relativeUrl, content, cancellationToken);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ModrinthApiException($"Modrinth could not be reached: {ex.Message}");
+            }
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new ModrinthApiException("Modrinth did not answer in time.");
+            }
+
+            using (response)
+            {
+                if (!response.IsSuccessStatusCode)
+                    throw new ModrinthApiException(response.StatusCode, await DescriptionAsync(response, cancellationToken));
+
+                try
+                {
+                    await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    return await JsonSerializer.DeserializeAsync<T>(stream, Json, cancellationToken);
+                }
+                catch (JsonException ex)
+                {
+                    throw new ModrinthApiException($"Modrinth returned a response HOPPER could not read: {ex.Message}");
+                }
+            }
         }
 
         private async Task<T?> GetAsync<T>(string relativeUrl, string? subject, CancellationToken cancellationToken)
