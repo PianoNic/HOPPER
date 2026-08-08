@@ -242,6 +242,45 @@ final class Migrator {
                 + jarName + " out of " + modsDir + " by hand.", cause);
     }
 
+    static final long KEEP_PARKED_MS = 3L * 24 * 60 * 60 * 1000;
+
+    // Parked files are the player's own, so HOPPER never deletes one on the spot. After three days
+    // nobody is coming back for it, and a folder that only grows is its own kind of mess.
+    int sweepParked(long nowMs) {
+        Path dir = hopperDir.resolve(PARKED);
+        if (!Files.isDirectory(dir)) return 0;
+
+        int swept = 0;
+
+        DirectoryStream<Path> listing;
+        try {
+            listing = Files.newDirectoryStream(dir);
+        } catch (IOException e) {
+            return 0;
+        }
+
+        try {
+            for (Path p : listing) {
+                if (!Files.isRegularFile(p)) continue;
+                if (!p.getFileName().toString().endsWith(PARKED_SUFFIX)) continue;
+
+                try {
+                    if (nowMs - Files.getLastModifiedTime(p).toMillis() < KEEP_PARKED_MS) continue;
+
+                    Files.delete(p);
+                    swept++;
+                    log.info("[HOPPER] deleted " + p.getFileName() + ", parked for more than three days");
+                } catch (IOException e) {
+                    log.warn("[HOPPER] could not delete " + p, e);
+                }
+            }
+        } finally {
+            try { listing.close(); } catch (IOException ignored) { }
+        }
+
+        return swept;
+    }
+
     Path park(Path jar) throws IOException {
         Path dir = hopperDir.resolve(PARKED);
         Files.createDirectories(dir);
@@ -271,7 +310,9 @@ final class Migrator {
                 + "no longer on the server's list. Nothing here was deleted and nothing here is\n"
                 + "loaded. To put one back, move it into mods/ and remove the " + PARKED_SUFFIX + "\n"
                 + "suffix from the end of its name - but the server's build will then load as\n"
-                + "well, and the game will refuse to start with two copies of the same mod.\n";
+                + "well, and the game will refuse to start with two copies of the same mod.\n"
+                + "\n"
+                + "HOPPER deletes anything in here that has been parked for more than three days.\n";
 
         try {
             Files.write(f, text.getBytes(StandardCharsets.UTF_8));

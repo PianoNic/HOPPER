@@ -51,7 +51,7 @@ The same jar goes on your dedicated server, which stays in sync from the same li
 - **Every loader generation**: Forge 1.12.2 through current, NeoForge, Fabric and Quilt, from one shared core plus a thin adapter each.
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.
-- **Leaves your own mods alone**: downloads land in `hoppermods/`, never in `mods/`. A required mod already installed by hand is moved over rather than downloaded again, and a jar HOPPER did not download is parked, never deleted.
+- **Leaves your own mods alone**: downloads land in `hoppermods/`, never in `mods/`. A required mod already installed by hand is moved over rather than downloaded again, and a jar HOPPER did not download is parked in `hoppermods/parked/` rather than deleted, then cleared three days later.
 - **The server too**: the same jar keeps a dedicated server in sync from the same list, and marks which mods belong to which side so a client-only mod never reaches it.
 - **Multiple servers**: each with its own mod list, token and jar; a client only ever sees its own.
 - **Browse and import**: search Modrinth with dependency resolution, or import a Modrinth, CurseForge or Prism pack by file or URL.

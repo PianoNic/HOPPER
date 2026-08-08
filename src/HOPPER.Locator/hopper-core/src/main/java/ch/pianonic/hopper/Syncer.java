@@ -81,6 +81,8 @@ final class Syncer {
         Migrator migrator = new Migrator(modsDir, dir, log);
         Migrator.Result migration = migrator.run(mods);
 
+        migrator.sweepParked(System.currentTimeMillis());
+
         migrated = migration.moved;
         deferred = migration.deferred;
 
