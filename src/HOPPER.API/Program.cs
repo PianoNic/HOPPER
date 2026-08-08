@@ -24,6 +24,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
+System.Net.IPNetwork[] PrivateNetworks =
+[
+    new(System.Net.IPAddress.Parse("10.0.0.0"), 8),
+    new(System.Net.IPAddress.Parse("172.16.0.0"), 12),
+    new(System.Net.IPAddress.Parse("192.168.0.0"), 16),
+    new(System.Net.IPAddress.Parse("fc00::"), 7),
+];
+
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
@@ -35,8 +43,14 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         .Where(entry => entry.Length > 0)
         .ToArray();
 
+    // Unset means the shipped default: loopback plus the private ranges. ASP.NET on its own trusts
+    // loopback only, which would stop believing a reverse proxy that runs as its own container - the
+    // ordinary compose deployment - and quietly hand clients manifest URLs to the internal address.
     if (declared.Length == 0)
     {
+        foreach (var network in PrivateNetworks)
+            options.KnownIPNetworks.Add(network);
+
         return;
     }
 
