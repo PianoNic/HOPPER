@@ -129,6 +129,39 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        public async Task ALibraryOneModBundles_SatisfiesTheModNextToIt()
+        {
+            using var dir = new TempDir();
+            var blobs = StorageIn(dir.Path);
+
+            var connectionString = await PostgresHarness.NewMigratedDatabaseAsync();
+            await using var db = PostgresHarness.Context(connectionString);
+
+            var serverId = await SeedServerAsync(db);
+
+            // Loaders extract nested jars into the global mod list, so journeymap's copy of
+            // commonnetworking is loaded for the other mod too.
+            db.Mods.AddRange(
+                new Mod
+                {
+                    ServerId = serverId, FileName = "journeymap.jar", Sha256 = new string('4', 64), Size = 1,
+                    ModIds = ["journeymap"], RequiredMods = [], BundledMods = ["commonnetworking"],
+                },
+                new Mod
+                {
+                    ServerId = serverId, FileName = "other.jar", Sha256 = new string('5', 64), Size = 1,
+                    ModIds = ["other"], RequiredMods = ["commonnetworking"], BundledMods = [],
+                });
+
+            await db.SaveChangesAsync();
+
+            var rows = await new ListModsQueryHandler(db, blobs)
+                .Handle(new ListModsQuery(serverId), CancellationToken.None);
+
+            await Assert.That(rows.Single(r => r.FileName == "other.jar").MissingDependencies).IsNull();
+        }
+
+        [Test]
         public async Task AJarWhoseDependenciesWereNeverRead_ClaimsNothingIsMissing()
         {
             using var dir = new TempDir();

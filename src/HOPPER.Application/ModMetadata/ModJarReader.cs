@@ -4,7 +4,7 @@ using HOPPER.Infrastructure.Interfaces;
 
 namespace HOPPER.Application.ModMetadata
 {
-    public readonly record struct ModJarMetadata(ModSide Side, string[]? ModIds, string? IconSha256, string[]? RequiredMods = null);
+    public readonly record struct ModJarMetadata(ModSide Side, string[]? ModIds, string? IconSha256, string[]? RequiredMods = null, string[]? BundledMods = null);
 
     public static class ModJarReader
     {
@@ -26,6 +26,7 @@ namespace HOPPER.Application.ModMetadata
             ModSide side;
             string[] modIds;
             string[] requiredMods;
+            string[] bundledMods;
             byte[]? icon;
 
             using (stream)
@@ -50,6 +51,7 @@ namespace HOPPER.Application.ModMetadata
                     side = ModSideReader.Read(archive);
                     modIds = ModIdReader.Read(archive);
                     requiredMods = ModDependencyReader.Read(archive);
+                    bundledMods = ModDependencyReader.BundledIn(archive);
                     icon = ModIconReader.Read(archive);
                 }
             }
@@ -58,7 +60,8 @@ namespace HOPPER.Application.ModMetadata
                 side,
                 modIds,
                 icon is null ? null : await ModIconStore.StoreAsync(blobs, icon, cancellationToken),
-                requiredMods);
+                requiredMods,
+                bundledMods);
         }
     }
 }

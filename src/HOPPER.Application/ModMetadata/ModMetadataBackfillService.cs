@@ -26,7 +26,7 @@ namespace HOPPER.Application.ModMetadata
                 {
                     var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
                     pending = await db.Mods.AsNoTracking()
-                        .Where(m => m.ModIds == null || m.RequiredMods == null || m.Sha512 == null)
+                        .Where(m => m.ModIds == null || m.RequiredMods == null || m.BundledMods == null || m.Sha512 == null)
                         .OrderBy(m => m.Id)
                         .Select(m => m.Id)
                         .ToListAsync(stoppingToken);
@@ -55,6 +55,9 @@ namespace HOPPER.Application.ModMetadata
                             row.RequiredMods = required;
                             dependencies++;
                         }
+
+                        if (row.BundledMods is null && ModDependencyReader.BundledFromBlob(blobs, row.Sha256) is { } bundled)
+                            row.BundledMods = bundled;
 
                         // Modrinth identifies a file by sha512, so a jar uploaded before HOPPER
                         // recorded one can never be matched to the release it actually is.

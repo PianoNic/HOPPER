@@ -122,6 +122,7 @@ namespace HOPPER.Application.Command.Mods
 
                     ModIds = metadata.ModIds,
                     RequiredMods = metadata.RequiredMods,
+                    BundledMods = metadata.BundledMods,
                     IconSha256 = metadata.IconSha256,
 
                     Sha1 = hashing.Sha1Hex,
