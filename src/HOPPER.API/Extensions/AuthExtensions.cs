@@ -43,7 +43,11 @@ namespace HOPPER.API.Extensions
             options.TokenValidationParameters.ValidateAudience = configuration.GetValue("Oidc:ValidateAudience", true);
             options.TokenValidationParameters.ValidAudiences = ValidAudiences(configuration);
 
-            options.Events = new JwtBearerEvents { OnForbidden = ExplainForbidden(configuration) };
+            options.Events = new JwtBearerEvents
+            {
+                OnForbidden = ExplainForbidden(configuration),
+                OnTokenValidated = UserInfoClaims.Merge(configuration),
+            };
         }
 
         /// A 403 here means the token was accepted and the role was not found, which is invisible
