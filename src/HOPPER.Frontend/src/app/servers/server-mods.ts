@@ -308,8 +308,8 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                       size="sm"
                       type="button"
                       title="Remove mod"
-                      [disabled]="deleting()[m.id]"
-                      (click)="remove(m)"
+                      [disabled]="deletingSelection()"
+                      (click)="removeFor(m)"
                     >
                       <ng-icon name="lucideTrash2" size="14" />
                     </button>
@@ -371,7 +371,6 @@ export class ServerMods {
   protected readonly mods = signal<ReadonlyArray<ModDto>>([]);
   protected readonly loading = signal(false);
   protected readonly filter = signal('');
-  protected readonly deleting = signal<Record<string, boolean>>({});
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
   protected readonly settingSide = signal(false);
 
@@ -633,29 +632,4 @@ export class ServerMods {
     });
   }
 
-  protected async remove(mod: ModDto): Promise<void> {
-    const id = this.serverId();
-    if (id === '') return;
-
-    const ok = await this.confirm.open({
-      title: `Remove ${mod.fileName}?`,
-      message:
-        "It leaves this server's manifest immediately, and its clients delete their copy on the next launch. Another server carrying the same jar keeps it.",
-      confirmLabel: 'Remove',
-      destructive: true,
-    });
-    if (!ok) return;
-
-    this.deleting.update((d) => ({ ...d, [mod.id]: true }));
-    this.api.apiServersIdModsModIdDelete(id, mod.id).subscribe({
-      next: () => {
-        this.deleting.update((d) => ({ ...d, [mod.id]: false }));
-        this.reload();
-      },
-      error: (err) => {
-        toast.error(messageFrom(err, 'Failed to remove the mod'));
-        this.deleting.update((d) => ({ ...d, [mod.id]: false }));
-      },
-    });
-  }
 }

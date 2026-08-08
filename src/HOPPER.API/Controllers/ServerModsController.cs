@@ -74,13 +74,6 @@ namespace HOPPER.API.Controllers
             return Ok(new DeleteModsResultDto { Deleted = deleted });
         }
 
-        [HttpDelete("{modId:guid}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> Delete(Guid id, Guid modId, CancellationToken cancellationToken = default)
-        {
-            await mediator.Send(new DeleteModCommand(id, modId), cancellationToken);
-            return NoContent();
-        }
     }
 
     public record SetModSideRequest(IReadOnlyList<Guid> ModIds, ModSide Side);
