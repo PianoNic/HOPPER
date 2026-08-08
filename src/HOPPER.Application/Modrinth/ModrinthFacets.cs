@@ -1,3 +1,4 @@
+using HOPPER.Application.Loaders;
 using HOPPER.Application;
 using System.Text.Json;
 
@@ -18,7 +19,7 @@ namespace HOPPER.Application.Modrinth
         public const int MaxOffset = 5000;
 
         public static readonly IReadOnlySet<string> KnownLoaders =
-            new HashSet<string>(StringComparer.Ordinal) { "forge", "neoforge", "fabric", "quilt" };
+            LoaderDescriptors.Known.Select(d => d.ModrinthFacet).ToHashSet(StringComparer.Ordinal);
 
         public static string Build(string? loader, string? gameVersion)
         {

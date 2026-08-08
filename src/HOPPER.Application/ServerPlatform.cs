@@ -1,3 +1,4 @@
+using HOPPER.Application.Loaders;
 using HOPPER.Domain;
 using HOPPER.Domain.Enums;
 
@@ -26,14 +27,8 @@ namespace HOPPER.Application
             return (server.MinecraftVersion.Trim(), server.Loader, server.LoaderVersion.Trim());
         }
 
-        public static string LoaderFacet(ModLoader loader) => loader switch
-        {
-            ModLoader.Forge => "forge",
-            ModLoader.NeoForge => "neoforge",
-            ModLoader.Fabric => "fabric",
-            ModLoader.Quilt => "quilt",
-            _ => throw new ServerPlatformNotConfiguredException("Set this server's loader first."),
-        };
+        public static string LoaderFacet(ModLoader loader) =>
+            LoaderDescriptors.Require(loader, "Set this server's loader first.").ModrinthFacet;
 
         public static string? NormaliseVersion(string? value, string what)
         {
