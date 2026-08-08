@@ -18,11 +18,7 @@ namespace HOPPER.Application.Imports
     {
         private const int CopyBufferSize = 81920;
 
-        private readonly string _root = Path.Combine(
-            configuration["Blobs:Directory"] is { Length: > 0 } configured
-                ? configured
-                : Path.Combine(AppContext.BaseDirectory, "blobs"),
-            "imports");
+        private readonly string _root = BlobPaths.Imports(configuration);
 
         public string PackPath(Guid importId) => Path.Combine(_root, $"{importId:N}.pack");
 

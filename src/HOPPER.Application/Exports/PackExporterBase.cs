@@ -5,6 +5,7 @@ using HOPPER.Domain;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
+using HOPPER.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -50,15 +51,11 @@ namespace HOPPER.Application.Exports
 
         protected FileStream CreateScratchFile()
         {
-            var root = configuration["Blobs:Directory"] is { Length: > 0 } configured
-                ? configured
-                : Path.Combine(AppContext.BaseDirectory, "blobs");
-
-            var directory = Path.Combine(root, "exports");
+            var directory = BlobPaths.Exports(configuration);
             Directory.CreateDirectory(directory);
 
             return new FileStream(
-                Path.Combine(directory, $"{Guid.NewGuid():N}.tmp"),
+                Path.Combine(directory, $"{Guid.NewGuid():N}{BlobPaths.ExportScratchExtension}"),
                 FileMode.CreateNew,
                 FileAccess.ReadWrite,
                 FileShare.None,
