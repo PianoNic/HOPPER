@@ -42,6 +42,36 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        public async Task AQuiltServerIsOfferedFabricBuildsToo()
+        {
+            var runnable = LoaderDescriptors.RunnableBy(ServerPlatform.LoaderFacet(ModLoader.Quilt));
+
+            await Assert.That(runnable).Contains("quilt");
+            await Assert.That(runnable).Contains("fabric");
+        }
+
+        [Test]
+        public async Task EveryOtherLoaderIsOfferedOnlyItsOwnBuilds()
+        {
+            foreach (var loader in Real.Where(l => l != ModLoader.Quilt))
+            {
+                var facet = ServerPlatform.LoaderFacet(loader);
+
+                await Assert.That(LoaderDescriptors.RunnableBy(facet)).IsEquivalentTo(new[] { facet });
+            }
+        }
+
+        [Test]
+        public async Task EverythingALoaderCanRunIsAFacetModrinthKnows()
+        {
+            foreach (var loader in Real)
+            {
+                foreach (var facet in LoaderDescriptors.RunnableBy(ServerPlatform.LoaderFacet(loader)))
+                    await Assert.That(ModrinthFacets.KnownLoaders).Contains(facet);
+            }
+        }
+
+        [Test]
         public async Task NoTwoLoadersShareASpelling()
         {
             var rows = LoaderDescriptors.Known;
