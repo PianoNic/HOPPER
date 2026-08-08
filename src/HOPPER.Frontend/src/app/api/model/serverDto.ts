@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ManifestModDtoSize } from './manifestModDtoSize';
 import { ModLoader } from './modLoader';
 import { DeleteModsResultDtoDeleted } from './deleteModsResultDtoDeleted';
 
@@ -22,6 +23,7 @@ export interface ServerDto {
     loader: ModLoader;
     loaderVersion?: string | null;
     iconSha256?: string | null;
+    bytesServed: ManifestModDtoSize;
 }
 export namespace ServerDto {
 }
