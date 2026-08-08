@@ -317,6 +317,53 @@ namespace HOPPER.Tests.Modrinth
         }
 
         [Test]
+        public async Task Install_WithReplace_KeepsTheSideTheAdminSetRatherThanTheProjectDefault()
+        {
+            using var fixture = new Fixture();
+            fixture.Client.AddDownloadableMod("PA", "v-old", "A", "a-old.jar", Jar("old"));
+            fixture.Client.AddDownloadableMod("PA", "v-new", "A", "a-new.jar", Jar("new"));
+
+            await fixture.RunAsync(new ModrinthInstallItem("v-old", false));
+
+            (await fixture.Db.Mods.SingleAsync()).Side = ModSide.ClientOnly;
+            await fixture.Db.SaveChangesAsync();
+
+            await fixture.RunAsync(new ModrinthInstallItem("v-new", true));
+
+            var row = await fixture.Db.Mods.SingleAsync();
+
+            await Assert.That(row.VersionId).IsEqualTo("v-new");
+            await Assert.That(row.Side).IsEqualTo(ModSide.ClientOnly);
+        }
+
+        [Test]
+        public async Task Install_AdoptingAHandUploadedJar_KeepsItsSide()
+        {
+            using var fixture = new Fixture();
+            var bytes = Jar("identical");
+            var (sha256, size) = await fixture.Blobs.StoreAsync(new MemoryStream(bytes), TestLimits.MaxBytes);
+
+            fixture.Db.Mods.Add(new Mod
+            {
+                ServerId = fixture.ServerId,
+                FileName = "jei-renamed-by-hand.jar",
+                Sha256 = sha256,
+                Size = size,
+                Side = ModSide.ServerOnly,
+            });
+            await fixture.Db.SaveChangesAsync();
+
+            fixture.Client.AddDownloadableMod("u6dRKJwZ", "mcC2LhSG", "JEI", "jei.jar", bytes);
+
+            await fixture.RunAsync(new ModrinthInstallItem("mcC2LhSG", false));
+
+            var row = await fixture.Db.Mods.SingleAsync();
+
+            await Assert.That(row.Source).IsEqualTo(ModSource.Modrinth);
+            await Assert.That(row.Side).IsEqualTo(ModSide.ServerOnly);
+        }
+
+        [Test]
         public async Task Install_FileNameTakenByAHandUploadedJar_IsSkippedUnlessReplaceIsTicked()
         {
             using var fixture = new Fixture();
