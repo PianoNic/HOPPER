@@ -42,12 +42,24 @@ subprojects {
         reproducibleFileOrder = true
     }
 
+    def descriptors = ['fabric.mod.json', 'quilt.mod.json', 'mcmod.info',
+                       'META-INF/mods.toml', 'META-INF/neoforge.mods.toml']
+
     tasks.withType(ProcessResources).configureEach {
         inputs.property('version', project.version)
 
-        filesMatching(['fabric.mod.json', 'quilt.mod.json', 'mcmod.info',
-                       'META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
-            expand(version: project.version)
+        filesMatching(descriptors) {
+            filter(org.apache.tools.ant.filters.ReplaceTokens,
+                    tokens: [version: project.version.toString()])
+        }
+
+        doLast {
+            destinationDir.eachFileRecurse { resource ->
+                if (resource.isFile() && resource.text.contains('@version@')) {
+                    throw new GradleException(resource.name + ' still carries @version@ after ' +
+                            'processing. Add it to the descriptors list above.')
+                }
+            }
         }
     }
 }

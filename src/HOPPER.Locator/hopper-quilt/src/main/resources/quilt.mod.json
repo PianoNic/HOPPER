@@ -3,10 +3,10 @@
   "quilt_loader": {
     "group": "ch.pianonic",
     "id": "hopper",
-    "version": "${version}",
+    "version": "@version@",
     "metadata": {
       "name": "HOPPER",
-      "description": "Syncs the required mod set from a HOPPER server before Quilt scans for mods, and hands the downloaded jars to the loader in the same launch. Requires -Dloader.experimental.allow_loading_plugins=true - without it Quilt refuses to parse this jar at all, and hopper-fabric-${version}.jar should be used instead.",
+      "description": "Syncs the required mod set from a HOPPER server before Quilt scans for mods, and hands the downloaded jars to the loader in the same launch. Requires -Dloader.experimental.allow_loading_plugins=true - without it Quilt refuses to parse this jar at all, and hopper-fabric-@version@.jar should be used instead.",
       "contributors": {
         "PianoNic": "Owner"
       },

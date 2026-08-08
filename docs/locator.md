@@ -100,11 +100,19 @@ Every adapter jar carries the same identity: `hopper-icon.png` at the root, a lo
 all seven jars through the same source-set copy that carries the core's classes.
 
 **The version comes from `application.properties`,** the file the release workflow bumps, read by a
-regex over its `<version>` element. Gradle expands `${version}` into the descriptors through
-`ProcessResources`, and only into the five descriptor names - `expand` runs a template engine over
-whatever it matches, and a PNG through a template engine is a corrupt PNG. The jars still land in
-`build/templates` under unversioned names, because the `templates` task renames them and
-`LocatorTemplates` addresses them that way.
+regex over its `<version>` element and searched for upwards from the locator root - the Docker build
+puts it somewhere else than the repository does. The jars still land in `build/templates` under
+unversioned names, because the `templates` task renames them and `LocatorTemplates` addresses them
+that way.
+
+**`ReplaceTokens`, not `expand`.** `ProcessResources` substitutes `@version@` by literal replacement.
+`expand` was the obvious choice and was wrong: it runs a Groovy template engine, which also reads
+backslash escapes, so the `
+` in `mcmod.info`'s description became a real newline inside a JSON
+string and the shipped file was not valid JSON. Nothing caught it, because Forge 1.12.2 never reads
+that file and Groovy's own `JsonSlurper` accepts raw control characters. `ReplaceTokens` touches
+nothing but the token, and `processResources` fails the build if any `@version@` survives it - which
+is what happens when a new descriptor is added without listing it.
 
 **Only Fabric and Quilt show it in game.** On the whole Forge family the locator jar is deliberately
 excluded from mod scanning, so its descriptor is never parsed by the running game:

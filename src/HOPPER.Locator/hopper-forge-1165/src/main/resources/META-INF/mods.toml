@@ -5,7 +5,7 @@ issueTrackerURL="https://github.com/PianoNic/HOPPER/issues"
 
 [[mods]]
 modId="hopper"
-version="${version}"
+version="@version@"
 displayName="HOPPER"
 logoFile="hopper-icon.png"
 authors="PianoNic"

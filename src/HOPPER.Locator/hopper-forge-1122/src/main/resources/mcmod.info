@@ -2,8 +2,8 @@
   {
     "modid": "hopper",
     "name": "HOPPER",
-    "description": "Syncs the required mod set from a HOPPER server before Forge scans for mods, and hands the downloaded jars to it in the same launch.\n\nThis jar is a coremod, not a mod: FML adds it to the ignored mod files, so it never appears in the in-game mod list, and that is by design.",
-    "version": "${version}",
+    "description": "Syncs the required mod set from a HOPPER server before Forge scans for mods, and hands the downloaded jars to it in the same launch. This jar is a coremod, not a mod: FML adds it to the ignored mod files, so it never appears in the in-game mod list, and that is by design.",
+    "version": "@version@",
     "authorList": [
       "PianoNic"
     ],
