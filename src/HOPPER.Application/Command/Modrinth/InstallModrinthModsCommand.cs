@@ -192,7 +192,7 @@ namespace HOPPER.Application.Command.Modrinth
                     }
 
                     sameBytes.ModIds ??= ModIdReader.FromStaged(blobs, staged);
-                    ApplyProvenance(sameBytes, version, file, project, sha1, sha512);
+                    ApplyProvenance(sameBytes, version, file, project, sameBytes.Side, sha1, sha512);
 
                     await using (var adopting = await BlobLock.HoldAsync(db, staged.Sha256, cancellationToken))
                     {
@@ -211,12 +211,16 @@ namespace HOPPER.Application.Command.Modrinth
 
                 var metadata = await ModJarReader.FromStagedAsync(blobs, staged, cancellationToken);
 
+                // A replace is a version bump, not a second chance to decide the side. Whatever the
+                // admin set outranks what Modrinth says about the project, which is only a default
+                // for a jar this server has never seen.
+                var side = displaced?.Side ?? project?.Side ?? ModSide.Both;
+
                 // Reported rather than thrown: one clashing pick must not abandon the rest of the batch.
                 try
                 {
                     await ModIdConflictValidator.RefuseIfClaimedAsync(
-                        db, server.Id, metadata.ModIds, project?.Side ?? ModSide.Both,
-                        displaced?.Id, cancellationToken);
+                        db, server.Id, metadata.ModIds, side, displaced?.Id, cancellationToken);
                 }
                 catch (DuplicateModIdException clash)
                 {
@@ -236,7 +240,7 @@ namespace HOPPER.Application.Command.Modrinth
                     IconSha256 = metadata.IconSha256,
                 };
 
-                ApplyProvenance(entry, version, file, project, sha1, sha512);
+                ApplyProvenance(entry, version, file, project, side, sha1, sha512);
 
                 if (displaced is not null)
                     db.Mods.Remove(displaced);
@@ -270,7 +274,8 @@ namespace HOPPER.Application.Command.Modrinth
         }
 
         private static void ApplyProvenance(
-            Mod mod, ModrinthVersion version, ModrinthVersionFile file, ProjectFacts? project, string sha1, string sha512)
+            Mod mod, ModrinthVersion version, ModrinthVersionFile file, ProjectFacts? project, ModSide side,
+            string sha1, string sha512)
         {
             mod.Source = ModSource.Modrinth;
             mod.ProjectId = version.ProjectId;
@@ -280,7 +285,7 @@ namespace HOPPER.Application.Command.Modrinth
 
             mod.IconUrl = project?.IconUrl;
 
-            mod.Side = project?.Side ?? ModSide.Both;
+            mod.Side = side;
 
             mod.Sha1 = sha1;
             mod.Sha512 = sha512;
