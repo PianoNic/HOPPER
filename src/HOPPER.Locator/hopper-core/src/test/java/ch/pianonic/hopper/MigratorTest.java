@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -196,7 +197,7 @@ class MigratorTest {
         assertTrue(Files.exists(parked.resolve(JEI_OLD + Migrator.PARKED_SUFFIX)));
         assertTrue(Files.exists(parked.resolve(
                 "jei-1.20.1-15.2.0.27-1.jar" + Migrator.PARKED_SUFFIX)),
-                "nothing in parked/ is ever deleted, so the second park must not overwrite");
+                "a second park must not overwrite the first");
     }
 
     @Test
@@ -428,5 +429,64 @@ class MigratorTest {
 
         assertTrue(deletable.isEmpty());
         assertTrue(Files.exists(parked));
+    }
+
+    @Test
+    void aParkedFileOlderThanThreeDaysIsDeleted(@TempDir Path game) throws Exception {
+        layout(game);
+        jar(mods, JEI_OLD, "an older build", "jei");
+        run(mods, entry(JEI_NEW, sha("0"), "jei"));
+
+        Path parked = hopper.resolve(Migrator.PARKED).resolve(JEI_OLD + Migrator.PARKED_SUFFIX);
+        assertTrue(Files.exists(parked), "parked to begin with");
+
+        long now = System.currentTimeMillis();
+        Files.setLastModifiedTime(parked, FileTime.fromMillis(now - Migrator.KEEP_PARKED_MS - 1000));
+
+        assertEquals(1, new Migrator(mods, hopper, HopperLog.STDOUT).sweepParked(now));
+        assertFalse(Files.exists(parked), "and gone once nobody is coming back for it");
+    }
+
+    @Test
+    void aParkedFileInsideThreeDaysIsKept(@TempDir Path game) throws Exception {
+        layout(game);
+        jar(mods, JEI_OLD, "an older build", "jei");
+        run(mods, entry(JEI_NEW, sha("0"), "jei"));
+
+        Path parked = hopper.resolve(Migrator.PARKED).resolve(JEI_OLD + Migrator.PARKED_SUFFIX);
+        long now = System.currentTimeMillis();
+        Files.setLastModifiedTime(parked, FileTime.fromMillis(now - Migrator.KEEP_PARKED_MS + 60_000));
+
+        assertEquals(0, new Migrator(mods, hopper, HopperLog.STDOUT).sweepParked(now));
+        assertTrue(Files.exists(parked), "a player still has three days to fetch it back");
+    }
+
+    @Test
+    void theSweepLeavesTheReadmeAndAnythingNotParkedAlone(@TempDir Path game) throws Exception {
+        layout(game);
+        jar(mods, JEI_OLD, "an older build", "jei");
+        run(mods, entry(JEI_NEW, sha("0"), "jei"));
+
+        Path dir = hopper.resolve(Migrator.PARKED);
+        Path readme = dir.resolve("README.txt");
+        Path stray = dir.resolve("notes.txt");
+        Files.write(stray, "mine".getBytes(StandardCharsets.UTF_8));
+
+        long now = System.currentTimeMillis();
+        long old = now - Migrator.KEEP_PARKED_MS - 1000;
+        Files.setLastModifiedTime(readme, FileTime.fromMillis(old));
+        Files.setLastModifiedTime(stray, FileTime.fromMillis(old));
+
+        new Migrator(mods, hopper, HopperLog.STDOUT).sweepParked(now);
+
+        assertTrue(Files.exists(readme), "the README explains the folder, so it outlives its contents");
+        assertTrue(Files.exists(stray), "only files HOPPER parked carry the suffix, and only those go");
+    }
+
+    @Test
+    void sweepingWithNoParkedFolderIsNotAnError(@TempDir Path game) throws Exception {
+        layout(game);
+
+        assertEquals(0, new Migrator(mods, hopper, HopperLog.STDOUT).sweepParked(System.currentTimeMillis()));
     }
 }

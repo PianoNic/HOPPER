@@ -63,7 +63,8 @@ None of the three client endpoints carries a server segment, and that is deliber
   HOPPER downloaded is deleted, because the server still has it and the next sync fetches it again.
   Anything else - a jar you dropped in by hand, or one HOPPER moved out of your `mods/` folder - is
   moved to `hoppermods/parked/` with a `.parked` suffix, where no loader sees it and nothing is
-  destroyed. Deleting a file a person put there is the one thing HOPPER will not do, and parking
+  destroyed for three days - after that the sweep deletes it, on the grounds that nobody is coming
+  back for it, and says so in the log. Deleting a file a person put there is the one thing HOPPER will not do, and parking
   everything instead would grow that folder by the size of the pack on every update.
 - HOPPER knows which is which from `hoppermods/downloaded`, the list it writes after every sync.
   Delete that file and HOPPER forgets the claim: from then on everything stale is parked, which is
