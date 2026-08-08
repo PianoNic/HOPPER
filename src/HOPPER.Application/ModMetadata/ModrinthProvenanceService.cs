@@ -8,9 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HOPPER.Application.ModMetadata
 {
-    /// Works out what a hand-uploaded jar actually is by asking Modrinth about its hash, the way
-    /// Prism's EnsureMetadataTask does. A jar that turns out to be a Modrinth release then behaves
-    /// like one: the browser shows it as installed, and it has a URL to re-download from.
+    /// Works out what a hand-uploaded jar is by its hash, the way Prism's EnsureMetadataTask does.
     public sealed class ModrinthProvenanceService(
         IServiceScopeFactory scopes,
         ILogger<ModrinthProvenanceService> log) : BackgroundService
@@ -18,8 +16,7 @@ namespace HOPPER.Application.ModMetadata
         /// Modrinth's own cap on a bulk hash lookup.
         private const int BatchSize = 100;
 
-        /// Prism asks again every run because a person starts it. This one runs unattended, so a jar
-        /// Modrinth has never heard of is left alone until it is worth another look.
+        /// Prism re-asks every run because a person starts it; this runs unattended.
         private static readonly TimeSpan AskAgainAfter = TimeSpan.FromDays(30);
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -62,9 +59,7 @@ namespace HOPPER.Application.ModMetadata
 
                     asked += rows.Count;
 
-                    // The name and icon live on the project, not the version, so a row adopted
-                    // without them reads as Modrinth with nothing beside it. Only for hashes that
-                    // matched - a jar Modrinth does not publish causes no second call.
+                    // Name and icon live on the project, not the version. Matches only.
                     var projects = await ProjectsAsync(modrinth, found.Values, stoppingToken);
 
                     foreach (var row in rows)
@@ -112,8 +107,7 @@ namespace HOPPER.Application.ModMetadata
                 .ToDictionary(p => p.Id!, p => p, StringComparer.Ordinal);
         }
 
-        /// The same bytes under the same hash, so this is not a guess about what the jar is - it is
-        /// the release Modrinth publishes. The filename stays as uploaded.
+        /// Same bytes under the same hash, so this is identification, not a guess.
         private static void Adopt(Domain.Mod row, ModrinthVersion version, ModrinthProject? project)
         {
             var file = version.PrimaryFile();
@@ -126,7 +120,7 @@ namespace HOPPER.Application.ModMetadata
 
             row.ProjectName = project?.Title;
 
-            // A fallback only: the table prefers the icon read out of the jar itself.
+            // Fallback; the table prefers the icon read out of the jar.
             row.IconUrl = project?.IconUrl;
         }
     }
