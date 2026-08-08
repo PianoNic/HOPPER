@@ -254,6 +254,55 @@ namespace HOPPER.Tests.Api
         }
 
         [Test]
+        public async Task AClientThatAlreadyHasTheJar_IsToldSoRatherThanSentItAgain()
+        {
+            var (serverId, token) = await AServerOfItsOwnAsync();
+
+            var fileName = "isolation-etag-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+            var bytes = JarFor(fileName);
+            var sha = ShaOf(bytes);
+
+            await SeedAsync(serverId, fileName, bytes);
+
+            using var client = HopperApi.WithBearer(token);
+
+            var first = await client.GetAsync($"/api/blobs/{sha}");
+            await Assert.That(first.StatusCode).IsEqualTo(HttpStatusCode.OK);
+            await Assert.That(first.Headers.ETag?.Tag).IsEqualTo($"\"{sha}\"");
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"/api/blobs/{sha}");
+            request.Headers.TryAddWithoutValidation("If-None-Match", $"\"{sha}\"");
+
+            var second = await client.SendAsync(request);
+
+            await Assert.That(second.StatusCode).IsEqualTo(HttpStatusCode.NotModified);
+            await Assert.That((await second.Content.ReadAsByteArrayAsync()).Length).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task AnInterruptedDownload_CanAskForTheRest()
+        {
+            var (serverId, token) = await AServerOfItsOwnAsync();
+
+            var fileName = "isolation-range-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+            var bytes = JarFor(fileName);
+            var sha = ShaOf(bytes);
+
+            await SeedAsync(serverId, fileName, bytes);
+
+            using var client = HopperApi.WithBearer(token);
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"/api/blobs/{sha}");
+            request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(2, null);
+
+            var response = await client.SendAsync(request);
+            var rest = await response.Content.ReadAsByteArrayAsync();
+
+            await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.PartialContent);
+            await Assert.That(rest).IsEquivalentTo(bytes[2..]);
+        }
+
+        [Test]
         public async Task DownloadingABlob_BillsWhatWentOut()
         {
             var (serverId, token) = await AServerOfItsOwnAsync();
