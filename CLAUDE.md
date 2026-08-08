@@ -135,6 +135,11 @@ The API migrates at boot, so `dotnet ef database update` is never needed.
   restart-loops with nothing ever listening.
 - **`.gitattributes` pins `gradlew` to LF.** Under `core.autocrlf` a CRLF shebang makes the Docker
   locator stage fail with `./gradlew: not found`.
+- **An ETag set on `Response.Headers` does nothing.** ASP.NET only answers `If-None-Match` with a 304,
+  and `Range` with a 206, when the tag is handed to the `File(...)` overload that takes an
+  `EntityTagHeaderValue` and `enableRangeProcessing: true`. Setting the header by hand advertises a
+  revalidation that never happens: the blob endpoint did exactly that and returned the whole jar to
+  every conditional request, and no download could resume.
 - **`docs/locator.md` holds the locator build's reasoning**, which the `build.gradle` files used to
   carry as comments: the version floor and ceiling of every adapter, checked against real loader
   artifacts, what each one may and may not touch, why `--release` rather than a toolchain, and why

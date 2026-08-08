@@ -5,6 +5,7 @@ using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
 
 namespace HOPPER.API.Controllers
@@ -41,11 +42,12 @@ namespace HOPPER.API.Controllers
 
             Response.Headers.CacheControl = "private, max-age=31536000, immutable";
 
-            Response.Headers.ETag = $"\"{sha256}\"";
-
             HttpContext.Bill(serverId);
 
-            return File(stream, "application/java-archive", mod.FileName);
+            return File(stream, "application/java-archive", mod.FileName,
+                lastModified: null,
+                entityTag: new EntityTagHeaderValue($"\"{sha256}\""),
+                enableRangeProcessing: true);
         }
     }
 }
