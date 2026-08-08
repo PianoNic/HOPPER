@@ -167,14 +167,19 @@ public final class HopperCallHook implements IFMLCallHook {
             }
             String plugin = main.getValue("FMLCorePlugin");
             String tweak = main.getValue("TweakClass");
-            if (plugin == null && tweak == null) {
+            // An access transformer is applied during the same mods/ scan, so it is lost the same
+            // way - and unlike a coremod it crashes at runtime with the mod taking the blame.
+            String at = main.getValue("FMLAT");
+            if (plugin == null && tweak == null && at == null) {
                 continue;
             }
-            log.warn("[HOPPER] " + name + " declares "
-                    + (plugin != null ? "FMLCorePlugin " + plugin : "TweakClass " + tweak)
-                    + " - FML only scans mods/ and the command line for coremods, and it had"
+            String declares = plugin != null ? "FMLCorePlugin " + plugin
+                    : tweak != null ? "TweakClass " + tweak
+                    : "FMLAT " + at;
+            log.warn("[HOPPER] " + name + " declares " + declares
+                    + " - FML only scans mods/ and the command line for those, and it had"
                     + " finished before HOPPER ran. The file is downloaded and it loads as an"
-                    + " ordinary mod, but its coremod half will NOT run from " + PREFIX
+                    + " ordinary mod, but that half will NOT run from " + PREFIX
                     + " - not this launch and not after a restart. Install it in mods/ by hand,"
                     + " or ask the server owner not to ship it through HOPPER.", null);
         }
