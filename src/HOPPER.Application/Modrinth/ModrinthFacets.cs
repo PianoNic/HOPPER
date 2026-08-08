@@ -27,7 +27,12 @@ namespace HOPPER.Application.Modrinth
             facets.Add(["project_type:mod"]);
 
             if (!string.IsNullOrWhiteSpace(loader))
-                facets.Add([$"categories:{ValidateLoader(loader)}"]);
+            {
+                // One inner array, which Modrinth reads as OR.
+                facets.Add(LoaderDescriptors.RunnableBy(ValidateLoader(loader))
+                    .Select(f => $"categories:{f}")
+                    .ToArray());
+            }
 
             if (!string.IsNullOrWhiteSpace(gameVersion))
                 facets.Add([$"versions:{ValidateGameVersion(gameVersion)}"]);

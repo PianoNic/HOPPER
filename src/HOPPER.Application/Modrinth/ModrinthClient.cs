@@ -1,3 +1,4 @@
+using HOPPER.Application.Loaders;
 using HOPPER.Application;
 using System.Net;
 using System.Text.Json;
@@ -106,7 +107,7 @@ namespace HOPPER.Application.Modrinth
             if (!string.IsNullOrWhiteSpace(loader))
             {
                 var validated = ModrinthFacets.ValidateLoader(loader);
-                parameters.Add($"loaders={Uri.EscapeDataString(ModrinthFacets.JsonArray([validated]))}");
+                parameters.Add($"loaders={Uri.EscapeDataString(ModrinthFacets.JsonArray(LoaderDescriptors.RunnableBy(validated)))}");
             }
 
             if (!string.IsNullOrWhiteSpace(gameVersion))
