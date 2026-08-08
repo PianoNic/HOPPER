@@ -28,5 +28,9 @@ namespace HOPPER.Application.Dtos.Mods
         /// Set only where an admin is looking at the library, because it costs a stat per row.
         /// Everywhere else the row was just written and its bytes are there by construction.
         public bool BytesMissing { get; init; }
+
+        /// The side that would receive this jar and another one declaring the same mod id, so a
+        /// loader there refuses to start. Null when nothing collides.
+        public SyncSide? CollidesOn { get; init; }
     }
 }

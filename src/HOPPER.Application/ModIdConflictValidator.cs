@@ -60,6 +60,43 @@ namespace HOPPER.Application
             }
         }
 
+        /// The guard only refuses new arrivals. A server that predates it can already hold a pair,
+        /// and those are exactly the servers whose clients fail to launch, so they have to be visible.
+        public static Dictionary<Guid, SyncSide> Collisions(IReadOnlyList<Mod> mods)
+        {
+            var byModId = new Dictionary<string, List<Mod>>(StringComparer.Ordinal);
+
+            foreach (var mod in mods)
+            {
+                foreach (var id in mod.ModIds ?? [])
+                {
+                    if (!byModId.TryGetValue(id, out var claiming))
+                        byModId[id] = claiming = [];
+
+                    claiming.Add(mod);
+                }
+            }
+
+            var found = new Dictionary<Guid, SyncSide>();
+
+            foreach (var claiming in byModId.Values.Where(c => c.Count > 1))
+            {
+                for (var i = 0; i < claiming.Count; i++)
+                {
+                    for (var j = i + 1; j < claiming.Count; j++)
+                    {
+                        if (Conflict(claiming[i], claiming[j]) is not { } side)
+                            continue;
+
+                        found[claiming[i].Id] = side;
+                        found[claiming[j].Id] = side;
+                    }
+                }
+            }
+
+            return found;
+        }
+
         public static SyncSide? Conflict(Mod a, Mod b)
         {
             if (a.ModIds is null || b.ModIds is null)
