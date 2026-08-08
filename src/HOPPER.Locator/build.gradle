@@ -63,3 +63,37 @@ tasks.register('templates', Copy) {
         }
     }
 }
+
+// A digest of the sources these jars were built from, so the API can say the templates on disk are
+// not the ones this checkout would produce. Content, not timestamps: gradle is content-based and
+// would rightly do nothing for a touched file, leaving a warning that nothing could clear.
+// LocatorSourceDigest.cs recomputes this exact scheme, so the two must change together.
+//
+// Never up to date, and finalizes `templates` rather than living inside it: a comment-only edit
+// moves the digest without changing a single jar, so the copy is skipped and only an unconditional
+// stamp keeps `./gradlew templates` able to clear the warning it caused.
+def templatesStamp = tasks.register('templatesStamp') {
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def files = fileTree(projectDir) {
+            include '**/*.java'
+            exclude '**/build/**'
+        }.files.sort { it.absolutePath }
+
+        def digest = java.security.MessageDigest.getInstance('SHA-256')
+
+        files.each { file ->
+            def relative = projectDir.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+            digest.update((relative + '\n').getBytes('UTF-8'))
+            digest.update(file.bytes)
+        }
+
+        layout.buildDirectory.file('templates/templates.stamp').get().asFile.text =
+                digest.digest().encodeHex().toString()
+    }
+}
+
+tasks.named('templates') {
+    finalizedBy templatesStamp
+}
