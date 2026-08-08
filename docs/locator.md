@@ -25,6 +25,34 @@ One adapter per loader generation, plus a shared core.
 `hopper-quilt` ships under a name that is not its module name, which is why the root `templates`
 task holds a map rather than a list.
 
+## The staleness stamp
+
+`templates` is a manual step, so `build/templates` drifts behind the sources beside it. It drifted
+silently once already: the jars still spoke of a `replaced/` folder for a while after the rename to
+`parked/`, and the API served them without a word. The Dockerfile builds the templates in its own
+stage, so only local and bare-metal runs can drift - which is exactly where the human is expected to
+remember a command.
+
+`templatesStamp` writes `build/templates/templates.stamp`, a SHA-256 over every `.java` outside a
+`build/` directory: sorted by path, hashing `relative/path\n` then the file bytes.
+`LocatorSourceDigest.cs` recomputes that scheme and `LocatorTemplateHealthCheck` compares the two,
+reporting **Degraded** - never Unhealthy, because a stale locator still works and refusing to serve
+one would be the worse failure. The check does nothing when there is no source tree to compare
+against, which is the container.
+
+Two decisions are load-bearing and both were arrived at by getting them wrong first:
+
+- **Content, not timestamps.** A timestamp comparison calls a `touch` or a branch switch stale.
+  Gradle is content-based and rightly does nothing for those, so `./gradlew templates` could not
+  clear the warning it caused.
+- **`templatesStamp` is `upToDateWhen { false }` and finalizes `templates`.** A comment-only edit
+  moves the source digest without changing a byte of any jar, so the `Copy` is correctly skipped. If
+  the stamp were written inside that task it would be skipped too, and the warning would again be
+  one the remedy could not clear.
+
+The two implementations are a hand-maintained pair. Change the scheme on one side and the other
+reports permanently stale.
+
 ## Rules that apply to every module
 
 **`--release`, never a toolchain.** It pins both the bytecode and the visible JDK API while letting

@@ -67,11 +67,38 @@ namespace HOPPER.API.Extensions
             if (!Directory.Exists(directory))
                 return Task.FromResult(HealthCheckResult.Unhealthy($"{directory} does not exist, so every jar download 503s"));
 
-            var jars = Directory.EnumerateFiles(directory, "*.jar").Take(1).Any();
+            var jars = Directory.EnumerateFiles(directory, "*.jar").ToList();
 
-            return Task.FromResult(jars
-                ? HealthCheckResult.Healthy($"{directory} holds templates")
-                : HealthCheckResult.Unhealthy($"{directory} holds no template jars, so every jar download 503s"));
+            if (jars.Count == 0)
+                return Task.FromResult(HealthCheckResult.Unhealthy($"{directory} holds no template jars, so every jar download 503s"));
+
+            return Task.FromResult(IsStale(directory)
+                ? HealthCheckResult.Degraded(
+                    $"{directory} was built from different sources than the tree beside it, so the served "
+                    + "locator is not the one in this checkout. Run `cd src/HOPPER.Locator && ./gradlew templates`.")
+                : HealthCheckResult.Healthy($"{directory} holds {jars.Count} template(s)"));
+        }
+
+        /// Degraded rather than unhealthy, and only where the sources are on disk at all: a stale
+        /// locator still works, it just does not carry the newest behaviour. The container has no
+        /// source tree and builds the templates in its own stage, so this only ever fires locally -
+        /// which is the one place `./gradlew templates` is a step a human has to remember.
+        private static bool IsStale(string templateDirectory)
+        {
+            // Resolved, not just combined: the unresolved form still spells out build/templates/../..,
+            // and every path under it would then look like it lived in a build directory.
+            var sources = Path.GetFullPath(Path.Combine(templateDirectory, "..", ".."));
+            if (!Directory.Exists(Path.Combine(sources, "hopper-core")))
+                return false;
+
+            var stamp = Path.Combine(templateDirectory, LocatorSourceDigest.StampFileName);
+            if (!File.Exists(stamp))
+                return true;
+
+            return !string.Equals(
+                File.ReadAllText(stamp).Trim(),
+                LocatorSourceDigest.Of(sources),
+                StringComparison.OrdinalIgnoreCase);
         }
     }
 }
