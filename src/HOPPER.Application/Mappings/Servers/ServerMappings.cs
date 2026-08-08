@@ -17,6 +17,7 @@ namespace HOPPER.Application.Mappings.Servers
             Loader = s.Loader,
             LoaderVersion = s.LoaderVersion,
             IconSha256 = s.IconSha256,
+            BytesServed = s.BytesServed,
         };
 
         public static ServerTokenDto ToTokenDto(this Server s) => new()

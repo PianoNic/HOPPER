@@ -4,6 +4,7 @@ import { forkJoin } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { toast } from '@spartan-ng/brain/sonner';
 import {
+  lucideArrowUpFromLine,
   lucideDownload,
   lucideHardDrive,
   lucidePackage,
@@ -15,7 +16,7 @@ import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
-import { formatBytes, messageFrom } from '../shared/utils/format';
+import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
 import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
 import {
   ClientDrift,
@@ -43,6 +44,7 @@ import { serverIdSignal } from './server-route';
   ],
   providers: [
     provideIcons({
+      lucideArrowUpFromLine,
       lucideDownload,
       lucideHardDrive,
       lucidePackage,
@@ -158,6 +160,12 @@ export class ServerOverview {
           ? 'Fetched once, then cached by hash'
           : `To a player / to a dedicated server, of ${formatBytes(sizes.stored)} stored`,
         icon: 'lucideHardDrive',
+      },
+      {
+        label: 'Served all time',
+        value: formatBytes(toNumber(this.server()?.bytesServed)),
+        hint: 'Jars and blobs this server has actually sent, since it was created',
+        icon: 'lucideArrowUpFromLine',
       },
       {
         label: `Clients (${OFFLINE_AFTER_LABEL})`,

@@ -1,3 +1,4 @@
+using HOPPER.API.Extensions;
 using HOPPER.Application.Command.Servers;
 using HOPPER.Application.Dtos.Servers;
 using HOPPER.Application.Queries.Jar;
@@ -117,6 +118,8 @@ namespace HOPPER.API.Controllers
                 : $"{Request.Scheme}://{Request.Host}";
 
             var jar = await mediator.Send(new GenerateLocatorJarQuery(id, baseUrl, variant), cancellationToken);
+
+            HttpContext.Bill(id);
 
             return File(jar.Content, "application/java-archive", jar.FileName);
         }

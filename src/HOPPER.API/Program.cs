@@ -114,6 +114,7 @@ app.UseStaticFiles();
 if (app.Environment.IsProduction())
     app.UseSpaStaticFiles();
 
+app.UseServedBytes();
 app.UseHttpLogging();
 app.UseRouting();
 app.UseCors();

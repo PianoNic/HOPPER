@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using HOPPER.Application.Command.Mods;
+using HOPPER.Domain;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -211,6 +212,87 @@ namespace HOPPER.Tests.Api
 
             await Assert.That(deleted).IsEqualTo(1);
             await Assert.That(await db.Mods.AnyAsync(m => m.Id == theirsId)).IsTrue();
+        }
+
+        // Its own server and its own token: the counter is written after the response completes and
+        // the suite runs in parallel, so anything shared would be raced by another test's download.
+        private static async Task<(Guid Id, string Token)> AServerOfItsOwnAsync()
+        {
+            var token = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+
+            await using var scope = HopperApi.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
+
+            var server = new Server
+            {
+                Name = "Served " + token[..8],
+                Slug = "served-" + token[..8],
+                Token = token,
+            };
+
+            db.Servers.Add(server);
+            await db.SaveChangesAsync();
+
+            return (server.Id, token);
+        }
+
+        private static async Task<long> ServedAsync(Guid serverId, long atLeast)
+        {
+            for (var attempt = 0; attempt < 50; attempt++)
+            {
+                await using var scope = HopperApi.Services.CreateAsyncScope();
+                var served = await scope.ServiceProvider.GetRequiredService<HopperDbContext>()
+                    .Servers.AsNoTracking().Where(s => s.Id == serverId)
+                    .Select(s => s.BytesServed).SingleAsync();
+
+                if (served >= atLeast) return served;
+
+                await Task.Delay(100);
+            }
+
+            return -1;
+        }
+
+        [Test]
+        public async Task DownloadingABlob_BillsWhatWentOut()
+        {
+            var (serverId, token) = await AServerOfItsOwnAsync();
+
+            var fileName = "isolation-served-" + Guid.NewGuid().ToString("N")[..8] + ".jar";
+            var bytes = JarFor(fileName);
+            var sha = ShaOf(bytes);
+
+            await SeedAsync(serverId, fileName, bytes);
+
+            using var client = HopperApi.WithBearer(token);
+            var response = await client.GetAsync($"/api/blobs/{sha}");
+            var served = (await response.Content.ReadAsByteArrayAsync()).Length;
+
+            await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+            await Assert.That(served).IsEqualTo(bytes.Length);
+
+            await Assert.That(await ServedAsync(serverId, served)).IsEqualTo((long)served);
+        }
+
+        [Test]
+        public async Task ARefusedDownload_BillsNothing()
+        {
+            // A 404 writes a problem document, not a jar. The server it was aimed at owes nothing.
+            var (serverId, token) = await AServerOfItsOwnAsync();
+
+            using var client = HopperApi.WithBearer(token);
+            var response = await client.GetAsync($"/api/blobs/{new string('c', 64)}");
+
+            await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+            await Task.Delay(500);
+
+            await using var scope = HopperApi.Services.CreateAsyncScope();
+            var served = await scope.ServiceProvider.GetRequiredService<HopperDbContext>()
+                .Servers.AsNoTracking().Where(s => s.Id == serverId)
+                .Select(s => s.BytesServed).SingleAsync();
+
+            await Assert.That(served).IsEqualTo(0L);
         }
 
         [Test]

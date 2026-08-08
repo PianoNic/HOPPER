@@ -1,4 +1,5 @@
 using HOPPER.API.Auth;
+using HOPPER.API.Extensions;
 using HOPPER.Domain.Enums;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
@@ -41,6 +42,8 @@ namespace HOPPER.API.Controllers
             Response.Headers.CacheControl = "private, max-age=31536000, immutable";
 
             Response.Headers.ETag = $"\"{sha256}\"";
+
+            HttpContext.Bill(serverId);
 
             return File(stream, "application/java-archive", mod.FileName);
         }

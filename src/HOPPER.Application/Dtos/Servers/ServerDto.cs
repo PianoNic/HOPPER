@@ -21,5 +21,7 @@ namespace HOPPER.Application.Dtos.Servers
         public string? LoaderVersion { get; init; }
 
         public string? IconSha256 { get; init; }
+
+        public required long BytesServed { get; init; }
     }
 }
