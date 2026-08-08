@@ -25,8 +25,6 @@ namespace HOPPER.Application.Command.Imports
         ICurrentUserService currentUser,
         IConfiguration configuration) : ICommandHandler<StartPackImportCommand, ModImportDto>
     {
-        private const long DefaultMaxImportBytes = 2L * 1024 * 1024 * 1024;
-
         public async ValueTask<ModImportDto> Handle(StartPackImportCommand command, CancellationToken cancellationToken)
         {
             if (!await db.Servers.AnyAsync(s => s.Id == command.ServerId, cancellationToken))
@@ -37,11 +35,19 @@ namespace HOPPER.Application.Command.Imports
             if (string.IsNullOrWhiteSpace(sourceName))
                 throw new ArgumentException("Upload a pack file or give a URL to import from.");
 
-            if (command.SourceKind == ImportSourceKind.Url
-                && (!Uri.TryCreate(sourceName, UriKind.Absolute, out var uri)
-                    || !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            if (command.SourceKind == ImportSourceKind.Url)
             {
-                throw new ArgumentException("A pack URL must be an absolute https:// URL.");
+                if (!Uri.TryCreate(sourceName, UriKind.Absolute, out var uri)
+                    || !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("A pack URL must be an absolute https:// URL.");
+                }
+
+                if (!PackDownloadHosts.Allowed(configuration).Contains(uri.Host))
+                {
+                    throw new ArgumentException(
+                        $"Download host not allowed: {uri.Host}. Add it to Hopper:PackDownloadHosts or upload the pack instead.");
+                }
             }
 
             if (command.SourceKind == ImportSourceKind.Upload && command.Content is null)
@@ -81,6 +87,6 @@ namespace HOPPER.Application.Command.Imports
             return import.ToDto();
         }
 
-        private long MaxImportBytes => configuration.GetValue("Hopper:MaxImportBytes", DefaultMaxImportBytes);
+        private long MaxImportBytes => HopperLimits.MaxImportBytes(configuration);
     }
 }
