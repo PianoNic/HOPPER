@@ -93,6 +93,67 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        public async Task ADependencyNothingOnTheServerProvides_IsNamed()
+        {
+            using var dir = new TempDir();
+            var blobs = StorageIn(dir.Path);
+
+            var connectionString = await PostgresHarness.NewMigratedDatabaseAsync();
+            await using var db = PostgresHarness.Context(connectionString);
+
+            var serverId = await SeedServerAsync(db);
+
+            db.Mods.AddRange(
+                new Mod
+                {
+                    ServerId = serverId, FileName = "entityculling.jar", Sha256 = new string('1', 64), Size = 1,
+                    ModIds = ["entityculling"],
+                    // minecraft is the loader's, ferritecore is here, fabric-api is not.
+                    RequiredMods = ["fabric-api", "minecraft", "ferritecore"],
+                },
+                new Mod
+                {
+                    ServerId = serverId, FileName = "ferritecore.jar", Sha256 = new string('2', 64), Size = 1,
+                    ModIds = ["ferritecore"], RequiredMods = [],
+                });
+
+            await db.SaveChangesAsync();
+
+            var rows = await new ListModsQueryHandler(db, blobs)
+                .Handle(new ListModsQuery(serverId), CancellationToken.None);
+
+            var culling = rows.Single(r => r.FileName == "entityculling.jar");
+
+            await Assert.That(culling.MissingDependencies).IsEquivalentTo(new[] { "fabric-api" });
+            await Assert.That(rows.Single(r => r.FileName == "ferritecore.jar").MissingDependencies).IsNull();
+        }
+
+        [Test]
+        public async Task AJarWhoseDependenciesWereNeverRead_ClaimsNothingIsMissing()
+        {
+            using var dir = new TempDir();
+            var blobs = StorageIn(dir.Path);
+
+            var connectionString = await PostgresHarness.NewMigratedDatabaseAsync();
+            await using var db = PostgresHarness.Context(connectionString);
+
+            var serverId = await SeedServerAsync(db);
+
+            db.Mods.Add(new Mod
+            {
+                ServerId = serverId, FileName = "unread.jar", Sha256 = new string('3', 64), Size = 1,
+                RequiredMods = null,
+            });
+
+            await db.SaveChangesAsync();
+
+            var rows = await new ListModsQueryHandler(db, blobs)
+                .Handle(new ListModsQuery(serverId), CancellationToken.None);
+
+            await Assert.That(rows.Single().MissingDependencies).IsNull();
+        }
+
+        [Test]
         public async Task TwoNamesForOneBlob_AreBothFlaggedFromASingleLookup()
         {
             using var dir = new TempDir();

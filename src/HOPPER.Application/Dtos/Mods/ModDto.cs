@@ -32,5 +32,9 @@ namespace HOPPER.Application.Dtos.Mods
         /// The side that would receive this jar and another one declaring the same mod id, so a
         /// loader there refuses to start. Null when nothing collides.
         public SyncSide? CollidesOn { get; init; }
+
+        /// Mod ids this jar says it needs that nothing on this server provides. On Fabric and Quilt
+        /// an unmet dependency stops the client booting before HOPPER can correct it.
+        public IReadOnlyList<string>? MissingDependencies { get; init; }
     }
 }

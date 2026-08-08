@@ -244,6 +244,7 @@ namespace HOPPER.Application.Command.Modrinth
                     UploadedBy = currentUser.Name,
 
                     ModIds = metadata.ModIds,
+                    RequiredMods = metadata.RequiredMods,
                     IconSha256 = metadata.IconSha256,
                 };
 
