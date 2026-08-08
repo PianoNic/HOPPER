@@ -130,6 +130,66 @@ namespace HOPPER.Tests.ModMetadata
             await Assert.That(ModDependencyReader.Read(jar)).IsEmpty();
         }
 
+        private static byte[] NestedJar(string modId)
+        {
+            var buffer = new MemoryStream();
+
+            using (var writing = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            using (var stream = writing.CreateEntry("fabric.mod.json").Open())
+            {
+                stream.Write(Encoding.UTF8.GetBytes($$"""{"schemaVersion":1,"id":"{{modId}}"}"""));
+            }
+
+            return buffer.ToArray();
+        }
+
+        private static ZipArchive JarBundling(string declares, string nestedPath, byte[] nested)
+        {
+            var buffer = new MemoryStream();
+
+            using (var writing = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using (var stream = writing.CreateEntry("fabric.mod.json").Open())
+                    stream.Write(Encoding.UTF8.GetBytes(declares));
+
+                using (var stream = writing.CreateEntry(nestedPath).Open())
+                    stream.Write(nested);
+            }
+
+            buffer.Position = 0;
+            return new ZipArchive(buffer, ZipArchiveMode.Read);
+        }
+
+        [Test]
+        [Arguments("META-INF/jarjar/common-networking-1.0.6.jar")]
+        [Arguments("META-INF/jars/common-networking-1.0.6.jar")]
+        public async Task ADependencyTheJarCarriesInside_IsNotMissing(string nestedPath)
+        {
+            // The shape that produced a false badge on JourneyMap: it declares commonnetworking and
+            // ships it in META-INF/jarjar, which every loader extracts.
+            using var jar = JarBundling(
+                """{"schemaVersion":1,"id":"journeymap","depends":{"commonnetworking":"*","fabric-api":"*"}}""",
+                nestedPath,
+                NestedJar("commonnetworking"));
+
+            var read = ModDependencyReader.Read(jar);
+
+            await Assert.That(read).DoesNotContain("commonnetworking");
+            await Assert.That(read).Contains("fabric-api");
+        }
+
+        [Test]
+        public async Task ANestedJarSomewhereElseInTheArchive_DoesNotCount()
+        {
+            // Only the two paths loaders extract from. A jar sitting anywhere else is just a file.
+            using var jar = JarBundling(
+                """{"schemaVersion":1,"id":"x","depends":{"commonnetworking":"*"}}""",
+                "libs/common-networking-1.0.6.jar",
+                NestedJar("commonnetworking"));
+
+            await Assert.That(ModDependencyReader.Read(jar)).Contains("commonnetworking");
+        }
+
         [Test]
         public async Task AJarThatDeclaresNothing_HasNoDependencies()
         {
