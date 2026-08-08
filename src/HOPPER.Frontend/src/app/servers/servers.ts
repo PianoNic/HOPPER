@@ -22,7 +22,7 @@ import { WhenPipe } from '../shared/utils/when';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { messageFrom, toNumber } from '../shared/utils/format';
 import { copyText } from '../shared/utils/clipboard';
-import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
+import { downloadServerJar } from '../shared/utils/download';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
 import { modLoaderLabel } from './mod-labels';
@@ -310,18 +310,8 @@ export class Servers {
 
   protected downloadJar(server: ServerDto, event: Event): void {
     event.stopPropagation();
-    this.setBusy(server.id, true);
 
-    this.api.apiServersIdJarGet(server.id).subscribe({
-      next: (jar) => {
-        downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);
-        this.setBusy(server.id, false);
-      },
-      error: async (err) => {
-        toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
-        this.setBusy(server.id, false);
-      },
-    });
+    downloadServerJar(this.api, server, (running) => this.setBusy(server.id, running));
   }
 
   protected async remove(server: ServerDto, event: Event): Promise<void> {

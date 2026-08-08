@@ -17,7 +17,7 @@ import { ButtonLoading } from '../shared/directives/button-loading';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { formatBytes, messageFrom, toNumber } from '../shared/utils/format';
-import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
+import { downloadServerJar } from '../shared/utils/download';
 import {
   ClientDrift,
   countDrift,
@@ -223,17 +223,6 @@ export class ServerOverview {
     const server = this.server();
     if (!server) return;
 
-    this.building.set(true);
-
-    this.serversApi.apiServersIdJarGet(server.id).subscribe({
-      next: (jar) => {
-        downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);
-        this.building.set(false);
-      },
-      error: async (err) => {
-        toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
-        this.building.set(false);
-      },
-    });
+    downloadServerJar(this.serversApi, server, (running) => this.building.set(running));
   }
 }

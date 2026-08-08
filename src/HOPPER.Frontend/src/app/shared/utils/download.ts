@@ -1,3 +1,7 @@
+import { toast } from '@spartan-ng/brain/sonner';
+import type { ServersService } from '../../api/api/servers.service';
+import type { ServerDto } from '../../api/model/serverDto';
+
 const REVOKE_AFTER_MS = 60_000;
 
 export function downloadBlob(blob: Blob, fileName: string): void {
@@ -32,6 +36,26 @@ export function fileNameFromDisposition(header: string | null, fallback: string)
 
   name = name.trim().split(/[\\/]/).pop() ?? '';
   return name === '' || name === '.' || name === '..' ? fallback : name;
+}
+
+export function downloadServerJar(
+  api: ServersService,
+  server: Pick<ServerDto, 'id' | 'slug'>,
+  busy: (running: boolean) => void,
+  failure = 'Failed to build the jar',
+): void {
+  busy(true);
+
+  api.apiServersIdJarGet(server.id).subscribe({
+    next: (jar) => {
+      downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);
+      busy(false);
+    },
+    error: async (err) => {
+      toast.error(await messageFromBlobError(err, failure));
+      busy(false);
+    },
+  });
 }
 
 export async function messageFromBlobError(err: unknown, fallback: string): Promise<string> {

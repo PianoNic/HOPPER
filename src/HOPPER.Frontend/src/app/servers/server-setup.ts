@@ -12,7 +12,7 @@ import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dial
 import { ServerIcon } from '../shared/components/server-icon/server-icon';
 import { ServerChanged } from '../shared/services/server-changed';
 import { messageFrom } from '../shared/utils/format';
-import { downloadBlob, messageFromBlobError } from '../shared/utils/download';
+import { downloadServerJar } from '../shared/utils/download';
 import { ServersService } from '../api/api/servers.service';
 import { ServerDto } from '../api/model/serverDto';
 import { serverIdSignal } from './server-route';
@@ -331,18 +331,7 @@ export class ServerSetup {
     const server = this.server();
     if (!server) return;
 
-    this.building.set(true);
-
-    this.api.apiServersIdJarGet(server.id).subscribe({
-      next: (jar) => {
-        downloadBlob(jar as unknown as Blob, `${server.slug}-hopper.jar`);
-        this.building.set(false);
-      },
-      error: async (err) => {
-        toast.error(await messageFromBlobError(err, 'Failed to build the jar'));
-        this.building.set(false);
-      },
-    });
+    downloadServerJar(this.api, server, (running) => this.building.set(running));
   }
 
   private refresh(): void {
