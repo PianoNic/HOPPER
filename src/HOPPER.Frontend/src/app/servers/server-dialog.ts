@@ -22,6 +22,9 @@ import {
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideImage } from '@ng-icons/lucide';
+import { ServerIcon } from '../shared/components/server-icon/server-icon';
 import { ModrinthService } from '../api/api/modrinth.service';
 import { ServersService } from '../api/api/servers.service';
 import { ModrinthGameVersionDto } from '../api/model/modrinthGameVersionDto';
@@ -62,7 +65,10 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
     HlmInputImports,
     HlmLabelImports,
     HlmSelectImports,
+    NgIcon,
+    ServerIcon,
   ],
+  providers: [provideIcons({ lucideImage })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -79,6 +85,50 @@ const LOADERS_WITH_UNSET: ReadonlyArray<{ value: ModLoader; label: string }> = [
       </p>
     </hlm-dialog-header>
     <div class="flex flex-col gap-3">
+      <div class="flex items-center gap-3">
+        @if (iconPreview(); as preview) {
+          <img
+            [src]="preview"
+            alt="The icon about to be uploaded"
+            width="48"
+            height="48"
+            class="shrink-0 rounded object-cover"
+          />
+        } @else {
+          <app-server-icon [sha256]="currentIcon()" [name]="name()" [size]="48" />
+        }
+
+        <input #iconPicker type="file" class="hidden" accept="image/*" (change)="pickIcon($event)" />
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            type="button"
+            [disabled]="saving()"
+            (click)="iconPicker.click()"
+          >
+            <ng-icon name="lucideImage" size="14" />
+            {{ hasIcon() ? 'Replace icon' : 'Add an icon' }}
+          </button>
+
+          @if (hasIcon()) {
+            <button
+              hlmBtn
+              variant="ghost"
+              size="sm"
+              type="button"
+              class="text-destructive hover:text-destructive"
+              [disabled]="saving()"
+              (click)="dropIcon()"
+            >
+              Remove
+            </button>
+          }
+        </div>
+      </div>
+
       <div class="flex flex-col gap-1.5">
         <label hlmLabel for="server-name">Name</label>
         <input
@@ -193,6 +243,17 @@ export class ServerDialog {
   protected readonly name = signal(this.ctx.mode === 'rename' ? this.ctx.server.name : '');
   protected readonly saving = signal(false);
 
+  private readonly picked = signal<File | null>(null);
+  private readonly removing = signal(false);
+
+  protected readonly iconPreview = signal<string | null>(null);
+
+  protected readonly currentIcon = computed(() =>
+    this.removing() ? null : (this.ctx.mode === 'create' ? null : this.ctx.server.iconSha256) ?? null,
+  );
+
+  protected readonly hasIcon = computed(() => this.iconPreview() !== null || this.currentIcon() !== null);
+
   protected readonly minecraftVersion = signal(
     this.ctx.mode === 'rename' ? (this.ctx.server.minecraftVersion ?? '') : '',
   );
@@ -209,6 +270,8 @@ export class ServerDialog {
   protected readonly loaderLabel = computed(() => modLoaderLabel(this.loader()));
 
   constructor() {
+    this.destroyRef.onDestroy(() => this.revokePreview());
+
     this.modrinth.apiModrinthTagsGet().subscribe({
       next: (tags) => {
         this.gameVersions.set(tags.gameVersions);
@@ -270,6 +333,64 @@ export class ServerDialog {
     this.loaderVersion.set((event.target as HTMLInputElement).value);
   }
 
+  protected pickIcon(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    input.value = '';
+    if (!file) return;
+
+    this.revokePreview();
+    this.picked.set(file);
+    this.iconPreview.set(URL.createObjectURL(file));
+    this.removing.set(false);
+  }
+
+  protected dropIcon(): void {
+    this.revokePreview();
+    this.picked.set(null);
+    this.iconPreview.set(null);
+
+    // Only meaningful on edit; on create there is nothing stored to remove yet.
+    this.removing.set(this.ctx.mode !== 'create');
+  }
+
+  private revokePreview(): void {
+    const url = this.iconPreview();
+    if (url) URL.revokeObjectURL(url);
+  }
+
+  // The server has to exist before its icon can be posted, so on create this runs after the POST.
+  // A saved server with a failed icon is reported and kept: losing the server over its picture
+  // would be the worse trade, and the icon can be set again from Setup.
+  private finishIcon(server: ServerDto): void {
+    const picked = this.picked();
+
+    if (picked) {
+      this.api.apiServersIdIconPost(server.id, picked).subscribe({
+        next: (result) => this.ref.close({ ...server, iconSha256: result.iconSha256 }),
+        error: (err) => {
+          toast.error(messageFrom(err, 'The server was saved, but that icon could not be read'));
+          this.ref.close(server);
+        },
+      });
+      return;
+    }
+
+    if (this.removing()) {
+      this.api.apiServersIdIconDelete(server.id).subscribe({
+        next: () => this.ref.close({ ...server, iconSha256: null }),
+        error: (err) => {
+          toast.error(messageFrom(err, 'The server was saved, but its icon could not be removed'));
+          this.ref.close(server);
+        },
+      });
+      return;
+    }
+
+    this.ref.close(server);
+  }
+
   protected save(): void {
     if (!this.canSave()) return;
     this.saving.set(true);
@@ -296,7 +417,7 @@ export class ServerDialog {
           });
 
     request$.subscribe({
-      next: (server) => this.ref.close(server),
+      next: (server) => this.finishIcon(server),
       error: (err) => {
         toast.error(messageFrom(err, 'Failed to save the server'));
         this.saving.set(false);
