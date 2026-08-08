@@ -34,7 +34,14 @@ namespace HOPPER.Tests.Infrastructure
                 await command.ExecuteNonQueryAsync();
             }
 
-            return new NpgsqlConnectionStringBuilder(admin) { Database = name }.ConnectionString;
+            // Unpooled on purpose. Every test gets its own database and therefore its own pool, and a
+            // pool holds its connections idle for the rest of the run, so pooling here accumulates
+            // connections the suite never uses again until the server refuses new ones.
+            return new NpgsqlConnectionStringBuilder(admin)
+            {
+                Database = name,
+                Pooling = false,
+            }.ConnectionString;
         }
 
         public static HopperDbContext Context(string connectionString) =>
