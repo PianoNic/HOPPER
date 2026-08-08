@@ -100,7 +100,6 @@ namespace HOPPER.Tests.Infrastructure
                 LocatorTemplates.For(ModLoader.NeoForge, "1.21.1"),
                 LocatorTemplates.For(ModLoader.Fabric, "1.20.1"),
                 LocatorTemplates.For(ModLoader.Quilt, "1.20.1"),
-                LocatorTemplates.For(ModLoader.Quilt, "1.20.1", LocatorTemplates.QuiltPluginVariant),
             };
 
             foreach (var template in named)

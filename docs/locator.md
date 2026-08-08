@@ -363,15 +363,23 @@ is the declaration: `V1ModMetadataImpl` throws a `ParseException`, a hard failur
 degradation, the moment it sees the `experimental_quilt_loader_plugin` key while
 `-Dloader.experimental.allow_loading_plugins=true` is unset.
 
-So two jars ship for Quilt, and that is not optional:
+**The plugin jar is not served, and the flag above is not enough.** Measured on Quilt Loader 0.29.2
+with a real client:
 
-- `hopper-fabric.jar` - the default. Quilt runs Fabric mods through `StandardFabricPlugin` and a
-  `preLaunch` entrypoint works unchanged. Degraded, restart required.
-- `hopper-quilt-plugin.jar` - the opt-in upgrade for anyone willing to add one JVM argument. Real
-  same-launch loading.
+- Flag unset: `ParseException: Mod hopper provides a loader plugin, which is not yet allowed!`, and
+  the client does not start. That is the failure this section always predicted.
+- Flag set: it gets past parsing, HOPPER appears in the mod table, and then Quilt's own plugin
+  classloader gives up - `NoClassDefFoundError: org/quiltmc/loader/api/plugin/QuiltLoaderPlugin`,
+  `already has a package defined, refusing to load it's classes from elsewhere`. Our jar carries
+  `ch/pianonic` and `META-INF` only; nothing of Quilt's is shaded into it.
 
-Both are collected by the root `templates` task; `LocatorTemplates.For` serves the plugin jar only
-when the download asks for the `quilt-plugin` variant by name.
+So the flag buys a different crash, not a working locator, and either way the client will not boot.
+`LocatorTemplates.For` therefore refuses every variant and the download always gets
+`hopper-fabric.jar`, which Quilt runs through `quilted_fabric_loader` - degraded, restart required,
+verified working on the same instance.
+
+`hopper-quilt-plugin.jar` is still built and still checked by `ShippedTemplateTests`. It is correct
+code waiting on Quilt; the moment loader plugins are allowed, serving it again is one arm in `For`.
 
 Release 8: quilt-loader's own `.module` metadata declares `"org.gradle.jvm.version": 8`, and
 `QuiltLoaderPlugin` itself is classfile 52. The pom is `<packaging>pom</packaging>` with no

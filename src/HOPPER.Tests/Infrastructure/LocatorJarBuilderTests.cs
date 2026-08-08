@@ -387,12 +387,16 @@ namespace HOPPER.Tests.Infrastructure
         }
 
         [Test]
-        public async Task For_QuiltWithThePluginVariant_IsServedThePluginJar()
+        public async Task For_QuiltWithThePluginVariant_IsRefusedBecauseQuiltWillNotLoadIt()
         {
-            var template = LocatorTemplates.For(ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant);
+            // Verified against Quilt 0.29.2: without the experimental flag the jar will not parse,
+            // and with it Quilt's own plugin classloader fails. Either way the client does not start,
+            // so there is nothing to hand out. See #236.
+            var exception = await Assert.That(
+                    () => LocatorTemplates.For(ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant))
+                .Throws<LocatorVariantNotAvailableException>();
 
-            await Assert.That(template.FileName).IsEqualTo(QuiltPluginJar);
-            await Assert.That(template.MarkerEntry).IsEqualTo("quilt.mod.json");
+            await Assert.That(exception!.Message).Contains("default download");
         }
 
         [Test]
@@ -400,7 +404,8 @@ namespace HOPPER.Tests.Infrastructure
         [Arguments(ModLoader.Forge)]
         [Arguments(ModLoader.NeoForge)]
         [Arguments(ModLoader.Unknown)]
-        public async Task For_ThePluginVariantOnAnyOtherLoader_ThrowsRatherThanServingAJarThatWillNotParse(
+        [Arguments(ModLoader.Quilt)]
+        public async Task For_ThePluginVariantOnAnyLoader_ThrowsRatherThanServingAJarThatWillNotParse(
             ModLoader loader)
         {
             await Assert.That(() => LocatorTemplates.For(loader, "1.21.1", LocatorTemplates.QuiltPluginVariant))
@@ -412,30 +417,6 @@ namespace HOPPER.Tests.Infrastructure
         {
             await Assert.That(() => LocatorTemplates.For(ModLoader.Quilt, "1.21.1", "fabric-plugin"))
                 .Throws<LocatorVariantNotAvailableException>();
-        }
-
-        [Test]
-        public async Task Build_QuiltWithThePluginVariant_ServesTheQuiltPluginDeclarationAndNoFabricEntrypoint()
-        {
-            using var dir = new TempDir();
-            WriteQuiltPluginTemplate(dir.Path);
-            WriteFabricTemplate(dir.Path);
-
-            var jar = BuilderFor(dir.Path).Build(Guid.NewGuid(), "https://h/api/manifest", "tok",
-                ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant);
-
-            using var archive = new ZipArchive(new MemoryStream(jar), ZipArchiveMode.Read);
-            var names = archive.Entries.Select(e => e.FullName).ToList();
-
-            await Assert.That(names).Contains("quilt.mod.json");
-            await Assert.That(names).DoesNotContain("fabric.mod.json");
-
-            using var declaration = new StreamReader(archive.GetEntry("quilt.mod.json")!.Open());
-            var text = await declaration.ReadToEndAsync();
-
-            await Assert.That(text).Contains("experimental_quilt_loader_plugin");
-            await Assert.That(text).Contains("ch.pianonic.hopper.HopperQuiltPlugin");
-            await Assert.That(ReadProperties(jar)["token"]).IsEqualTo("tok");
         }
 
         [Test]
@@ -453,25 +434,6 @@ namespace HOPPER.Tests.Infrastructure
 
             await Assert.That(names).Contains("fabric.mod.json");
             await Assert.That(names).DoesNotContain("quilt.mod.json");
-        }
-
-        [Test]
-        public async Task Build_QuiltPluginTemplateThatIsActuallyTheFabricJar_Is503RatherThanServed()
-        {
-            using var dir = new TempDir();
-
-            using (var file = File.Create(Path.Combine(dir.Path, QuiltPluginJar)))
-            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
-            using (var stream = archive.CreateEntry("fabric.mod.json").Open())
-            {
-                stream.Write("""{"schemaVersion":1,"id":"hopper"}"""u8);
-            }
-
-            var exception = await Assert.That(() => BuilderFor(dir.Path).Build(Guid.NewGuid(),
-                    "https://h/api/manifest", "t", ModLoader.Quilt, "1.21.1", LocatorTemplates.QuiltPluginVariant))
-                .Throws<LocatorTemplateMissingException>();
-
-            await Assert.That(exception!.Message).Contains(QuiltPluginJar);
         }
 
         [Test]
