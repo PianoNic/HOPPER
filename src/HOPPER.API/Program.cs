@@ -27,8 +27,37 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.ForwardLimit = 1;
+
+    var section = builder.Configuration.GetSection("Hopper:TrustedProxies");
+    var declared = (section.Value is { Length: > 0 } inline ? inline.Split(',') : section.Get<string[]>() ?? [])
+        .Select(entry => (entry ?? string.Empty).Trim())
+        .Where(entry => entry.Length > 0)
+        .ToArray();
+
+    if (declared.Length == 0)
+    {
+        return;
+    }
+
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+
+    foreach (var entry in declared)
+    {
+        if (System.Net.IPNetwork.TryParse(entry, out var network))
+        {
+            options.KnownIPNetworks.Add(network);
+        }
+        else if (System.Net.IPAddress.TryParse(entry, out var address))
+        {
+            options.KnownProxies.Add(address);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Hopper:TrustedProxies contains '{entry}', which is neither an IP address nor a CIDR network.");
+        }
+    }
 });
 
 builder.Services.AddSpaStaticFiles(options => { options.RootPath = "wwwroot"; });
