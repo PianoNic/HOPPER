@@ -93,6 +93,13 @@ by unversioned name, so a version bump never touches C#. The Dockerfile and a lo
 both consume the task's output rather than restating it. Its copies use `from(task)` rather than
 `from(file)` so `./gradlew templates` builds what it needs instead of silently copying nothing.
 
+## Proving it on a real client
+
+Nothing in `dotnet test` or `bun run test` starts a loader, so no test here can tell you the locator
+works. `tools/locator-e2e/` can: it writes a throwaway Prism instance per adapter, serves it a
+configured jar, launches the client, reads the log and closes it. Run it after touching anything in
+this directory, and before a release. Its README explains each column of the result table.
+
 ## What the jar says it is
 
 Every adapter jar carries the same identity: `hopper-icon.png` at the root, a loader descriptor, and
