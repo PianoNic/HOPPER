@@ -19,7 +19,7 @@ namespace HOPPER.Tests.Application
         {
             var name = new string('x', 252) + ".jar";
 
-            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
+            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<InvalidModFileNameException>();
         }
 
         [Test]
@@ -37,14 +37,14 @@ namespace HOPPER.Tests.Application
         [Arguments("..jar")]
         public async Task Validate_PathEscape_IsRejected(string name)
         {
-            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
+            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<InvalidModFileNameException>();
         }
 
         [Test]
         [Arguments(".hidden.jar")]
         public async Task Validate_LeadingDot_IsRejected(string name)
         {
-            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
+            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<InvalidModFileNameException>();
         }
 
         [Test]
@@ -53,7 +53,7 @@ namespace HOPPER.Tests.Application
         [Arguments("mod")]
         public async Task Validate_NotAJar_IsRejected(string name)
         {
-            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
+            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<InvalidModFileNameException>();
         }
 
         [Test]
@@ -62,7 +62,7 @@ namespace HOPPER.Tests.Application
         [Arguments("   ")]
         public async Task Validate_EmptyName_IsRejected(string? name)
         {
-            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<ArgumentException>();
+            await Assert.That(() => ModFileNameValidator.Validate(name)).Throws<InvalidModFileNameException>();
         }
 
         [Test]

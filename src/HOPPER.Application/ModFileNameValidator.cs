@@ -5,20 +5,22 @@ namespace HOPPER.Application
         public static string Validate(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Filename is required.");
+                throw new InvalidModFileNameException("Filename is required.");
 
             if (name.Contains('/') || name.Contains('\\') || name.Contains("..") || name.StartsWith('.'))
-                throw new ArgumentException($"Illegal filename: {name}");
+                throw new InvalidModFileNameException($"Illegal filename: {name}");
 
             if (!name.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"Not a jar: {name}");
+                throw new InvalidModFileNameException($"Not a jar: {name}");
 
             if (name.Length > HopperLimits.MaxFileNameLength)
-                throw new ArgumentException($"Filename is too long: {name.Length} characters, the limit is {HopperLimits.MaxFileNameLength}.");
+                throw new InvalidModFileNameException($"Filename is too long: {name.Length} characters, the limit is {HopperLimits.MaxFileNameLength}.");
 
             return name;
         }
     }
+
+    public sealed class InvalidModFileNameException(string message) : RuleViolationException(message);
 
     public sealed class DuplicateModFileNameException(string fileName)
         : InvalidOperationException($"A mod named {fileName} already exists.")

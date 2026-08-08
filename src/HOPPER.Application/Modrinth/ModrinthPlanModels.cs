@@ -80,7 +80,7 @@ namespace HOPPER.Application.Modrinth
         public int ApiCalls { get; init; }
     }
 
-    public sealed class ResolveBudgetExceededException(string message) : ArgumentException(message);
+    public sealed class ResolveBudgetExceededException(string message) : RuleViolationException(message);
 
     public sealed class IncompatibleModException(string message) : InvalidOperationException(message);
 }

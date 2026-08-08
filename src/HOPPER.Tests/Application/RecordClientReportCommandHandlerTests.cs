@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Command.Clients;
 using HOPPER.Application.Dtos.Clients;
 using HOPPER.Infrastructure;
@@ -143,7 +144,7 @@ namespace HOPPER.Tests.Application
 
             await Assert.That(async () => await handler.Handle(
                     new RecordClientReportCommand(ServerId, Report(clientId, "Alex"), null), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidClientReportException>();
         }
 
         [Test]
@@ -154,11 +155,11 @@ namespace HOPPER.Tests.Application
 
             await Assert.That(async () => await handler.Handle(
                     new RecordClientReportCommand(ServerId, Report("c1", "Alex", ("jei.jar", "")), null), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidClientReportException>();
         }
 
         [Test]
-        public async Task Handle_MoreModsThanTheCap_ThrowsArgumentException()
+        public async Task Handle_MoreModsThanTheCap_IsRejected()
         {
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db, TestLimits.ConfigWith(("Hopper:MaxReportedMods", "3")));
@@ -167,7 +168,7 @@ namespace HOPPER.Tests.Application
 
             await Assert.That(async () => await handler.Handle(
                     new RecordClientReportCommand(ServerId, Report("c1", null, mods), null), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidClientReportException>();
         }
 
         [Test]
@@ -200,14 +201,14 @@ namespace HOPPER.Tests.Application
         [Arguments("aa")]
         [Arguments("not-a-hash-at-all")]
         [Arguments("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")]
-        public async Task Handle_Sha256ThatIsNot64Hex_ThrowsArgumentException(string sha)
+        public async Task Handle_Sha256ThatIsNot64Hex_IsRejected(string sha)
         {
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
 
             await Assert.That(async () => await handler.Handle(
                     new RecordClientReportCommand(ServerId, Report("c1", null, ("jei.jar", sha)), null), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidClientReportException>();
         }
 
         [Test]
@@ -227,25 +228,25 @@ namespace HOPPER.Tests.Application
         [Arguments("../../etc/passwd.jar")]
         [Arguments("mods/jei.jar")]
         [Arguments("readme.txt")]
-        public async Task Handle_FileNameThatTheValidatorRefuses_ThrowsArgumentException(string fileName)
+        public async Task Handle_FileNameThatTheValidatorRefuses_IsRejected(string fileName)
         {
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
 
             await Assert.That(async () => await handler.Handle(
                     new RecordClientReportCommand(ServerId, Report("c1", null, (fileName, ShaA)), null), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidModFileNameException>();
         }
 
         [Test]
-        public async Task Handle_OversizedClientId_ThrowsArgumentException()
+        public async Task Handle_OversizedClientId_IsRejected()
         {
             await using var db = NewDb();
             var handler = new RecordClientReportCommandHandler(db, TestLimits.Config);
 
             await Assert.That(async () => await handler.Handle(
                     new RecordClientReportCommand(ServerId, Report(new string('c', 400), null), null), CancellationToken.None))
-                .Throws<ArgumentException>();
+                .Throws<InvalidClientReportException>();
         }
 
         [Test]
