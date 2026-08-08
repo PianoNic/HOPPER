@@ -185,8 +185,6 @@
 /* A third party's Markdown, so the rules are about containment rather than looks: nothing may
    widen the pane or drown out the dashboard's own type. Unlayered, because Tailwind's preflight
    strips heading and list styling in the base layer and this has to win over it. */
-/* Someone else's Markdown must not decide how wide the pane is - that is the reader's choice, and
-   an unbreakable URL or a long inline code span would otherwise override it. */
 .hopper-markdown {
   overflow-wrap: anywhere;
 }

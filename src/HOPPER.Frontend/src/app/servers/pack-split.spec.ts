@@ -115,8 +115,6 @@ describe('packSplit and one-sided mods', () => {
   ];
 
   it('keeps a server-only jar out of a Prism instance and says how many', () => {
-    // A Prism instance is a client game directory, so a server-only jar there is one the game loads
-    // and should not. It is withheld rather than silently counted.
     const split = packSplit(sided, PackFormat.PrismInstance);
 
     expect(split.withheld).toBe(1);

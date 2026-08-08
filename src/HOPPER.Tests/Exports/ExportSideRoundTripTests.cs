@@ -161,9 +161,6 @@ namespace HOPPER.Tests.Exports
         [Test]
         public async Task PrismInstance_LeavesOutServerOnlyJarsAndSaysSo()
         {
-            // A Prism instance is one machine's game directory rather than a distributable, and in
-            // practice a client one, so a server-only jar in minecraft/mods/ is one the game loads
-            // and should not. The omission is stated rather than silent.
             using var fixture = new Fixture();
 
             var exporter = new PrismInstanceExporter(fixture.Db, fixture.Blobs, fixture.Configuration);

@@ -13,8 +13,8 @@ namespace HOPPER.API.Extensions
             context.Items.TryGetValue(Key, out var value) && value is Guid serverId ? serverId : null;
     }
 
-    /// A response can be a 304, a range, or a download the player cancelled halfway, so the blob's
-    /// own length is not what went out. This counts what the body actually wrote.
+    // A response can be a 304, a range, or a download the player cancelled halfway, so the blob's
+    // own length is not what went out. This counts what the body actually wrote.
     internal sealed class CountingStream(Stream inner) : Stream
     {
         public long Written { get; private set; }

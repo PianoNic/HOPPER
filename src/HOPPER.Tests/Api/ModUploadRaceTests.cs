@@ -165,7 +165,7 @@ namespace HOPPER.Tests.Api
         public async Task ResolvePending_ReadsTheSideOutOfTheJarLikeAnUploadDoes()
         {
             // Collecting a jar by hand is the same act as uploading one, so it should not land on the
-            // Both default when the jar says otherwise. Before this it did, and only on this path.
+            // Both default when the jar says otherwise.
             await using var scope = HopperApi.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<HopperDbContext>();
             var blobs = scope.ServiceProvider.GetRequiredService<IBlobStorage>();
