@@ -130,6 +130,8 @@ A fresh deployment has no servers and no tokens. Create the first one in the das
 | `Hopper__MaxReportedMods` | `2000` | Most mods one client may report in a single call. A large pack is roughly 400. |
 | `Hopper__BlobReclaimInterval` | `01:00:00` | How often the reclaim sweep runs after the one at startup. Zero leaves only the startup sweep. |
 | `Hopper__BlobReclaimGrace` | `01:00:00` | How long an unreferenced blob, a stale upload part and export scratch survive before the sweep takes them. |
+
+The sweep refuses to run at all when the database holds no servers but the blob store is not empty. That combination is what a restored, fresh or misconfigured database looks like from the inside, and sweeping then would delete every jar - so HOPPER logs a warning and leaves the store alone. Point it at the right database, or empty the store by hand.
 | `Hopper__ImportStallTimeout` | `02:00:00` | How long an import may sit queued or running without progress before HOPPER ends it and frees its staged pack. |
 | `Oidc__Authority` | *(unset)* | OIDC issuer for admin access. Nothing is trusted until you set it. |
 | `Oidc__AdminRole` | `hopper-admin` | Role an account must carry to administer HOPPER. Empty means any authenticated user. |
