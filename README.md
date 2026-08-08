@@ -17,7 +17,9 @@
 
 ## What is HOPPER?
 
-HOPPER keeps every player's mods in sync with one list you control on the server. Add a mod in the dashboard, and it is on every client the next time they launch - no zip files in Discord, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
+Everyone on a Minecraft server needs the same mods. Normally that means zipping a folder, posting it in Discord, and chasing the one person who missed an update.
+
+HOPPER makes the server itself the source of truth, and each player's game pulls from it at launch. Add a mod in the dashboard and it is on every client the next time they start - no zip files, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
 
 The same jar goes on your dedicated server, which stays in sync from the same list. Mods that belong on only one of them - a minimap on a server, a permissions plugin on a client - are marked as such and sent only where they belong.
 
@@ -45,7 +47,7 @@ The same jar goes on your dedicated server, which stays in sync from the same li
 ## Features
 
 - **No restart**: on Forge and NeoForge, mods are downloaded before the loader scans for them, so they load in the same launch. See [how it works](docs/how-it-works.md).
-- 🖼️ **A face per server**: upload an icon, or let a Prism import adopt the one it already carries. Stored at 64x64, the size Minecraft uses, so an existing `server-icon.png` works as it is.
+- **A face per server**: upload an icon, or let a Prism import adopt the one it already carries. Stored at 64x64, the size Minecraft uses, so an existing `server-icon.png` works as it is.
 - **Every loader generation**: Forge 1.12.2 through current, NeoForge, Fabric and Quilt, from one shared core plus a thin adapter each.
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.
