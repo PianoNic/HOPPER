@@ -45,6 +45,7 @@ import { serverIdSignal } from './server-route';
 import { modIconUrl, modSideLabel, modSourceLabel, modrinthProjectUrl } from './mod-labels';
 import { BASE_PATH } from '../api/variables';
 import { ModSide } from '../api/model/modSide';
+import { SyncSide } from '../api/model/syncSide';
 import { ExportPackDialogService } from './export-pack-dialog';
 import { ImportPackDialogService } from './import-pack-dialog';
 import { UploadModsDialogService } from './upload-mods-dialog';
@@ -255,6 +256,17 @@ import { UploadModsDialogService } from './upload-mods-dialog';
                   <td hlmTableCell class="font-medium">
                     <span class="flex items-center gap-2">
                       {{ m.fileName }}
+                      @if (m.collidesOn) {
+                        <span
+                          hlmBadge
+                          variant="destructive"
+                          class="text-xs"
+                          [title]="collisionHint(m.collidesOn)"
+                        >
+                          <ng-icon name="lucideTriangleAlert" size="12" />
+                          Duplicate mod id
+                        </span>
+                      }
                       @if (m.bytesMissing) {
                         <span
                           hlmBadge
@@ -390,6 +402,11 @@ export class ServerMods {
 
   protected readonly ModSide = ModSide;
   protected readonly sideLabel = modSideLabel;
+
+  protected collisionHint(side: SyncSide): string {
+    const who = side === SyncSide.Server ? 'the dedicated server' : 'a player';
+    return `Another jar on this server declares the same mod id, and ${who} receives both. A loader refuses to start with two copies of one mod - set one of them to the opposite side, or remove it.`;
+  }
 
   protected readonly sideChoices = [
     { side: ModSide.Both, label: 'Both' },

@@ -23,7 +23,17 @@ namespace HOPPER.Application.Queries.Mods
             var present = rows.Select(m => m.Sha256).Distinct(StringComparer.Ordinal)
                 .ToDictionary(sha => sha, blobs.Exists, StringComparer.Ordinal);
 
-            return rows.Select(m => m.ToDto() with { BytesMissing = !present[m.Sha256] }).ToList();
+            var collisions = ModIdConflictValidator.Collisions(rows);
+
+            return rows
+                .Select(m => m.ToDto() with
+                {
+                    BytesMissing = !present[m.Sha256],
+                    // TryGetValue, not GetValueOrDefault: the default of a non-nullable enum is
+                    // SyncSide.Client, so every mod that collides with nothing would claim it does.
+                    CollidesOn = collisions.TryGetValue(m.Id, out var side) ? side : null,
+                })
+                .ToList();
         }
     }
 }

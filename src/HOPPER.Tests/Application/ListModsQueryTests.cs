@@ -65,6 +65,34 @@ namespace HOPPER.Tests.Application
         }
 
         [Test]
+        public async Task OnlyTheCollidingPairCarriesASide_AndEveryoneElseCarriesNone()
+        {
+            using var dir = new TempDir();
+            var blobs = StorageIn(dir.Path);
+
+            var connectionString = await PostgresHarness.NewMigratedDatabaseAsync();
+            await using var db = PostgresHarness.Context(connectionString);
+
+            var serverId = await SeedServerAsync(db);
+
+            db.Mods.AddRange(
+                new Mod { ServerId = serverId, FileName = "jade.jar", Sha256 = new string('c', 64), Size = 1, ModIds = ["jade"] },
+                new Mod { ServerId = serverId, FileName = "jade-copy.jar", Sha256 = new string('d', 64), Size = 1, ModIds = ["jade"] },
+                new Mod { ServerId = serverId, FileName = "jei.jar", Sha256 = new string('e', 64), Size = 1, ModIds = ["jei"] });
+
+            await db.SaveChangesAsync();
+
+            var rows = await new ListModsQueryHandler(db, blobs)
+                .Handle(new ListModsQuery(serverId), CancellationToken.None);
+
+            await Assert.That(rows.Single(r => r.FileName == "jade.jar").CollidesOn).IsNotNull();
+            await Assert.That(rows.Single(r => r.FileName == "jade-copy.jar").CollidesOn).IsNotNull();
+
+            // The one that regressed: an absent key defaults to SyncSide.Client, not to null.
+            await Assert.That(rows.Single(r => r.FileName == "jei.jar").CollidesOn).IsNull();
+        }
+
+        [Test]
         public async Task TwoNamesForOneBlob_AreBothFlaggedFromASingleLookup()
         {
             using var dir = new TempDir();

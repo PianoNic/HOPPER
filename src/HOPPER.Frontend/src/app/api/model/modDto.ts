@@ -8,6 +8,7 @@
  * Do not edit the class manually.
  */
 import { ModSource } from './modSource';
+import { SyncSide } from './syncSide';
 import { ManifestModDtoSize } from './manifestModDtoSize';
 import { ModSide } from './modSide';
 
@@ -28,6 +29,7 @@ export interface ModDto {
     iconSha256?: string | null;
     iconUrl?: string | null;
     bytesMissing?: boolean;
+    collidesOn?: SyncSide | null;
 }
 export namespace ModDto {
 }
