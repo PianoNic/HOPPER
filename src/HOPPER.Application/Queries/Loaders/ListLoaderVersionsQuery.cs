@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Dtos.Loaders;
 using HOPPER.Application.Loaders;
 using HOPPER.Domain.Enums;
@@ -15,7 +16,7 @@ namespace HOPPER.Application.Queries.Loaders
             ListLoaderVersionsQuery query, CancellationToken cancellationToken)
         {
             if (!Enum.IsDefined(query.Loader))
-                throw new ArgumentException($"Unknown loader: {(int)query.Loader}.");
+                throw new InvalidRequestException($"Unknown loader: {(int)query.Loader}.");
 
             var versions = await client.GetAsync(query.Loader, query.MinecraftVersion, cancellationToken);
 

@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.ModMetadata;
 using HOPPER.Infrastructure;
 using HOPPER.Infrastructure.Interfaces;
@@ -17,7 +18,7 @@ namespace HOPPER.Application.Command.Servers
                 ?? throw new KeyNotFoundException("No such server.");
 
             var icon = ServerIconReader.ToServerIcon(command.Content)
-                ?? throw new ArgumentException("That file is not an image HOPPER can read.");
+                ?? throw new InvalidRequestException("That file is not an image HOPPER can read.");
 
             var previous = server.IconSha256;
 

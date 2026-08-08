@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using System.Text.Json;
 
 namespace HOPPER.Application.Modrinth
@@ -37,10 +38,10 @@ namespace HOPPER.Application.Modrinth
         {
             var value = loader?.Trim().ToLowerInvariant();
             if (string.IsNullOrEmpty(value))
-                throw new ArgumentException("A loader is required.");
+                throw new InvalidRequestException("A loader is required.");
 
             if (!KnownLoaders.Contains(value))
-                throw new ArgumentException($"Unknown loader: {loader}. Modrinth answers an unknown filter with no results rather than an error, so it is refused here.");
+                throw new InvalidRequestException($"Unknown loader: {loader}. Modrinth answers an unknown filter with no results rather than an error, so it is refused here.");
 
             return value;
         }
@@ -49,15 +50,15 @@ namespace HOPPER.Application.Modrinth
         {
             var value = gameVersion?.Trim();
             if (string.IsNullOrEmpty(value))
-                throw new ArgumentException("A Minecraft version is required.");
+                throw new InvalidRequestException("A Minecraft version is required.");
 
             if (value.Length > 32)
-                throw new ArgumentException($"Not a Minecraft version: {gameVersion}");
+                throw new InvalidRequestException($"Not a Minecraft version: {gameVersion}");
 
             foreach (var c in value)
             {
                 if (!char.IsAsciiLetterOrDigit(c) && c != '.' && c != '_' && c != '-')
-                    throw new ArgumentException($"Not a Minecraft version: {gameVersion}");
+                    throw new InvalidRequestException($"Not a Minecraft version: {gameVersion}");
             }
 
             return value;
@@ -74,7 +75,7 @@ namespace HOPPER.Application.Modrinth
             ModrinthSearchIndex.Follows => "follows",
             ModrinthSearchIndex.Newest => "newest",
             ModrinthSearchIndex.Updated => "updated",
-            _ => throw new ArgumentException($"Unknown sort order: {index}. Modrinth rejects an unknown index outright."),
+            _ => throw new InvalidRequestException($"Unknown sort order: {index}. Modrinth rejects an unknown index outright."),
         };
 
         public static string JsonArray(IEnumerable<string> values) => JsonSerializer.Serialize(values.ToArray());

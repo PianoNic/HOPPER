@@ -13,7 +13,7 @@ namespace HOPPER.Application.Command.Mods
         public async ValueTask<int> Handle(SetModSideCommand command, CancellationToken cancellationToken)
         {
             if (!Enum.IsDefined(command.Side))
-                throw new ArgumentException($"Unknown side: {(int)command.Side}.");
+                throw new InvalidRequestException($"Unknown side: {(int)command.Side}.");
 
             if (command.ModIds.Count == 0)
                 return 0;

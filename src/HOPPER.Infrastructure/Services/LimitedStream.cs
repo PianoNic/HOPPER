@@ -1,6 +1,8 @@
+using HOPPER.Domain;
+
 namespace HOPPER.Infrastructure.Services
 {
-    public sealed class ContentTooLargeException(string message) : ArgumentException(message);
+    public sealed class ContentTooLargeException(string message) : RuleViolationException(message);
 
     public sealed class LimitedStream(Stream inner, long maxBytes, string what) : Stream
     {

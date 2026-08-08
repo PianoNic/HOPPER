@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using System.Text.Json;
 using HOPPER.Application.Modrinth;
 
@@ -48,8 +49,8 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task ValidateLoader_SomethingModrinthDoesNotKnow_IsRefusedHere()
         {
-            await Assert.That(() => ModrinthFacets.ValidateLoader("forgee")).Throws<ArgumentException>();
-            await Assert.That(() => ModrinthFacets.ValidateLoader("")).Throws<ArgumentException>();
+            await Assert.That(() => ModrinthFacets.ValidateLoader("forgee")).Throws<InvalidRequestException>();
+            await Assert.That(() => ModrinthFacets.ValidateLoader("")).Throws<InvalidRequestException>();
         }
 
         [Test]
@@ -72,8 +73,8 @@ namespace HOPPER.Tests.Modrinth
         [Test]
         public async Task ValidateGameVersion_SomethingThatWouldEscapeAQueryString_IsRefused()
         {
-            await Assert.That(() => ModrinthFacets.ValidateGameVersion("1.20.1\"],[\"x")).Throws<ArgumentException>();
-            await Assert.That(() => ModrinthFacets.ValidateGameVersion(new string('9', 40))).Throws<ArgumentException>();
+            await Assert.That(() => ModrinthFacets.ValidateGameVersion("1.20.1\"],[\"x")).Throws<InvalidRequestException>();
+            await Assert.That(() => ModrinthFacets.ValidateGameVersion(new string('9', 40))).Throws<InvalidRequestException>();
         }
 
         [Test]
@@ -100,7 +101,7 @@ namespace HOPPER.Tests.Modrinth
             await Assert.That(ModrinthSearchIndex.Follows.ToApiValue()).IsEqualTo("follows");
             await Assert.That(ModrinthSearchIndex.Newest.ToApiValue()).IsEqualTo("newest");
             await Assert.That(ModrinthSearchIndex.Updated.ToApiValue()).IsEqualTo("updated");
-            await Assert.That(() => ((ModrinthSearchIndex)99).ToApiValue()).Throws<ArgumentException>();
+            await Assert.That(() => ((ModrinthSearchIndex)99).ToApiValue()).Throws<InvalidRequestException>();
         }
 
         [Test]

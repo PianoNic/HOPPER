@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using HOPPER.Application.Dtos.Imports;
 using HOPPER.Application.Imports;
 using HOPPER.Application.Mappings.Imports;
@@ -33,25 +34,25 @@ namespace HOPPER.Application.Command.Imports
             var sourceName = command.SourceKind == ImportSourceKind.Url ? command.Url : command.SourceName;
 
             if (string.IsNullOrWhiteSpace(sourceName))
-                throw new ArgumentException("Upload a pack file or give a URL to import from.");
+                throw new InvalidRequestException("Upload a pack file or give a URL to import from.");
 
             if (command.SourceKind == ImportSourceKind.Url)
             {
                 if (!Uri.TryCreate(sourceName, UriKind.Absolute, out var uri)
                     || !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new ArgumentException("A pack URL must be an absolute https:// URL.");
+                    throw new InvalidRequestException("A pack URL must be an absolute https:// URL.");
                 }
 
                 if (!PackDownloadHosts.Allowed(configuration).Contains(uri.Host))
                 {
-                    throw new ArgumentException(
+                    throw new InvalidRequestException(
                         $"Download host not allowed: {uri.Host}. Add it to Hopper:PackDownloadHosts or upload the pack instead.");
                 }
             }
 
             if (command.SourceKind == ImportSourceKind.Upload && command.Content is null)
-                throw new ArgumentException("No pack file was uploaded.");
+                throw new InvalidRequestException("No pack file was uploaded.");
 
             var import = new ModImport
             {

@@ -133,7 +133,7 @@ namespace HOPPER.Application.Command.Mods
             {
                 failed.Add(new FailedUploadDto { FileName = fileName, Error = ex.Message });
             }
-            catch (ArgumentException ex)
+            catch (RuleViolationException ex)
             {
                 failed.Add(new FailedUploadDto { FileName = fileName, Error = ex.Message });
             }

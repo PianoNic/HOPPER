@@ -1,3 +1,5 @@
+using HOPPER.Domain;
+
 namespace HOPPER.Application.Modrinth
 {
     public enum PlanNodeKind

@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using System.Security.Cryptography;
 using HOPPER.Application.Dtos.Mods;
 using HOPPER.Application.Mappings.Mods;
@@ -37,7 +38,7 @@ namespace HOPPER.Application.Command.Imports
             {
                 var actual = await Sha1Async(command.Content, cancellationToken);
                 if (!string.Equals(actual, pending.ExpectedSha1, StringComparison.OrdinalIgnoreCase))
-                    throw new ArgumentException($"This jar is not the file {fileName} asks for: its SHA-1 does not match.");
+                    throw new InvalidRequestException($"This jar is not the file {fileName} asks for: its SHA-1 does not match.");
             }
 
             var staged = await blobs.StageAsync(command.Content, HopperLimits.MaxModBytes(configuration), cancellationToken);
@@ -83,7 +84,7 @@ namespace HOPPER.Application.Command.Imports
         private static async Task<string> Sha1Async(Stream content, CancellationToken cancellationToken)
         {
             if (!content.CanSeek)
-                throw new ArgumentException("The supplied jar could not be re-read for verification.");
+                throw new InvalidRequestException("The supplied jar could not be re-read for verification.");
 
             content.Position = 0;
             var hash = await SHA1.HashDataAsync(content, cancellationToken);

@@ -1,3 +1,4 @@
+using HOPPER.Application;
 using System.Security.Cryptography;
 using System.Text;
 using HOPPER.Application.Command.Modrinth;
@@ -531,7 +532,7 @@ namespace HOPPER.Tests.Modrinth
             using var fixture = new Fixture();
 
             await Assert.That(async () => await fixture.RunAsync())
-                .Throws<ArgumentException>();
+                .Throws<InvalidRequestException>();
         }
 
         [Test]

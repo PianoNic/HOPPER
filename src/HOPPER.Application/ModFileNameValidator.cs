@@ -1,3 +1,5 @@
+using HOPPER.Domain;
+
 namespace HOPPER.Application
 {
     public static class ModFileNameValidator
