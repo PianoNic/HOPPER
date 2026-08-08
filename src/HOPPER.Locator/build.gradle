@@ -1,7 +1,18 @@
 def hopperVersion = {
-    def properties = new File(rootDir, '../../application.properties')
-    def matcher = properties.text =~ /<version>([^<]+)<\/version>/
-    return matcher ? matcher[0][1] : '0.0.0'
+    for (def directory = rootDir; directory != null; directory = directory.parentFile) {
+        def properties = new File(directory, 'application.properties')
+
+        if (properties.isFile()) {
+            def matcher = properties.text =~ /<version>([^<]+)<\/version>/
+
+            if (matcher) {
+                return matcher[0][1]
+            }
+        }
+    }
+
+    throw new GradleException('No application.properties with a <version> above ' + rootDir +
+            '. The jars would claim a version HOPPER never released.')
 }()
 
 subprojects {
