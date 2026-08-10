@@ -144,6 +144,6 @@ public final class Config {
             + "# another mod manager's - is never replaced and never deleted. Delete that file to\n"
             + "# revoke the claim.\n"
             + "#\n"
-            + "# Ignored on Forge, NeoForge and Quilt: those load out of hoppermods/ directly.\n"
+            + "# Ignored on Forge and NeoForge: those load out of hoppermods/ directly.\n"
             + MIRROR_MODS + "=false\n";
 }

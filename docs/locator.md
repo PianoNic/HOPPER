@@ -359,10 +359,10 @@ the launch, and HOPPER's rule is that a failed sync never does.
 
 `getPriority()` must return above `IOrderedProvider.HIGHEST_SYSTEM_PRIORITY` (1000).
 `ServiceLoaderUtil.loadServices` sorts by `getPriority()` reversed, higher runs earlier, and
-`hopper/` has to be populated before `ModsFolderLocator` walks `mods/`.
+`hoppermods/` has to be populated before `ModsFolderLocator` walks `mods/`.
 
 Do not use `IModFileCandidateLocator.forFolder(File, String)` - it returns a `ModsFolderLocator`
-that would scan `hopper/` before the sync had a chance to run.
+that would scan `hoppermods/` before the sync had a chance to run.
 
 `Automatic-Module-Name` is needed on 21.1.x, where the jar becomes a JPMS automatic module on the
 ModLauncher SERVICE layer and `META-INF/services` is read off the derived module descriptor. It is
@@ -395,18 +395,17 @@ Declared in `src/main/resources/fabric.mod.json`, not a services file, because K
 literal key `preLaunch`. The manifest carries nothing beyond `Implementation-Version`.
 
 **This is the one adapter that writes into a directory the player owns**, and therefore the one that
-carries its own tests rather than leaning on hopper-core's. Syncing into `hopper/` alone is useless
-on Fabric - nothing scans that directory, so a restart would change nothing - so this adapter, and
-only this adapter, also reconciles `mods/`. The core still syncs `hopper/` with no `mods/` write in
-it, and a `ModsFolderMirror` owns exactly the filenames it records in `hopper/mods-mirror.txt`. A
-file in `mods/` that is not in that list is never touched.
+carries its own tests rather than leaning on hopper-core's. Syncing into `hoppermods/` alone is
+useless on Fabric - nothing scans that directory, so a restart would change nothing - so this
+adapter, and only this adapter, also reconciles `mods/`. The core still syncs `hoppermods/` with no
+`mods/` write in it, and a `ModsFolderMirror` owns exactly the filenames it records in
+`hoppermods/mods-mirror.txt`. A file in `mods/` that is not in that list is never touched.
 
 And it is opt-in. Writing into a player's directory is the one thing in this project that can
 destroy something of theirs, so it needs a human to have said yes. That is `fabricMirrorMods=true`
 in `config/hopper.properties`, read from the player's own file and never from the server-written
-properties embedded in the jar. Off, the adapter still syncs `hopper/` and then states plainly
-that nothing
-will load and which line to add. See `Config.mirrorMods()`.
+properties embedded in the jar. Off, the adapter still syncs `hoppermods/` and then says
+plainly that nothing will load and which line to add. See `Config.mirrorMods()`.
 
 ## hopper-quilt
 
