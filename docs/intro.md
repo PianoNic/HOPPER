@@ -54,17 +54,17 @@ not used.
 
 | Loader | Same launch |
 | --- | --- |
-| Forge 1.12.2 and older | yes |
-| Forge 1.13 to 1.16.x | yes |
-| Forge 1.17 and 1.18 | yes |
+| Forge 1.12.x | yes |
+| Forge 1.14.4 to 1.16.5 | yes |
+| Forge 1.17.1 to 1.18.2 | yes |
 | Forge 1.19 and newer | yes |
-| NeoForge 1.20.2+ | yes |
-| Quilt | opt-in |
+| NeoForge 21.1 and newer | yes |
+| Quilt | no, sync then restart |
 | Fabric | no, sync then restart |
 
 Fabric exposes no public hook that runs before mod discovery, so HOPPER syncs from the `preLaunch`
 entrypoint and tells the player a restart is needed when something changed. Quilt has the right hook
-but refuses to parse a third-party plugin jar unless the player sets
+and still will not load a third-party plugin that uses it, with or without
 `-Dloader.experimental.allow_loading_plugins=true`, so a Quilt server gets the Fabric jar and Quilt
 runs it through its Fabric compatibility. See [how it works](/how-it-works#loader-coverage).
 
