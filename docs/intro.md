@@ -3,31 +3,31 @@
 HOPPER is a self-hosted web application that keeps every player on a Minecraft server running the
 same mods.
 
-Everyone on a server needs the same mod set. Normally that means zipping a folder, posting it in
-Discord, and chasing the one person who missed an update. HOPPER makes the server the source of
-truth and has each player's game pull from it at launch.
+Everyone on a Minecraft server needs the same mod set. Normally that means zipping a folder,
+posting it in Discord, and chasing the one person who missed an update. HOPPER makes one list the
+source of truth: you keep it in the dashboard, and each player's game pulls from it at launch.
 
 - **One list, every client**. Add a mod in the dashboard and it is on every client the next time
   they start. On Forge and NeoForge, in the same launch - no restart.
-- **One jar, once**. Players install a single jar that already carries its server's URL and token.
-  It works under Prism, CurseForge and the vanilla launcher alike.
+- **One jar, once**. Players install a single jar that already carries the address it syncs from
+  and its server's token. It works under Prism, CurseForge and the vanilla launcher alike.
 - **Your dedicated server too**. The same jar keeps it in sync from the same list.
-- **Sides are respected**. A minimap belongs on clients, a permissions mod on the server. Mark
-  which, and each side only receives what belongs to it.
+- **Sides are respected**. A minimap belongs on clients, a permissions mod on the dedicated server.
+  Mark which, and each side only receives what belongs to it.
 - **Your own mods are left alone**. Downloads land in `hoppermods/`, never in `mods/`. HOPPER never
   deletes a jar it did not download.
-- **Nothing blocks the launch**. Offline, or the server is down, the game starts on the last good
+- **Nothing blocks the launch**. Offline, or HOPPER is down, the game starts on the last good
   set.
 
 There is no limit to the number of servers, mods or players, and there never will be.
 
 ## Architecture
 
-HOPPER is two things: a server you run, and a jar your players install.
+HOPPER is two things: a web application you host, and a jar your players install.
 
 | Component | Role |
 | --- | --- |
-| **The server** | Web application hosting the dashboard, the API and the mod blobs. It is the source of truth for what each server should run. |
+| **HOPPER** | The web application: the dashboard, the API and the mod blobs. It holds the list each Minecraft server should be running. |
 | **The locator** | A small jar in each client's `mods/`. It reads the manifest, downloads what is missing, and hands the jars to the loader. |
 
 The locator is one adapter per loader generation over a shared core. Only the adapter knows what

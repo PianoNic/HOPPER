@@ -3,7 +3,7 @@
 </p>
 <p align="center">
   <strong>HOPPER</strong><br/>
-  One list on the server. Every client in sync, before the game starts.
+  One list in the dashboard. Every client in sync, before the game starts.
 </p>
 <p align="center">
   <a href="https://github.com/PianoNic/HOPPER"><img src="https://badgetrack.pianonic.ch/badge?tag=hopper&label=visits&color=0b1220&style=flat" alt="visits" /></a>
@@ -17,9 +17,9 @@
 
 Everyone on a Minecraft server needs the same mods. Normally that means zipping a folder, posting it in Discord, and chasing the one person who missed an update.
 
-HOPPER makes the server itself the source of truth, and each player's game pulls from it at launch. Add a mod in the dashboard and it is on every client the next time they start - no zip files, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
+HOPPER makes one list the source of truth: you keep it in the dashboard, and each player's game pulls from it at launch. Add a mod and it is on every client the next time they start - no zip files, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
 
-The same jar goes on your dedicated server, which stays in sync from the same list. Mods that belong on only one of them - a minimap on the clients, a permissions plugin on the server - are marked as such and sent only where they belong.
+The same jar goes on your dedicated server, which stays in sync from the same list. Mods that belong on only one of them - a minimap on the clients, a permissions plugin on the dedicated server - are marked as such and sent only where they belong.
 
 ## Screenshots
 
