@@ -20,7 +20,7 @@ One adapter per loader generation, plus a shared core.
 | `hopper-forge-modern` | Forge 1.19 - 26.2 | 17 | `META-INF/services/...forgespi.locating.IModLocator` |
 | `hopper-neoforge` | NeoForge 21.1.x - 26.2.x | 21 | `META-INF/services/...locating.IModFileCandidateLocator` |
 | `hopper-fabric` | Fabric 1.14+ | 8 | `fabric.mod.json` `preLaunch` entrypoint |
-| `hopper-quilt` | Quilt, opt-in | 8 | `quilt.mod.json` `experimental_quilt_loader_plugin` |
+| `hopper-quilt` | Quilt, built but not served | 8 | `quilt.mod.json` `experimental_quilt_loader_plugin` |
 
 `hopper-quilt` ships under a name that is not its module name, which is why the root `templates`
 task holds a map rather than a list.
@@ -410,7 +410,7 @@ will load and which line to add. See `Config.mirrorMods()`.
 
 ## hopper-quilt
 
-Opt-in, and the archive name has to shout it.
+Built, never served, and the archive name has to shout it.
 
 `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin` is a real, documented plugin API - the right shape
 for HOPPER, with `QuiltPluginContext.addFolderToScan(Path)` doing exactly what is needed. The catch

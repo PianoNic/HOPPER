@@ -23,7 +23,7 @@ features:
   - title: No restart
     details: On Forge and NeoForge, mods download before the loader scans for them, so they load in the same launch.
   - title: Every loader generation
-    details: Forge 1.12.2 through current, NeoForge, Fabric and Quilt, from one shared core and a thin adapter each.
+    details: Forge 1.12.x through current, NeoForge, Fabric and Quilt, from one shared core and a thin adapter each.
   - title: Zero client config
     details: The generated jar already carries its server's URL and token. Drop it in mods/ and it works.
   - title: Leaves your own mods alone

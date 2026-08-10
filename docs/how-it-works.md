@@ -93,15 +93,17 @@ differs in each, so one jar cannot serve them all:
 
 | Loader | Same launch | Side detected from | Hook |
 | --- | --- | --- | --- |
-| Forge 1.16.x | yes | `Environment.Keys.DIST` | `forgespi.locating.IModLocator` (SPI 3.2/4.0), `scanMods()` returns `List<IModFile>` |
-| Forge 1.17 to 1.20.1 | yes | `Environment.Keys.DIST` | same class name, SPI 7.0, `scanMods()` returns `List<ModFileOrException>` |
-| NeoForge 1.20.2+ | yes | `FMLEnvironment.dist` | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
-| Quilt | opt-in | `MinecraftQuiltLoader.getEnvironmentType()` | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
+| Forge 1.14.4 to 1.16.5 | yes | `Environment.Keys.DIST` | `forgespi.locating.IModLocator` (SPI 3.2 and below), `scanMods()` returns `List<IModFile>` |
+| Forge 1.17.1 to 1.18.2 | yes | `Environment.Keys.DIST` | same class name, SPI 4.0, still `List<IModFile>` but no `findPath` or `findManifest` |
+| Forge 1.19 to 26.2 | yes | `Environment.Keys.DIST` | same class name again, SPI 6.0+, `extends IModProvider` and `scanMods()` returns `List<ModFileOrException>` |
+| NeoForge 21.1 and newer | yes | `FMLEnvironment.dist` | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
+| Quilt | **no** | `MinecraftQuiltLoader.getEnvironmentType()` | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
 | Fabric | **no** | `FabricLoader.getEnvironmentType()` | see below |
-| Forge 1.12.2 and older | yes | `FMLLaunchHandler.side()` | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
+| Forge 1.12.x | yes | `FMLLaunchHandler.side()` | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
 
-Forge keeps the same class name across generations while changing the signature, so those two are
-binary incompatible. A single class cannot implement both.
+Forge keeps the same class name across all three generations while changing the signature, so they
+are binary incompatible with each other. One class cannot implement more than one of them, which is
+why there is an adapter per generation rather than a jar with three branches.
 
 Only the adapter is loader-specific. `Syncer` imports nothing from any loader, which is what makes
 adding one cheap.
@@ -160,13 +162,15 @@ restart is needed when something changed. AutoModpack does the same, for the sam
 Quilt has the right hook and a declaration it refuses to read. `V1ModMetadataImpl` throws a
 `ParseException` the moment it sees the `experimental_quilt_loader_plugin` key while
 `-Dloader.experimental.allow_loading_plugins=true` is unset. That is a hard failure, not a
-degradation.
+degradation, and setting the flag only moves it: parsing then succeeds and Quilt's own plugin
+classloader refuses the classes instead. Neither way boots a client.
 
 So a Quilt server is served `hopper-fabric.jar`. Quilt runs Fabric mods through
 `StandardFabricPlugin`, the `preLaunch` entrypoint works unchanged, and the player gets the Fabric
 promise: it works, it needs a restart.
 
-The plugin jar is built, tested and shipped as `hopper-quilt-plugin.jar` all the same.
+The plugin jar is built and tested as `hopper-quilt-plugin.jar` all the same, and nothing serves it.
+It is correct code waiting on Quilt. [The measurements](/locator#hopper-quilt).
 
 ## Limits
 

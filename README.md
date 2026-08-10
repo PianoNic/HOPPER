@@ -19,7 +19,7 @@ Everyone on a Minecraft server needs the same mods. Normally that means zipping 
 
 HOPPER makes the server itself the source of truth, and each player's game pulls from it at launch. Add a mod in the dashboard and it is on every client the next time they start - no zip files, no "did you update yet?", and on Forge and NeoForge no restart either. Your friends install a single jar once, and it works under Prism, CurseForge and the vanilla launcher alike.
 
-The same jar goes on your dedicated server, which stays in sync from the same list. Mods that belong on only one of them - a minimap on a server, a permissions plugin on a client - are marked as such and sent only where they belong.
+The same jar goes on your dedicated server, which stays in sync from the same list. Mods that belong on only one of them - a minimap on the clients, a permissions plugin on the server - are marked as such and sent only where they belong.
 
 ## Screenshots
 
@@ -46,7 +46,7 @@ The same jar goes on your dedicated server, which stays in sync from the same li
 
 - **No restart**: on Forge and NeoForge, mods are downloaded before the loader scans for them, so they load in the same launch. See [how it works](docs/how-it-works.md).
 - **A face per server**: upload an icon, or let a Prism import adopt the one it already carries. Stored at 64x64, the size Minecraft uses, so an existing `server-icon.png` works as it is.
-- **Every loader generation**: Forge 1.12.2 through current, NeoForge, Fabric and Quilt, from one shared core plus a thin adapter each.
+- **Every loader generation**: Forge 1.12.x through current, NeoForge, Fabric and Quilt, from one shared core plus a thin adapter each.
 - **Launcher-agnostic**: one jar in `mods/`, no pre-launch command and no custom JVM arguments.
 - **Zero client config**: the generated jar already carries its server's URL and token.
 - **Leaves your own mods alone**: downloads land in `hoppermods/`, never in `mods/`. A required mod already installed by hand is moved over rather than downloaded again, and a jar HOPPER did not download is parked in `hoppermods/parked/` rather than deleted, then cleared three days later.
@@ -61,15 +61,15 @@ The same jar goes on your dedicated server, which stays in sync from the same li
 
 | Loader | Same launch |
 | --- | --- |
-| Forge 1.12.2 and older | yes |
-| Forge 1.13 to 1.16.x | yes |
-| Forge 1.17 and 1.18 | yes |
+| Forge 1.12.x | yes |
+| Forge 1.14.4 to 1.16.5 | yes |
+| Forge 1.17.1 to 1.18.2 | yes |
 | Forge 1.19 and newer | yes |
-| NeoForge 1.20.2+ | yes |
-| Quilt | opt-in, see below |
+| NeoForge 21.1 and newer | yes |
+| Quilt | no, sync then restart |
 | Fabric | no, sync then restart |
 
-Fabric has no public hook that runs before mod discovery, so HOPPER syncs from the `preLaunch` entrypoint and tells the player a restart is needed when something changed. Quilt has the right hook but refuses to parse a plugin jar unless the player sets `-Dloader.experimental.allow_loading_plugins=true`, so a Quilt server gets the Fabric jar by default and the plugin jar only on request. [The details](docs/how-it-works.md#loader-coverage).
+Fabric has no public hook that runs before mod discovery, so HOPPER syncs from the `preLaunch` entrypoint and tells the player a restart is needed when something changed. Quilt has the right hook and still will not load a third-party plugin that uses it, with or without `-Dloader.experimental.allow_loading_plugins=true`, so a Quilt server is served the Fabric jar and Quilt runs it through `quilted_fabric_loader`. [The details](docs/how-it-works.md#loader-coverage).
 
 ## Get started
 

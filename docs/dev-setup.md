@@ -107,6 +107,10 @@ that produces the layout the API reads.
 | Fabric | `hopper-fabric.jar` |
 | Quilt | `hopper-fabric.jar` |
 
+The table is what the code picks, not what works everywhere: 1.13.x lands on the 1.16.5 jar and is
+the one gap, since its forgespi has no `IModLocator` at all. The verified range of each jar is in
+[the locator build](locator.md).
+
 Quilt is served the Fabric jar on purpose. Quilt runs Fabric mods through `StandardFabricPlugin`, so
 the `preLaunch` entrypoint works unchanged. `hopper-quilt-plugin.jar` is built and tested, but it
 hard-fails with a `ParseException` unless the player sets

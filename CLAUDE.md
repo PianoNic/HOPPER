@@ -51,8 +51,10 @@ Use them whenever one exists: `gh issue create`, `gh pr create`, `dotnet new`,
 
 ## Local dev setup
 
-- `compose.yml` runs the whole stack with a `mock-oauth2-server` instead of Keycloak. Dashboard on
-  `:58722`, IdP on `:58538`.
+- `docker compose -f compose.yml -f compose.demo.yml` runs the whole stack with a
+  `mock-oauth2-server` instead of Keycloak. Dashboard on `:58722`, IdP on `:58538`. `compose.yml`
+  alone starts no IdP: it is the real deployment, and the demo overlay is a separate file so a plain
+  `docker compose up -d` cannot pick up a provider that signs a token for anyone who asks.
 - `compose.dev.yml` runs only Postgres (`:5433`) and the IdP (`:58539`); the API and dashboard run on
   the host. Postgres is on 5433 on purpose so it cannot collide with one already running.
 - Postgres 18+ stores its cluster in a major-version subdirectory. The volume must be mounted at
