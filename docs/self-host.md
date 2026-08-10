@@ -62,14 +62,6 @@ docker compose up -d
 
 The dashboard is live at `http://localhost:58722`.
 
-::: warning Postgres 18 mounts at `/var/lib/postgresql`
-Not `/var/lib/postgresql/data`. The 18+ images keep the cluster in a major-version subdirectory and
-restart-loop when the old path is mounted directly, with nothing ever listening.
-:::
-
-The healthcheck is not decoration. `depends_on` alone waits for the process, not for it to accept
-connections.
-
 ## Try it without an IdP
 
 `compose.demo.yml` adds a throwaway OIDC provider, so a fresh checkout can sign in without standing
@@ -133,8 +125,10 @@ What you should see in the server log, before the world loads:
 It uses the same per-server token as the players. On the Clients page it appears as **Dedicated
 server**, because a server has no username to report.
 
-Forge, NeoForge and Fabric dedicated servers are all supported. The Fabric restart caveat applies to
-clients only.
+Forge, NeoForge and Fabric servers are all supported. A Fabric server needs
+`fabricMirrorMods=true` in its `config/hopper.properties` exactly as a Fabric client does, and see
+[Fabric](how-it-works.md#fabric) for why. The restart that costs a player a launch costs you
+nothing, since you are starting the server anyway.
 
 ::: warning Set the side on anything one-sided
 A client-only mod on a dedicated server is at best pointless and at worst a crash on boot. That is

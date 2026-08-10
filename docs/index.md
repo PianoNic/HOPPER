@@ -25,7 +25,7 @@ features:
   - title: Every loader generation
     details: Forge 1.12.x through current, NeoForge, Fabric and Quilt, from one shared core and a thin adapter each.
   - title: Zero client config
-    details: The generated jar already carries its server's URL and token. Drop it in mods/ and it works.
+    details: The generated jar already carries its server's URL and token. Drop it in mods/ and it works. Fabric asks for one line of its own.
   - title: Leaves your own mods alone
-    details: Downloads land in hoppermods/, never in mods/. A jar HOPPER did not download is never deleted.
+    details: Downloads land in hoppermods/, and in mods/ only on Fabric and only once you allow it. A jar HOPPER did not download is never deleted.
 ---

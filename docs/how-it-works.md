@@ -12,12 +12,14 @@ picks those jars up in the same launch.
 That is why there is no restart, and why it does not care which launcher started the game.
 
 A normal `@Mod` runs after the jar scan. On Windows the open jars cannot be replaced, so applying
-files needs a restart and a second process. HOPPER avoids that by never writing into `mods/` at all.
-Downloads land in `hoppermods/`, a directory it owns outright.
+files needs a restart and a second process. HOPPER avoids that by never writing into `mods/`.
+Downloads land in `hoppermods/`, a directory it owns outright. Fabric is the one exception, because
+it is the one loader that will not read anything else - see [Fabric](#fabric) below.
 
 ## The generated jar
 
-A jar is a zip. HOPPER ships one template jar and, on download, copies it and writes a single extra entry into it:
+A jar is a zip. HOPPER ships one template jar per loader generation and, on download, copies the
+one this server's loader needs and writes a single extra entry into it:
 
 ```properties
 # hopper-server.properties
@@ -77,8 +79,8 @@ the other.
   HOPPER downloaded is deleted, since the server still has it. Anything a person put there is moved
   to `hoppermods/parked/` with a `.parked` suffix, where no loader sees it, and deleted three days
   later with a line in the log.
-- HOPPER tells them apart from `hoppermods/downloaded`, written after every sync. Delete that file
-  and HOPPER forgets the claim: everything stale is parked from then on, which is the safe direction
+- HOPPER tells the two apart using `hoppermods/downloaded`, written after every sync. Delete that
+  file and HOPPER forgets the claim: everything stale is parked from then on, which is the safe direction
   to be wrong in.
 - `client-id`, `downloaded`, `mods-mirror.txt` and `parked/` are HOPPER's own bookkeeping and are
   never swept. A leftover `.part` from an interrupted download is.
@@ -97,8 +99,8 @@ differs in each, so one jar cannot serve them all:
 | Forge 1.17.1 to 1.18.2 | yes | `Environment.Keys.DIST` | same class name, SPI 4.0, still `List<IModFile>` but no `findPath` or `findManifest` |
 | Forge 1.19 to 26.2 | yes | `Environment.Keys.DIST` | same class name again, SPI 6.0+, `extends IModProvider` and `scanMods()` returns `List<ModFileOrException>` |
 | NeoForge 21.1 and newer | yes | `FMLEnvironment.dist` | `neoforgespi.locating.IModFileCandidateLocator`, `findCandidates(ILaunchContext, IDiscoveryPipeline)` |
-| Quilt | **no** | `MinecraftQuiltLoader.getEnvironmentType()` | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
-| Fabric | **no** | `FabricLoader.getEnvironmentType()` | see below |
+| Quilt | **no**, opt-in mirror | `MinecraftQuiltLoader.getEnvironmentType()` | `org.quiltmc.loader.api.plugin.QuiltLoaderPlugin`, see below |
+| Fabric | **no**, opt-in mirror | `FabricLoader.getEnvironmentType()` | see below |
 | Forge 1.12.x | yes | `FMLLaunchHandler.side()` | `IFMLLoadingPlugin` coremod, a separate codebase rather than an adapter |
 
 Forge keeps the same class name across all three generations while changing the signature, so they
@@ -110,8 +112,9 @@ adding one cheap.
 
 ## Sides
 
-The same jar runs on a player's machine and on a dedicated server. The adapter asks its loader which
-side it is on and requests the matching set.
+The same jar runs on a player's machine and on the server they connect to. "Dedicated server"
+below means that second one: the always-on install everybody joins, rather than a world someone
+opened to LAN. The adapter asks its loader which side it is on and requests the matching set.
 
 Every mod carries one of three values. `Both` is the default, so a server that has never classified
 anything behaves as it always did:
@@ -156,6 +159,20 @@ Everything else in Fabric's discovery lives under the internal `net.fabricmc.loa
 
 So Fabric gets the honest version: sync from the `preLaunch` entrypoint, and tell the player a
 restart is needed when something changed. AutoModpack does the same, for the same reason.
+
+Fabric also reads nothing but `mods/`, so a sync into `hoppermods/` on its own would load nothing
+ever. The Fabric jar therefore copies what it downloaded into `mods/`, and that is the one place in
+HOPPER that writes into a directory the player owns - which is why it does not do it unasked:
+
+```properties
+# config/hopper.properties
+fabricMirrorMods=true
+```
+
+Left unset, the sync still runs and the log says plainly that nothing will load and which line to
+add. Set, the jar removes only the filenames it recorded in `hoppermods/mods-mirror.txt`, so a mod
+you put in `mods/` yourself is never touched. A Quilt install is served the Fabric jar, so it needs
+the same line.
 
 ### Quilt
 
