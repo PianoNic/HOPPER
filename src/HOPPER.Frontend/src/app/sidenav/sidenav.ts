@@ -20,6 +20,7 @@ import {
   lucideMonitor,
   lucideMoon,
   lucidePackage,
+  lucidePlus,
   lucideSearch,
   lucideServer,
   lucideSun,
@@ -32,6 +33,7 @@ import { ThemeService, ThemeMode } from '../shared/services/theme.service';
 import { AppService } from '../api/api/app.service';
 import { ServersService } from '../api/api/servers.service';
 import { ServerChanged } from '../shared/services/server-changed';
+import { ServerDialogService } from '../servers/server-dialog';
 import { ServerIcon } from '../shared/components/server-icon/server-icon';
 import { toNumber } from '../shared/utils/format';
 import { ServerDto } from '../api/model/serverDto';
@@ -53,6 +55,7 @@ const SERVER_ROUTE = /^\/server\/([^/]+)/;
       lucideMonitor,
       lucideMoon,
       lucidePackage,
+      lucidePlus,
       lucideSearch,
       lucideServer,
       lucideSun,
@@ -70,6 +73,7 @@ export class Sidenav {
   private readonly destroyRef = inject(DestroyRef);
   private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
+  private readonly serverDialog = inject(ServerDialogService);
 
   private static readonly STORAGE_KEY = 'hopper.sidebar.open';
 
@@ -135,6 +139,11 @@ export class Sidenav {
     ),
     { initialValue: [] as ServerDto[] },
   );
+
+  protected async createServer(): Promise<void> {
+    const created = await this.serverDialog.open({ mode: 'create' });
+    if (created) void this.router.navigate(['/server', created.id]);
+  }
 
   protected switchServer(id: string): void {
     const url = this.currentUrl();

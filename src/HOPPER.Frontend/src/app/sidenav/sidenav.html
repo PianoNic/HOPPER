@@ -17,6 +17,17 @@
             </div>
           </a>
         </li>
+        <li hlmSidebarMenuItem>
+          <button
+            hlmSidebarMenuButton
+            type="button"
+            (click)="createServer()"
+            class="!w-56 mx-auto bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+          >
+            <ng-icon name="lucidePlus" />
+            <span>New server</span>
+          </button>
+        </li>
       </ul>
     </hlm-sidebar-header>
     <hlm-sidebar-content>
