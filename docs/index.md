@@ -4,7 +4,7 @@ layout: home
 hero:
   name: HOPPER
   text: Every client in sync, before the game starts.
-  tagline: Self-hosted mod sync for Minecraft. One list on the server, one jar in mods/, and nobody has to be told to update.
+  tagline: Self-hosted mod sync for Minecraft. One list in the dashboard, one jar in mods/, and nobody has to be told to update.
   image:
     src: /logo.svg
     alt: HOPPER
