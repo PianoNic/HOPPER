@@ -170,6 +170,22 @@
   display: none;
 }
 
+/* Every sidenav row is pinned to w-56 so the open rail lines up under the header. Collapsed, that
+   width is what keeps a label beside the icon instead of letting the button clip it, and it leaves
+   the icon sitting off-centre in the rail. Unlayered and !important because the template's own
+   !w-56 is an important utility, and important declarations in a layer lose to unlayered ones. */
+[data-collapsible='icon'] [data-sidebar='menu-button'] {
+  width: 2rem !important;
+  justify-content: center;
+}
+
+/* Centring only helps once the row is down to its icon: a label and a count badge still in the flow
+   make the content wider than the button, and then centring is what pushes the icon out of the
+   clipped box and the label into it. */
+[data-collapsible='icon'] [data-sidebar='menu-button'] > span {
+  display: none;
+}
+
 @keyframes hopper-spin {
   to {
     transform: rotate(360deg);
