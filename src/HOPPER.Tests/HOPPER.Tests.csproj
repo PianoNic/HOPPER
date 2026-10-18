@@ -10,7 +10,7 @@
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.45.29" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
     <!-- Boots the real API in-process so the wire format and the auth split are asserted against
          the pipeline the Forge locator actually talks to, not against a hand-rolled stand-in. -->
