@@ -22,6 +22,8 @@ services:
       dockerfile: src/HOPPER.API/Dockerfile
     container_name: hopper
     restart: unless-stopped
+    # An init as PID 1 reaps any orphaned child (dotnet does not).
+    init: true
     env_file:
       - path: .env
         required: false
