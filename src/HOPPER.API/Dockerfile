@@ -54,6 +54,8 @@ USER app
 # inherits it. start-period covers the migrations that run at boot. curl ships in the base image.
 # Note that Docker does not restart an unhealthy container on its own - this reports, it does not
 # repair.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3     CMD curl -fsS http://localhost:8080/health/ready || exit 1
+# Exec form, and curl gives up before Docker's timeout: through a shell, a timed-out check killed
+# only the shell, and the orphaned curl became a zombie under dotnet (PID 1, which never reaps).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3     CMD ["curl", "-fsS", "--max-time", "4", "http://localhost:8080/health/ready"]
 
 ENTRYPOINT ["dotnet", "HOPPER.API.dll"]
